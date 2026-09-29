@@ -26,9 +26,29 @@ const ReservationSource = {
       confirmationNo: r.confirmation_no, guestName: r.guest_name, arrivalDate: r.arrival_date, arrivalTime: r.arrival_time,
       departureDate: r.departure_date, roomType: r.room_type, adults: r.adults, children: r.children, phone: r.phone, email: r.email,
       nights: r.nights, ratePlan: r.rate_plan, mealPlan: r.meal_plan, nationality: r.nationality, vipCode: r.vip_code, specialRequests: r.special_requests,
+      suggestedLanguage: suggestLanguage(r.nationality),
     };
   },
 };
+
+const LANGUAGE_BY_COUNTRY = (function () {
+  const m = {};
+  const put = function (lang, list) { list.split(',').forEach(function (c) { m[c.trim().toUpperCase()] = lang; }); };
+  put('ar', 'AE,ARE,SA,SAU,QA,QAT,KW,KWT,BH,BHR,OM,OMN,JO,JOR,LB,LBN,SY,SYR,IQ,IRQ,EG,EGY,LY,LBY,TN,TUN,DZ,DZA,MA,MAR,SD,SDN,YE,YEM,PS,PSE,' +
+    'UNITED ARAB EMIRATES,UAE,SAUDI ARABIA,QATAR,KUWAIT,BAHRAIN,OMAN,JORDAN,LEBANON,SYRIA,IRAQ,EGYPT,LIBYA,TUNISIA,ALGERIA,MOROCCO,SUDAN,YEMEN,PALESTINE');
+  put('ru', 'RU,RUS,BY,BLR,KZ,KAZ,KG,KGZ,RUSSIA,RUSSIAN FEDERATION,BELARUS,KAZAKHSTAN,KYRGYZSTAN');
+  put('de', 'DE,DEU,AT,AUT,CH,CHE,GERMANY,AUSTRIA,SWITZERLAND');
+  return m;
+})();
+
+/** A default only: Reception can always change the guest's language. */
+function suggestLanguage(nationality) {
+  return LANGUAGE_BY_COUNTRY[String(nationality || '').trim().toUpperCase()] || 'en';
+}
+function normLanguage(v, fallback) {
+  const l = String(v || '').trim().toLowerCase();
+  return LANGUAGES.indexOf(l) !== -1 ? l : (fallback || 'en');
+}
 
 const Links = {
   base: function () {
@@ -59,7 +79,7 @@ const Waiting = (function () {
       arrivalDate: r.arrival_date, arrivalTime: r.arrival_time, departureDate: r.departure_date, roomType: r.room_type,
       adults: r.adults, children: r.children, phone: r.phone, email: r.email,
       luggageTag: r.luggage_tag, associate: r.associate, preferences: r.preferences, remarks: r.remarks,
-      roomNumber: r.room_number, status: r.status, priority: !!r.priority, cancelReason: r.cancel_reason,
+      roomNumber: r.room_number, status: r.status, priority: !!r.priority, cancelReason: r.cancel_reason, language: normLanguage(r.language),
       timestamps: {
         guestArrival: r.guest_arrival_at, created: r.created_at, roomAssigned: r.room_assigned_at, preparationStarted: r.preparation_started_at,
         roomReady: r.room_ready_at, guestNotified: r.guest_notified_at, guestReturned: r.guest_returned_at, completed: r.completed_at, cancelled: r.cancelled_at,
@@ -133,6 +153,7 @@ const Waiting = (function () {
         room_type: res.roomType, adults: res.adults, children: res.children, phone: res.phone, email: res.email,
         luggage_tag: clean(input.luggageTag, 40), associate: associate, preferences: clean(input.preferences, 500), remarks: clean(input.remarks, 500),
         room_number: '', status: 'waiting', priority: false, guest_arrival_at: now, created_at: now, created_by: user.id,
+        language: normLanguage(input.language, suggestLanguage(res.nationality)),
       });
       log(id, '', 'waiting', '', user, source === 'manual' ? 'Reservation entered manually' : '');
       Store.bump();
@@ -147,7 +168,7 @@ const Waiting = (function () {
       if (!isActive(r)) throw HttpError(409, 'This Waiting Guest is closed');
       const associate = clean(input.associate, 80);
       if (!associate) throw HttpError(400, 'Associate name is required');
-      const row = Store.update('WaitingGuests', r._row, { luggage_tag: clean(input.luggageTag, 40), associate: associate, preferences: clean(input.preferences, 500), remarks: clean(input.remarks, 500) });
+      const row = Store.update('WaitingGuests', r._row, { luggage_tag: clean(input.luggageTag, 40), associate: associate, preferences: clean(input.preferences, 500), remarks: clean(input.remarks, 500), language: normLanguage(input.language, r.language || 'en') });
       log(id, r.status, r.status, r.room_number, user, 'Details edited');
       Store.bump();
       return toStaff(row);
@@ -277,7 +298,7 @@ const Waiting = (function () {
     const r = Store.find('WaitingGuests', 'qr_token', token);
     if (!r) return null;
     const phase = r.status === 'completed' ? 'completed' : r.status === 'cancelled' ? 'cancelled' : (r.status === 'ready' || r.status === 'returned') ? 'ready' : 'preparing';
-    return { wgNumber: r.wg_number, guestName: r.guest_name, confirmationNo: r.confirmation_no, roomType: r.room_type, arrivalDate: r.arrival_date, arrivalTime: r.arrival_time, departureDate: r.departure_date, phase: phase, readyAt: r.room_ready_at };
+    return { wgNumber: r.wg_number, guestName: r.guest_name, confirmationNo: r.confirmation_no, roomType: r.room_type, arrivalDate: r.arrival_date, arrivalTime: r.arrival_time, departureDate: r.departure_date, phase: phase, readyAt: r.room_ready_at, language: normLanguage(r.language) };
   }
 
   /** Real, computed metrics only. Nothing is estimated or fabricated. */
@@ -303,7 +324,7 @@ const Waiting = (function () {
 
   function exportCsv() {
     const cols = ['wg_number', 'source', 'confirmation_no', 'guest_name', 'arrival_date', 'departure_date', 'room_type', 'adults', 'children', 'luggage_tag', 'associate', 'preferences', 'remarks',
-      'room_number', 'status', 'cancel_reason', 'guest_arrival_at', 'created_at', 'room_assigned_at', 'preparation_started_at', 'room_ready_at', 'guest_notified_at', 'guest_returned_at', 'completed_at', 'cancelled_at'];
+      'language', 'room_number', 'status', 'cancel_reason', 'guest_arrival_at', 'created_at', 'room_assigned_at', 'preparation_started_at', 'room_ready_at', 'guest_notified_at', 'guest_returned_at', 'completed_at', 'cancelled_at'];
     const lines = [csvLine(cols)];
     Store.all('WaitingGuests').sort(byAge).forEach(function (r) { lines.push(csvLine(cols.map(function (c) { return r[c]; }))); });
     return lines.join('\r\n');

@@ -6,7 +6,7 @@
 <title>Waiting Guest</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,500;8..60,600&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,500;8..60,600&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Noto+Sans+Arabic:wght@400;600;700&display=swap">
 <style>
 
 /* Design tokens are inherited from Room Guide (same hospitality product family). */
@@ -407,13 +407,27 @@ body { background: var(--paper); }
 .tile .tt { font-weight: 700; font-size: 15.5px; flex: 1; }
 .tile .chev { transition: transform .25s var(--ease); color: var(--ink-soft); }
 .tile[open] .chev { transform: rotate(180deg); }
-.tile .body { padding: 0 16px 16px 72px; color: var(--ink-soft); font-size: 14px; line-height: 1.55; animation: fade .3s; }
+.tile .body { padding: 0 16px 16px 16px; padding-inline-start: 72px; padding-inline-end: 16px; color: var(--ink-soft); font-size: 14px; line-height: 1.55; animation: fade .3s; }
 .tile .soon { display: inline-block; margin-top: 8px; font-size: 10.5px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--bronze-deep); background: var(--bronze-soft); padding: 2px 8px; border-radius: 6px; }
 .notice { margin: 24px 4px 0; font-size: 12px; color: var(--ink-soft); text-align: center; }
 .err-view { text-align: center; padding: 60px 20px; }
 .err-view h1 { font-family: "Source Serif 4", Georgia, serif; font-size: 26px; margin-bottom: 8px; }
 .conn { position: fixed; left: 50%; transform: translateX(-50%); bottom: 14px; background: var(--ink); color: var(--paper); padding: 8px 14px; border-radius: 18px; font-size: 12.5px; font-weight: 600; z-index: 20; }
 @media (max-width: 360px) { .links { grid-template-columns: 1fr; } .progress .p { width: 64px; } }
+
+/* language switcher */
+.lang { display: flex; gap: 6px; justify-content: center; flex-wrap: wrap; margin: 0 0 14px; }
+.lang button { border: 1px solid var(--line); background: var(--panel); color: var(--ink-soft); padding: 7px 13px; min-height: 36px; border-radius: 18px; font-size: 13px; font-weight: 600; cursor: pointer; transition: all .13s; }
+.lang button:hover { border-color: var(--bronze); }
+.lang button.on { background: var(--bronze); border-color: var(--bronze); color: #fff; }
+html[data-theme="dark"] .lang button.on { color: #1b140c; }
+
+/* right-to-left (Arabic): joined letters must not be letter-spaced or upper-cased */
+html[lang="ar"] .g-shell, html[lang="ar"] .g-shell * { letter-spacing: 0 !important; text-transform: none !important; font-family: "Noto Sans Arabic", "Plus Jakarta Sans", system-ui, sans-serif; }
+html[lang="ar"] .hero h1, html[lang="ar"] .sec-title { line-height: 1.35; }
+html[lang="ru"] .g-shell .hero h1 { font-size: clamp(28px, 8vw, 36px); }
+html[dir="rtl"] .tile .chev { margin-inline-start: auto; }
+html[dir="rtl"] .g-shell .kv > div { text-align: start; }
 
 </style>
 </head>
@@ -761,9 +775,10 @@ WG.views.reception = function (root, user) {
 
   /* ---------- shared operational fields ---------- */
   const rememberedAssociate = () => { try { return localStorage.getItem(ASSOCIATE_KEY) || ''; } catch (e) { return ''; } };
-  const opFields = (associate) => `<div class="form-grid">
+  const opFields = (associate, lang = 'en') => `<div class="form-grid">
     <label class="field"><span>Luggage tag <em class="opt">(optional)</em></span><input class="in" id="fTag" maxlength="40" autocomplete="off"></label>
     <label class="field"><span>Associate name</span><input class="in" id="fAssoc" maxlength="80" value="${esc(associate)}" autocomplete="off" required><span class="field-error" id="assocErr" hidden>Enter your name</span></label>
+    <label class="field full"><span>Guest language <em class="opt">(for their QR page)</em></span><select class="in" id="fLang">${langOptions(lang)}</select></label>
     <label class="field full"><span>Guest preferences <em class="opt">(optional)</em></span><textarea class="in" id="fPref" maxlength="500" rows="2"></textarea></label>
     <label class="field full"><span>Remarks <em class="opt">(optional)</em></span><textarea class="in" id="fRem" maxlength="500" rows="2"></textarea></label></div>`;
 
@@ -790,7 +805,7 @@ WG.views.reception = function (root, user) {
           ${r.specialRequests ? `<div style="grid-column:1/-1"><span>Reservation requests</span><b>${esc(r.specialRequests)}</b></div>` : ''}
         </div><hr>
         <div class="auto-note">${icon('check')} Phone, email, Waiting Guest number and QR are filled in automatically.</div>
-        ${opFields(associate)}
+        ${opFields(associate, r.suggestedLanguage)}
         <div class="banner err" id="formErr" role="alert" hidden style="margin-top:14px"></div>
         <div class="actions"><button class="btn btn-primary" id="createBtn" type="submit">${icon('plus')} Create Waiting Guest</button><button class="btn btn-ghost" type="button" id="cancelBtn">Cancel</button></div>
       </form>`;
@@ -848,7 +863,7 @@ WG.views.reception = function (root, user) {
     try {
       try { localStorage.setItem(ASSOCIATE_KEY, assoc); } catch (e) { /* ignore */ }
       const { waitingGuest: g } = await api('POST', '/api/waiting-guests', {
-        confirmationNo: no, associate: assoc, luggageTag: $('#fTag').value, preferences: $('#fPref').value, remarks: $('#fRem').value, manual,
+        confirmationNo: no, associate: assoc, luggageTag: $('#fTag').value, preferences: $('#fPref').value, remarks: $('#fRem').value, language: $('#fLang').value, manual,
       });
       S.selectedId = null; // keep the success panel; live refresh must not replace it
       await showQr(g, true);
@@ -874,7 +889,7 @@ WG.views.reception = function (root, user) {
       <div><b>${esc(g.guestName)}</b> · ${esc(g.confirmationNo)}</div>
       <div class="muted" style="margin-top:6px">${fresh ? `Now in the Rooms Controller queue. Waiting timer started at ${fmtClock(g.timestamps.created)}.` : `Status: ${esc(STATUS_LABEL[g.status])}`}</div>
       <div class="qr" id="qrBox" aria-label="Guest QR code"><div class="skeleton" style="aspect-ratio:1"></div></div>
-      <div class="muted" style="font-size:12.5px">The guest scans this QR to follow their room status. No login needed.</div>
+      <div class="muted" style="font-size:12.5px">The guest scans this QR to follow their room status in <b>${esc(langInfo(g.language).name)}</b>. No login needed. They can switch language on the page.</div>
       <div class="link-row" id="qrActions"><button class="btn btn-primary btn-sm" id="nextBtn">${icon('plus')} New Waiting Guest</button></div></div>`;
     $('#nextBtn').onclick = () => { clearWork(); q.focus(); };
     try {
@@ -912,6 +927,7 @@ WG.views.reception = function (root, user) {
       <div style="display:flex;flex-direction:column;gap:12px;margin-top:12px">
       <label class="field"><span>Luggage tag</span><input class="in" id="eTag" maxlength="40" value="${esc(g.luggageTag)}"></label>
       <label class="field"><span>Associate name</span><input class="in" id="eAssoc" maxlength="80" value="${esc(g.associate)}" required></label>
+      <label class="field"><span>Guest language (QR page)</span><select class="in" id="eLang">${langOptions(g.language)}</select></label>
       <label class="field"><span>Guest preferences</span><textarea class="in" id="ePref" maxlength="500" rows="2">${esc(g.preferences)}</textarea></label>
       <label class="field"><span>Remarks</span><textarea class="in" id="eRem" maxlength="500" rows="2">${esc(g.remarks)}</textarea></label>
       <div class="banner err" id="edErr" hidden></div></div>
@@ -924,7 +940,7 @@ WG.views.reception = function (root, user) {
       e.preventDefault();
       const b = $('#edGo', ov); b.classList.add('loading');
       try {
-        await api('POST', `/api/waiting-guests/${g.id}/details`, { luggageTag: $('#eTag', ov).value, associate: $('#eAssoc', ov).value, preferences: $('#ePref', ov).value, remarks: $('#eRem', ov).value });
+        await api('POST', `/api/waiting-guests/${g.id}/details`, { luggageTag: $('#eTag', ov).value, associate: $('#eAssoc', ov).value, language: $('#eLang', ov).value, preferences: $('#ePref', ov).value, remarks: $('#eRem', ov).value });
         close(); toast('Details updated'); await loadList();
       } catch (ex) { b.classList.remove('loading'); $('#edErr', ov).textContent = ex.message; $('#edErr', ov).hidden = false; }
     });
@@ -946,6 +962,7 @@ WG.views.reception = function (root, user) {
       <div class="kv">
         <div><span>Room type</span><b>${esc(g.roomType)} · ${esc(typeName(g.roomType))}</b></div><div><span>Guests</span><b>${pax(g)}</b></div>
         <div><span>Luggage tag</span><b>${esc(g.luggageTag || '-')}</b></div><div><span>Associate</span><b>${esc(g.associate || '-')}</b></div>
+        <div><span>Guest language</span><b>${esc(langInfo(g.language).name)}</b></div>
         ${g.roomNumber && ready ? `<div><span>Assigned room</span><b>${esc(g.roomNumber)}</b></div>` : ''}
         ${g.preferences ? `<div style="grid-column:1/-1"><span>Preferences</span><b>${esc(g.preferences)}</b></div>` : ''}
         ${g.remarks ? `<div style="grid-column:1/-1"><span>Remarks</span><b>${esc(g.remarks)}</b></div>` : ''}
@@ -1034,7 +1051,7 @@ WG.views.controller = function (root, user) {
     return `<button class="${cls(g)}${isNew ? ' q-new' : ''}" data-id="${g.id}" aria-label="${esc(g.wgNumber)} ${esc(g.guestName)}">
       <span class="bar"></span>${timerHtml(g)}
       <div class="main">
-        <div class="l1"><span class="wg">${esc(g.wgNumber)}</span><span class="nm">${esc(g.guestName)}</span>${g.priority ? '<span class="flag">PRIORITY</span>' : ''}${g.source === 'manual' ? '<span class="type-pill">Manual</span>' : ''}</div>
+        <div class="l1"><span class="wg">${esc(g.wgNumber)}</span><span class="nm">${esc(g.guestName)}</span>${g.priority ? '<span class="flag">PRIORITY</span>' : ''}${g.source === 'manual' ? '<span class="type-pill">Manual</span>' : ''}${g.language && g.language !== 'en' ? `<span class="type-pill" title="Guest language">${esc(langInfo(g.language).name)}</span>` : ''}</div>
         <div class="l2"><span>${icon('key')}${esc(g.confirmationNo)}</span><span class="type-pill">${esc(g.roomType)}</span><span>${icon('user')}${g.adults}A${g.children ? ` ${g.children}C` : ''}</span>
           <span>${icon('clock')}Arr ${esc(g.arrivalTime || fmtClock(g.timestamps.guestArrival))}</span>${g.luggageTag ? `<span>${icon('bag')}${esc(g.luggageTag)}</span>` : ''}<span>${esc(g.associate || '')}</span></div>
         ${g.preferences || g.remarks ? `<div class="l3">${g.preferences ? `<span class="note" title="${esc(g.preferences)}">Pref: ${esc(g.preferences)}</span>` : ''}${g.remarks ? `<span class="note rem" title="${esc(g.remarks)}">Rem: ${esc(g.remarks)}</span>` : ''}</div>` : ''}
@@ -1114,7 +1131,8 @@ WG.views.controller = function (root, user) {
       <div class="d-sec"><div class="kv">
         <div><span>Room type</span><b>${esc(g.roomType)} · ${esc(typeName(g.roomType))}</b></div><div><span>Guests</span><b>${pax(g)}</b></div>
         <div><span>Arrival</span><b>${fmtDate(g.arrivalDate)} ${esc(g.arrivalTime || '')}</b></div><div><span>Departure</span><b>${fmtDate(g.departureDate)}</b></div>
-        <div><span>Luggage tag</span><b>${esc(g.luggageTag || '-')}</b></div><div><span>Associate</span><b>${esc(g.associate || '-')}</b></div></div></div>
+        <div><span>Luggage tag</span><b>${esc(g.luggageTag || '-')}</b></div><div><span>Associate</span><b>${esc(g.associate || '-')}</b></div>
+        <div><span>Guest language</span><b>${esc(langInfo(g.language).name)}</b></div></div></div>
       ${g.preferences || g.remarks ? `<div class="d-sec">${g.preferences ? `<div class="pref-box"><span>Guest preferences</span>${esc(g.preferences)}</div>` : ''}${g.remarks ? `<div class="pref-box rem"><span>Remarks</span>${esc(g.remarks)}</div>` : ''}</div>` : ''}
       <div class="d-sec"><div class="section-label">Room</div>
         ${g.roomNumber ? `<div style="margin-bottom:10px"><span class="muted">Assigned:</span> <b class="serif" style="font-size:22px">${esc(g.roomNumber)}</b></div>` : ''}
@@ -1341,6 +1359,164 @@ WG.views.admin = function (root, user) {
   })();
 };
 
+/* ---- 45-i18n.js ---- */
+'use strict';
+/* Guest page translations. Written for this build: have a native speaker of each
+   language review the wording before guests see it. Every key must exist in every
+   language (a test enforces this). Staff screens are English only. */
+const WG_LANGS = [
+  { code: 'en', name: 'English', dir: 'ltr', locale: 'en-GB' },
+  { code: 'ar', name: 'العربية', dir: 'rtl', locale: 'ar-AE-u-nu-latn' }, // Latin digits, so numbers match the confirmation number
+  { code: 'ru', name: 'Русский', dir: 'ltr', locale: 'ru-RU' },
+  { code: 'de', name: 'Deutsch', dir: 'ltr', locale: 'de-DE' },
+];
+
+const WG_I18N = {
+  en: {
+    roomStatus: 'Room status',
+    preparingTitle: 'Your room is being prepared',
+    readyTitle: 'Your room is ready',
+    readyText: 'Please proceed to Reception to complete your check-in and collect your room keys.',
+    doneEyebrow: 'Check-in complete',
+    doneTitle: 'Welcome. Enjoy your stay',
+    doneText: 'Your check-in is complete. We hope you have a wonderful stay.',
+    cancelEyebrow: 'Waiting record closed',
+    cancelTitle: 'This waiting record is no longer active',
+    cancelText: 'Please speak to a member of the Reception team and they will be happy to help.',
+    wgNumber: 'Waiting Guest number',
+    guest: 'Guest',
+    confirmation: 'Confirmation',
+    roomType: 'Room type',
+    arrival: 'Arrival',
+    stepReceived: 'Received',
+    stepPreparing: 'Preparing',
+    stepReady: 'Ready',
+    whileWait: 'While you wait',
+    around: 'Around the resort',
+    aroundSub: 'Everything you need, whenever you want it.',
+    map: 'Hotel Map',
+    mapSub: 'Find your way around',
+    website: 'Hotel Website',
+    comingSoon: 'Coming soon',
+    detailsSoon: 'Details coming soon',
+    notice: 'This page updates automatically. Keep it open, or scan your QR again at any time.',
+    invalidTitle: 'This link is not valid',
+    invalidText: 'Please ask a member of the Reception team to help you.',
+    reconnecting: 'Reconnecting…',
+    language: 'Language',
+    tabTitle: 'Your room',
+    tabTitleReady: 'Your room is ready',
+  },
+  de: {
+    roomStatus: 'Zimmerstatus',
+    preparingTitle: 'Ihr Zimmer wird vorbereitet',
+    readyTitle: 'Ihr Zimmer ist bereit',
+    readyText: 'Bitte kommen Sie zur Rezeption, um Ihren Check-in abzuschließen und Ihre Zimmerschlüssel abzuholen.',
+    doneEyebrow: 'Check-in abgeschlossen',
+    doneTitle: 'Willkommen. Genießen Sie Ihren Aufenthalt',
+    doneText: 'Ihr Check-in ist abgeschlossen. Wir wünschen Ihnen einen wundervollen Aufenthalt.',
+    cancelEyebrow: 'Wartevorgang beendet',
+    cancelTitle: 'Dieser Wartevorgang ist nicht mehr aktiv',
+    cancelText: 'Bitte wenden Sie sich an das Rezeptionsteam, das Ihnen gerne weiterhilft.',
+    wgNumber: 'Wartenummer',
+    guest: 'Gast',
+    confirmation: 'Bestätigungsnummer',
+    roomType: 'Zimmerkategorie',
+    arrival: 'Anreise',
+    stepReceived: 'Erhalten',
+    stepPreparing: 'In Vorbereitung',
+    stepReady: 'Bereit',
+    whileWait: 'Während Sie warten',
+    around: 'Rund um das Resort',
+    aroundSub: 'Alles, was Sie brauchen, wann immer Sie es möchten.',
+    map: 'Hotelplan',
+    mapSub: 'Finden Sie sich zurecht',
+    website: 'Hotel-Website',
+    comingSoon: 'Demnächst verfügbar',
+    detailsSoon: 'Details folgen in Kürze',
+    notice: 'Diese Seite aktualisiert sich automatisch. Lassen Sie sie geöffnet oder scannen Sie Ihren QR-Code jederzeit erneut.',
+    invalidTitle: 'Dieser Link ist ungültig',
+    invalidText: 'Bitte wenden Sie sich an das Rezeptionsteam.',
+    reconnecting: 'Verbindung wird wiederhergestellt…',
+    language: 'Sprache',
+    tabTitle: 'Ihr Zimmer',
+    tabTitleReady: 'Ihr Zimmer ist bereit',
+  },
+  ru: {
+    roomStatus: 'Статус номера',
+    preparingTitle: 'Ваш номер готовится',
+    readyTitle: 'Ваш номер готов',
+    readyText: 'Пожалуйста, подойдите на стойку регистрации, чтобы завершить заселение и получить ключи от номера.',
+    doneEyebrow: 'Заселение завершено',
+    doneTitle: 'Добро пожаловать! Приятного отдыха',
+    doneText: 'Ваше заселение завершено. Желаем вам прекрасного отдыха.',
+    cancelEyebrow: 'Ожидание завершено',
+    cancelTitle: 'Эта запись ожидания больше не активна',
+    cancelText: 'Пожалуйста, обратитесь к сотрудникам стойки регистрации, они с радостью вам помогут.',
+    wgNumber: 'Номер ожидания',
+    guest: 'Гость',
+    confirmation: 'Номер бронирования',
+    roomType: 'Тип номера',
+    arrival: 'Прибытие',
+    stepReceived: 'Принято',
+    stepPreparing: 'Готовится',
+    stepReady: 'Готов',
+    whileWait: 'Пока вы ждёте',
+    around: 'По территории курорта',
+    aroundSub: 'Всё необходимое, когда это нужно.',
+    map: 'Карта отеля',
+    mapSub: 'Найдите нужное место',
+    website: 'Сайт отеля',
+    comingSoon: 'Скоро будет доступно',
+    detailsSoon: 'Подробности скоро появятся',
+    notice: 'Эта страница обновляется автоматически. Оставьте её открытой или в любой момент отсканируйте QR-код снова.',
+    invalidTitle: 'Ссылка недействительна',
+    invalidText: 'Пожалуйста, обратитесь к сотрудникам стойки регистрации.',
+    reconnecting: 'Повторное подключение…',
+    language: 'Язык',
+    tabTitle: 'Ваш номер',
+    tabTitleReady: 'Ваш номер готов',
+  },
+  ar: {
+    roomStatus: 'حالة الغرفة',
+    preparingTitle: 'جارٍ تجهيز غرفتك',
+    readyTitle: 'غرفتك جاهزة',
+    readyText: 'يرجى التوجه إلى مكتب الاستقبال لإتمام إجراءات تسجيل الوصول واستلام مفاتيح الغرفة.',
+    doneEyebrow: 'اكتمل تسجيل الوصول',
+    doneTitle: 'أهلاً بك، نتمنى لك إقامة سعيدة',
+    doneText: 'اكتمل تسجيل وصولك. نتمنى لك إقامة رائعة.',
+    cancelEyebrow: 'تم إغلاق سجل الانتظار',
+    cancelTitle: 'سجل الانتظار هذا لم يعد نشطاً',
+    cancelText: 'يرجى التواصل مع فريق الاستقبال وسيسعدهم مساعدتك.',
+    wgNumber: 'رقم الانتظار',
+    guest: 'الضيف',
+    confirmation: 'رقم التأكيد',
+    roomType: 'نوع الغرفة',
+    arrival: 'الوصول',
+    stepReceived: 'تم الاستلام',
+    stepPreparing: 'قيد التجهيز',
+    stepReady: 'جاهزة',
+    whileWait: 'أثناء انتظارك',
+    around: 'في أرجاء المنتجع',
+    aroundSub: 'كل ما تحتاجه، متى شئت.',
+    map: 'خريطة الفندق',
+    mapSub: 'اعرف طريقك',
+    website: 'موقع الفندق الإلكتروني',
+    comingSoon: 'قريباً',
+    detailsSoon: 'التفاصيل قريباً',
+    notice: 'يتم تحديث هذه الصفحة تلقائياً. أبقِها مفتوحة أو امسح رمز الاستجابة السريعة مرة أخرى في أي وقت.',
+    invalidTitle: 'هذا الرابط غير صالح',
+    invalidText: 'يرجى مراجعة فريق الاستقبال.',
+    reconnecting: 'جارٍ إعادة الاتصال…',
+    language: 'اللغة',
+    tabTitle: 'غرفتك',
+    tabTitleReady: 'غرفتك جاهزة',
+  },
+};
+
+const langInfo = (code) => WG_LANGS.find((l) => l.code === code) || WG_LANGS[0];
+const langOptions = (selected) => WG_LANGS.map((l) => `<option value="${l.code}" ${l.code === selected ? 'selected' : ''}>${l.name}${l.code === 'en' ? '' : ' · ' + { ar: 'Arabic', ru: 'Russian', de: 'German' }[l.code]}</option>`).join('');
+
 /* ---- 50-guest.js ---- */
 'use strict';
 /* Guest page. No login: the unguessable token in the link is the only credential.
@@ -1363,14 +1539,24 @@ WG.views.guest = function (root, token) {
     chev: '<path d="M6 9l6 6 6-6"/>',
   };
   const svg = (n) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICON[n] || ''}</svg>`;
-  const fmtD = (d) => (d ? new Date(d + 'T00:00:00').toLocaleDateString([], { weekday: 'short', day: 'numeric', month: 'short' }) : '-');
-
+  const fmtD = (d) => (d ? new Date(d + 'T00:00:00').toLocaleDateString(langInfo(lang).locale, { weekday: 'short', day: 'numeric', month: 'short' }) : '-');
+  const T = (k) => (WG_I18N[lang] && WG_I18N[lang][k]) || WG_I18N.en[k] || k;
+  const pick = (o) => (o && (o[lang] || o.en)) || '';
   const HERO = {
-    preparing: { cls: '', icon: 'hourglass', eyebrow: 'Room status', title: 'Your room is being prepared', text: null },
-    ready: { cls: 'ready', icon: 'key', eyebrow: 'Room status', title: 'Your room is ready', text: 'Please proceed to Reception to complete your check-in and collect your room keys.' },
-    completed: { cls: 'done', icon: 'heart', eyebrow: 'Check-in complete', title: 'Welcome. Enjoy your stay', text: 'Your check-in is complete. We hope you have a wonderful stay.' },
-    cancelled: { cls: 'done', icon: 'info', eyebrow: 'Waiting record closed', title: 'This waiting record is no longer active', text: 'Please speak to a member of the Reception team and they will be happy to help.' },
+    preparing: { cls: '', icon: 'hourglass', eyebrow: 'roomStatus', title: 'preparingTitle', text: null },
+    ready: { cls: 'ready', icon: 'key', eyebrow: 'roomStatus', title: 'readyTitle', text: 'readyText' },
+    completed: { cls: 'done', icon: 'heart', eyebrow: 'doneEyebrow', title: 'doneTitle', text: 'doneText' },
+    cancelled: { cls: 'done', icon: 'info', eyebrow: 'cancelEyebrow', title: 'cancelTitle', text: 'cancelText' },
   };
+
+  let lang = 'en';
+  const storedLang = () => { try { const l = localStorage.getItem('wg-guest-lang'); return WG_LANGS.some((x) => x.code === l) ? l : null; } catch (e) { return null; } };
+  function applyLang(l) {
+    lang = l;
+    const info = langInfo(l);
+    document.documentElement.lang = l;
+    document.documentElement.dir = info.dir;
+  }
 
   let data = null, phase = null, version = null, timer = null, fails = 0;
   root.innerHTML = `<div class="g-shell"><header class="g-top"><div class="logo-chip"><img src="${WG_ASSETS.logo}" alt="Rixos Bab Al Bahr"></div></header>
@@ -1381,58 +1567,69 @@ WG.views.guest = function (root, token) {
   function render() {
     const { waitingGuest: g, content: c } = data;
     const h = HERO[g.phase] || HERO.preparing;
+    const welcome = pick(c.welcome);
     const idx = { preparing: 1, ready: 2, completed: 3, cancelled: 0 }[g.phase];
-    const P = ['Received', 'Preparing', 'Ready'];
+    const P = [T('stepReceived'), T('stepPreparing'), T('stepReady')];
     const prog = g.phase === 'cancelled' ? '' : `<div class="progress" aria-label="Progress">${P.map((l, i) => {
       const on = i < idx || (i === idx && g.phase !== 'preparing') || g.phase === 'completed';
       const cur = i === idx && g.phase === 'preparing';
       return `<div class="p ${on ? 'on' : ''} ${cur ? 'cur' : ''}"><i></i>${l}</div>${i < P.length - 1 ? `<div class="ln ${i < idx ? 'on' : ''}"></div>` : ''}`;
     }).join('')}</div><div style="height:14px"></div>`;
-    const link = (l, ic, sub) => l && l.url
-      ? `<a class="link-btn" href="${esc(l.url)}" target="_blank" rel="noopener noreferrer">${svg(ic)}${esc(l.label)}<small>${sub}</small></a>`
-      : `<div class="link-btn off" aria-disabled="true">${svg(ic)}${esc(l ? l.label : '')}<small>Coming soon</small></div>`;
+    const link = (l, ic, label, sub) => l && l.url
+      ? `<a class="link-btn" href="${esc(l.url)}" target="_blank" rel="noopener noreferrer">${svg(ic)}${esc(label)}<small>${esc(sub)}</small></a>`
+      : `<div class="link-btn off" aria-disabled="true">${svg(ic)}${esc(label)}<small>${esc(T('comingSoon'))}</small></div>`;
     const showInfo = g.phase !== 'cancelled';
-    app.innerHTML = `
+    const switcher = `<nav class="lang" aria-label="${esc(T('language'))}">${WG_LANGS.map((l) => `<button type="button" data-lang="${l.code}" lang="${l.code}" class="${l.code === lang ? 'on' : ''}" aria-pressed="${l.code === lang}">${l.name}</button>`).join('')}</nav>`;
+    app.innerHTML = `${switcher}
       <section class="hero ${h.cls}" aria-labelledby="st">
-        <div class="badge">${svg(h.icon)}</div><div class="eyebrow">${h.eyebrow}</div>
-        <h1 id="st">${h.title}</h1><p>${esc(h.text || c.welcome)}</p>
-        <div class="ref"><span>Waiting Guest number</span><b>${esc(g.wgNumber)}</b></div>
+        <div class="badge">${svg(h.icon)}</div><div class="eyebrow">${esc(T(h.eyebrow))}</div>
+        <h1 id="st">${esc(T(h.title))}</h1><p>${esc(h.text ? T(h.text) : welcome)}</p>
+        <div class="ref"><span>${esc(T('wgNumber'))}</span><b dir="ltr">${esc(g.wgNumber)}</b></div>
       </section>
-      <section class="card g-card" aria-label="Your details"><div class="kv">
-        <div><span>Guest</span><b>${esc(g.guestName)}</b></div><div><span>Confirmation</span><b>${esc(g.confirmationNo)}</b></div>
-        <div><span>Room type</span><b>${esc(g.roomType)}</b></div><div><span>Arrival</span><b>${fmtD(g.arrivalDate)}${g.arrivalTime ? ' · ' + esc(g.arrivalTime) : ''}</b></div></div>${prog}</section>
-      ${showInfo ? `<h2 class="sec-title wait-title">${g.phase === 'ready' ? 'Around the resort' : 'While you wait'}</h2>
-      <p class="wait-sub">${g.phase === 'ready' ? 'Everything you need, whenever you want it.' : esc(c.welcome)}</p>
-      <div class="links">${link(c.links.map, 'map', 'Find your way around')}${link(c.links.website, 'globe', esc(c.hotelName))}</div>
-      <div class="cards">${c.sections.map((s) => `<details class="tile"><summary><span class="ic">${svg(s.icon)}</span><span class="tt">${esc(s.title)}</span><span class="chev">${svg('chev')}</span></summary>
-        <div class="body">${esc(s.body)}${s.note ? `<div style="margin-top:8px;font-size:12.5px">${esc(s.note)}</div>` : ''}${s.placeholder ? '<div><span class="soon">Details coming soon</span></div>' : ''}</div></details>`).join('')}</div>
-      <p class="notice">This page updates automatically. Keep it open, or scan your QR again at any time.</p>` : ''}`;
+      <section class="card g-card" aria-label="${esc(T('guest'))}"><div class="kv">
+        <div><span>${esc(T('guest'))}</span><b>${esc(g.guestName)}</b></div><div><span>${esc(T('confirmation'))}</span><b dir="ltr" style="text-align:start">${esc(g.confirmationNo)}</b></div>
+        <div><span>${esc(T('roomType'))}</span><b dir="ltr" style="text-align:start">${esc(g.roomType)}</b></div><div><span>${esc(T('arrival'))}</span><b>${fmtD(g.arrivalDate)}${g.arrivalTime ? ' · ' + esc(g.arrivalTime) : ''}</b></div></div>${prog}</section>
+      ${showInfo ? `<h2 class="sec-title wait-title">${esc(g.phase === 'ready' ? T('around') : T('whileWait'))}</h2>
+      <p class="wait-sub">${esc(g.phase === 'ready' ? T('aroundSub') : welcome)}</p>
+      <div class="links">${link(c.links.map, 'map', T('map'), T('mapSub'))}${link(c.links.website, 'globe', T('website'), c.hotelName)}</div>
+      <div class="cards">${c.sections.map((s) => `<details class="tile"><summary><span class="ic">${svg(s.icon)}</span><span class="tt">${esc(pick(s.title))}</span><span class="chev">${svg('chev')}</span></summary>
+        <div class="body">${esc(pick(s.body))}${pick(s.note) ? `<div style="margin-top:8px;font-size:12.5px">${esc(pick(s.note))}</div>` : ''}${s.placeholder ? `<div><span class="soon">${esc(T('detailsSoon'))}</span></div>` : ''}</div></details>`).join('')}</div>
+      <p class="notice">${esc(T('notice'))}</p>` : ''}`;
+    $$('.lang button', app).forEach((b) => b.addEventListener('click', () => {
+      try { localStorage.setItem('wg-guest-lang', b.dataset.lang); } catch (e) { /* remembered for this page only */ }
+      const wasOpen = $$('details.tile', app).map((d) => d.open); // keep the cards the guest had opened
+      applyLang(b.dataset.lang);
+      render();
+      $$('details.tile', app).forEach((d, i) => { d.open = !!wasOpen[i]; });
+    }));
     if (phase && phase !== g.phase) {
       try { navigator.vibrate && navigator.vibrate(g.phase === 'ready' ? [120, 60, 120] : 40); } catch (e) { /* not supported */ }
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
-    document.title = g.phase === 'ready' ? 'Your room is ready · Rixos Bab Al Bahr' : 'Your room · Rixos Bab Al Bahr';
+    document.title = (g.phase === 'ready' ? T('tabTitleReady') : T('tabTitle')) + ' · Rixos Bab Al Bahr';
     phase = g.phase;
   }
 
   function conn(ok) {
     let el = document.getElementById('conn');
     if (ok) { if (el) el.remove(); return; }
-    if (!el) { el = document.createElement('div'); el.id = 'conn'; el.className = 'conn'; el.textContent = 'Reconnecting…'; document.body.appendChild(el); }
+    if (!el) { el = document.createElement('div'); el.id = 'conn'; el.className = 'conn'; el.textContent = T('reconnecting'); document.body.appendChild(el); }
   }
 
   async function load() {
     try {
       const r = await transport('GET', `/api/guest/${encodeURIComponent(token)}${version !== null && data ? `?v=${version}&have=1` : ''}`);
-      if (r.status === 404) { app.innerHTML = `<div class="err-view"><h1>This link is not valid</h1><p class="muted">Please ask a member of the Reception team to help you.</p></div>`; stop(); return; }
+      if (r.status === 404) { applyLang(storedLang() || 'en'); app.innerHTML = `<div class="err-view"><h1>${esc(T('invalidTitle'))}</h1><p class="muted">${esc(T('invalidText'))}</p></div>`; stop(); return; }
       if (r.status === 0 || r.status >= 500) throw new Error('unavailable');
       if (r.status >= 400) throw new Error('bad');
       fails = 0; conn(true);
       if (r.body.unchanged) return;
       version = r.body.version;
       const changed = !data || JSON.stringify(data.waitingGuest) !== JSON.stringify(r.body.waitingGuest);
+      const firstLoad = !data;
       data = r.body;
-      if (changed) render(); // only redraw on a real change, so open cards and scroll position are left alone
+      if (firstLoad) applyLang(storedLang() || data.waitingGuest.language || 'en'); // guest's own choice wins over Reception's
+      if (changed || firstLoad) render(); // only redraw on a real change, so open cards and scroll position are left alone
     } catch (e) { fails++; if (fails >= 2) conn(false); }
   }
   function stop() { clearTimeout(timer); timer = null; }

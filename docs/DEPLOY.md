@@ -59,7 +59,18 @@ Import the day's arrivals (Admin → Import arrivals). Re-importing updates exis
 ## Settings you can edit in the Sheet
 
 * **Config**: `wg_prefix` (the "WG" in WG-0001), `hotel_website_url` (turns on the website button for guests), `hotel_map_url`, `late_warn_minutes` / `late_alert_minutes` (when a waiting timer turns amber/red), `guest_welcome`.
-* **GuestContent**: the cards guests see under "While you wait". Replace the placeholder text with the hotel's approved wording (pools, beach, restaurants, Wi-Fi, guest services). Set `placeholder` to blank once real. Set `active` to blank to hide a card.
+* **GuestContent**: the cards guests see under "While you wait". Replace the placeholder text with the hotel's approved wording (pools, beach, restaurants, Wi-Fi, guest services). Set `placeholder` to blank once real. Set `active` to blank to hide a card. Columns `title`, `body`, `note` are English; `title_ar`, `body_ar`, `note_ar` (Arabic), `_ru` (Russian) and `_de` (German) hold the translations. A blank translation shows the English text.
+* **Config**: `guest_welcome`, `guest_welcome_ar`, `guest_welcome_ru`, `guest_welcome_de` are the welcome line in each language.
+
+## Languages
+
+Reception picks the **Guest language** (English, Arabic, Russian or German) when creating a Waiting Guest. It is pre-selected from the reservation's nationality when the arrivals file has one (for example AE or Egypt gives Arabic, RU gives Russian, DE, AT or CH gives German), and Reception can always change it, also later with **Edit details**. The guest's QR page opens in that language, with Arabic shown right-to-left. Guests can switch language themselves at the top of their page, and their device remembers the choice. Staff screens stay in English.
+
+The translations were written for this build. **Please have a native speaker of each language review them before guests see them.** The interface text is in `src/web/js/45-i18n.js`, and the resort card text is in the GuestContent tab.
+
+## Updating an existing deployment
+
+After pasting new code: run **`setup`** again (safe, never deletes data). It adds any new columns, such as `language`. Existing GuestContent rows keep their text and show English until you fill in the translation columns.
 * **RoomTypes**: room type codes and names.
 
 ## Keeping the sheet fast

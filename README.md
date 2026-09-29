@@ -23,6 +23,7 @@ Only `ReservationSource` (in `src/server/60-waiting.js`) reads reservations, so 
 
 * **Reception** (`reception` role): search by confirmation number (arrivals) or by name / confirmation / WG number (returning guests), review the auto-filled reservation, enter only luggage tag, associate, preferences and remarks, create. Shows the QR to scan. Verifies and completes when the guest returns. Can edit details or cancel a record made by mistake.
 * **Rooms Controller** (`rooms_controller`): dense live queue with a prominent waiting timer, preferences and remarks, room picker (matching type first), status steps, priority, cancel.
+* **Guest language**: Reception chooses English, Arabic, Russian or German for the guest (suggested from nationality). The QR page follows it, Arabic right-to-left, and the guest can switch on the page. Staff screens are English. Translations need native review.
 * **Guest** (no login): mobile page opened from the QR. "Your room is being prepared" changes to "Your room is ready" on the same link. Shows resort information cards, hotel map and website links.
 * **Admin** (`admin`): user management, arrivals and rooms CSV import, live figures, CSV export of every timestamp.
 

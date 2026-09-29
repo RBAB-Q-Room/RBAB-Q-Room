@@ -95,9 +95,10 @@ WG.views.reception = function (root, user) {
 
   /* ---------- shared operational fields ---------- */
   const rememberedAssociate = () => { try { return localStorage.getItem(ASSOCIATE_KEY) || ''; } catch (e) { return ''; } };
-  const opFields = (associate) => `<div class="form-grid">
+  const opFields = (associate, lang = 'en') => `<div class="form-grid">
     <label class="field"><span>Luggage tag <em class="opt">(optional)</em></span><input class="in" id="fTag" maxlength="40" autocomplete="off"></label>
     <label class="field"><span>Associate name</span><input class="in" id="fAssoc" maxlength="80" value="${esc(associate)}" autocomplete="off" required><span class="field-error" id="assocErr" hidden>Enter your name</span></label>
+    <label class="field full"><span>Guest language <em class="opt">(for their QR page)</em></span><select class="in" id="fLang">${langOptions(lang)}</select></label>
     <label class="field full"><span>Guest preferences <em class="opt">(optional)</em></span><textarea class="in" id="fPref" maxlength="500" rows="2"></textarea></label>
     <label class="field full"><span>Remarks <em class="opt">(optional)</em></span><textarea class="in" id="fRem" maxlength="500" rows="2"></textarea></label></div>`;
 
@@ -124,7 +125,7 @@ WG.views.reception = function (root, user) {
           ${r.specialRequests ? `<div style="grid-column:1/-1"><span>Reservation requests</span><b>${esc(r.specialRequests)}</b></div>` : ''}
         </div><hr>
         <div class="auto-note">${icon('check')} Phone, email, Waiting Guest number and QR are filled in automatically.</div>
-        ${opFields(associate)}
+        ${opFields(associate, r.suggestedLanguage)}
         <div class="banner err" id="formErr" role="alert" hidden style="margin-top:14px"></div>
         <div class="actions"><button class="btn btn-primary" id="createBtn" type="submit">${icon('plus')} Create Waiting Guest</button><button class="btn btn-ghost" type="button" id="cancelBtn">Cancel</button></div>
       </form>`;
@@ -182,7 +183,7 @@ WG.views.reception = function (root, user) {
     try {
       try { localStorage.setItem(ASSOCIATE_KEY, assoc); } catch (e) { /* ignore */ }
       const { waitingGuest: g } = await api('POST', '/api/waiting-guests', {
-        confirmationNo: no, associate: assoc, luggageTag: $('#fTag').value, preferences: $('#fPref').value, remarks: $('#fRem').value, manual,
+        confirmationNo: no, associate: assoc, luggageTag: $('#fTag').value, preferences: $('#fPref').value, remarks: $('#fRem').value, language: $('#fLang').value, manual,
       });
       S.selectedId = null; // keep the success panel; live refresh must not replace it
       await showQr(g, true);
@@ -208,7 +209,7 @@ WG.views.reception = function (root, user) {
       <div><b>${esc(g.guestName)}</b> · ${esc(g.confirmationNo)}</div>
       <div class="muted" style="margin-top:6px">${fresh ? `Now in the Rooms Controller queue. Waiting timer started at ${fmtClock(g.timestamps.created)}.` : `Status: ${esc(STATUS_LABEL[g.status])}`}</div>
       <div class="qr" id="qrBox" aria-label="Guest QR code"><div class="skeleton" style="aspect-ratio:1"></div></div>
-      <div class="muted" style="font-size:12.5px">The guest scans this QR to follow their room status. No login needed.</div>
+      <div class="muted" style="font-size:12.5px">The guest scans this QR to follow their room status in <b>${esc(langInfo(g.language).name)}</b>. No login needed. They can switch language on the page.</div>
       <div class="link-row" id="qrActions"><button class="btn btn-primary btn-sm" id="nextBtn">${icon('plus')} New Waiting Guest</button></div></div>`;
     $('#nextBtn').onclick = () => { clearWork(); q.focus(); };
     try {
@@ -246,6 +247,7 @@ WG.views.reception = function (root, user) {
       <div style="display:flex;flex-direction:column;gap:12px;margin-top:12px">
       <label class="field"><span>Luggage tag</span><input class="in" id="eTag" maxlength="40" value="${esc(g.luggageTag)}"></label>
       <label class="field"><span>Associate name</span><input class="in" id="eAssoc" maxlength="80" value="${esc(g.associate)}" required></label>
+      <label class="field"><span>Guest language (QR page)</span><select class="in" id="eLang">${langOptions(g.language)}</select></label>
       <label class="field"><span>Guest preferences</span><textarea class="in" id="ePref" maxlength="500" rows="2">${esc(g.preferences)}</textarea></label>
       <label class="field"><span>Remarks</span><textarea class="in" id="eRem" maxlength="500" rows="2">${esc(g.remarks)}</textarea></label>
       <div class="banner err" id="edErr" hidden></div></div>
@@ -258,7 +260,7 @@ WG.views.reception = function (root, user) {
       e.preventDefault();
       const b = $('#edGo', ov); b.classList.add('loading');
       try {
-        await api('POST', `/api/waiting-guests/${g.id}/details`, { luggageTag: $('#eTag', ov).value, associate: $('#eAssoc', ov).value, preferences: $('#ePref', ov).value, remarks: $('#eRem', ov).value });
+        await api('POST', `/api/waiting-guests/${g.id}/details`, { luggageTag: $('#eTag', ov).value, associate: $('#eAssoc', ov).value, language: $('#eLang', ov).value, preferences: $('#ePref', ov).value, remarks: $('#eRem', ov).value });
         close(); toast('Details updated'); await loadList();
       } catch (ex) { b.classList.remove('loading'); $('#edErr', ov).textContent = ex.message; $('#edErr', ov).hidden = false; }
     });
@@ -280,6 +282,7 @@ WG.views.reception = function (root, user) {
       <div class="kv">
         <div><span>Room type</span><b>${esc(g.roomType)} · ${esc(typeName(g.roomType))}</b></div><div><span>Guests</span><b>${pax(g)}</b></div>
         <div><span>Luggage tag</span><b>${esc(g.luggageTag || '-')}</b></div><div><span>Associate</span><b>${esc(g.associate || '-')}</b></div>
+        <div><span>Guest language</span><b>${esc(langInfo(g.language).name)}</b></div>
         ${g.roomNumber && ready ? `<div><span>Assigned room</span><b>${esc(g.roomNumber)}</b></div>` : ''}
         ${g.preferences ? `<div style="grid-column:1/-1"><span>Preferences</span><b>${esc(g.preferences)}</b></div>` : ''}
         ${g.remarks ? `<div style="grid-column:1/-1"><span>Remarks</span><b>${esc(g.remarks)}</b></div>` : ''}

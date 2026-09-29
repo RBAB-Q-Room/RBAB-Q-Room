@@ -19,14 +19,24 @@ WG.views.guest = function (root, token) {
     chev: '<path d="M6 9l6 6 6-6"/>',
   };
   const svg = (n) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICON[n] || ''}</svg>`;
-  const fmtD = (d) => (d ? new Date(d + 'T00:00:00').toLocaleDateString([], { weekday: 'short', day: 'numeric', month: 'short' }) : '-');
-
+  const fmtD = (d) => (d ? new Date(d + 'T00:00:00').toLocaleDateString(langInfo(lang).locale, { weekday: 'short', day: 'numeric', month: 'short' }) : '-');
+  const T = (k) => (WG_I18N[lang] && WG_I18N[lang][k]) || WG_I18N.en[k] || k;
+  const pick = (o) => (o && (o[lang] || o.en)) || '';
   const HERO = {
-    preparing: { cls: '', icon: 'hourglass', eyebrow: 'Room status', title: 'Your room is being prepared', text: null },
-    ready: { cls: 'ready', icon: 'key', eyebrow: 'Room status', title: 'Your room is ready', text: 'Please proceed to Reception to complete your check-in and collect your room keys.' },
-    completed: { cls: 'done', icon: 'heart', eyebrow: 'Check-in complete', title: 'Welcome. Enjoy your stay', text: 'Your check-in is complete. We hope you have a wonderful stay.' },
-    cancelled: { cls: 'done', icon: 'info', eyebrow: 'Waiting record closed', title: 'This waiting record is no longer active', text: 'Please speak to a member of the Reception team and they will be happy to help.' },
+    preparing: { cls: '', icon: 'hourglass', eyebrow: 'roomStatus', title: 'preparingTitle', text: null },
+    ready: { cls: 'ready', icon: 'key', eyebrow: 'roomStatus', title: 'readyTitle', text: 'readyText' },
+    completed: { cls: 'done', icon: 'heart', eyebrow: 'doneEyebrow', title: 'doneTitle', text: 'doneText' },
+    cancelled: { cls: 'done', icon: 'info', eyebrow: 'cancelEyebrow', title: 'cancelTitle', text: 'cancelText' },
   };
+
+  let lang = 'en';
+  const storedLang = () => { try { const l = localStorage.getItem('wg-guest-lang'); return WG_LANGS.some((x) => x.code === l) ? l : null; } catch (e) { return null; } };
+  function applyLang(l) {
+    lang = l;
+    const info = langInfo(l);
+    document.documentElement.lang = l;
+    document.documentElement.dir = info.dir;
+  }
 
   let data = null, phase = null, version = null, timer = null, fails = 0;
   root.innerHTML = `<div class="g-shell"><header class="g-top"><div class="logo-chip"><img src="${WG_ASSETS.logo}" alt="Rixos Bab Al Bahr"></div></header>
@@ -37,58 +47,69 @@ WG.views.guest = function (root, token) {
   function render() {
     const { waitingGuest: g, content: c } = data;
     const h = HERO[g.phase] || HERO.preparing;
+    const welcome = pick(c.welcome);
     const idx = { preparing: 1, ready: 2, completed: 3, cancelled: 0 }[g.phase];
-    const P = ['Received', 'Preparing', 'Ready'];
+    const P = [T('stepReceived'), T('stepPreparing'), T('stepReady')];
     const prog = g.phase === 'cancelled' ? '' : `<div class="progress" aria-label="Progress">${P.map((l, i) => {
       const on = i < idx || (i === idx && g.phase !== 'preparing') || g.phase === 'completed';
       const cur = i === idx && g.phase === 'preparing';
       return `<div class="p ${on ? 'on' : ''} ${cur ? 'cur' : ''}"><i></i>${l}</div>${i < P.length - 1 ? `<div class="ln ${i < idx ? 'on' : ''}"></div>` : ''}`;
     }).join('')}</div><div style="height:14px"></div>`;
-    const link = (l, ic, sub) => l && l.url
-      ? `<a class="link-btn" href="${esc(l.url)}" target="_blank" rel="noopener noreferrer">${svg(ic)}${esc(l.label)}<small>${sub}</small></a>`
-      : `<div class="link-btn off" aria-disabled="true">${svg(ic)}${esc(l ? l.label : '')}<small>Coming soon</small></div>`;
+    const link = (l, ic, label, sub) => l && l.url
+      ? `<a class="link-btn" href="${esc(l.url)}" target="_blank" rel="noopener noreferrer">${svg(ic)}${esc(label)}<small>${esc(sub)}</small></a>`
+      : `<div class="link-btn off" aria-disabled="true">${svg(ic)}${esc(label)}<small>${esc(T('comingSoon'))}</small></div>`;
     const showInfo = g.phase !== 'cancelled';
-    app.innerHTML = `
+    const switcher = `<nav class="lang" aria-label="${esc(T('language'))}">${WG_LANGS.map((l) => `<button type="button" data-lang="${l.code}" lang="${l.code}" class="${l.code === lang ? 'on' : ''}" aria-pressed="${l.code === lang}">${l.name}</button>`).join('')}</nav>`;
+    app.innerHTML = `${switcher}
       <section class="hero ${h.cls}" aria-labelledby="st">
-        <div class="badge">${svg(h.icon)}</div><div class="eyebrow">${h.eyebrow}</div>
-        <h1 id="st">${h.title}</h1><p>${esc(h.text || c.welcome)}</p>
-        <div class="ref"><span>Waiting Guest number</span><b>${esc(g.wgNumber)}</b></div>
+        <div class="badge">${svg(h.icon)}</div><div class="eyebrow">${esc(T(h.eyebrow))}</div>
+        <h1 id="st">${esc(T(h.title))}</h1><p>${esc(h.text ? T(h.text) : welcome)}</p>
+        <div class="ref"><span>${esc(T('wgNumber'))}</span><b dir="ltr">${esc(g.wgNumber)}</b></div>
       </section>
-      <section class="card g-card" aria-label="Your details"><div class="kv">
-        <div><span>Guest</span><b>${esc(g.guestName)}</b></div><div><span>Confirmation</span><b>${esc(g.confirmationNo)}</b></div>
-        <div><span>Room type</span><b>${esc(g.roomType)}</b></div><div><span>Arrival</span><b>${fmtD(g.arrivalDate)}${g.arrivalTime ? ' · ' + esc(g.arrivalTime) : ''}</b></div></div>${prog}</section>
-      ${showInfo ? `<h2 class="sec-title wait-title">${g.phase === 'ready' ? 'Around the resort' : 'While you wait'}</h2>
-      <p class="wait-sub">${g.phase === 'ready' ? 'Everything you need, whenever you want it.' : esc(c.welcome)}</p>
-      <div class="links">${link(c.links.map, 'map', 'Find your way around')}${link(c.links.website, 'globe', esc(c.hotelName))}</div>
-      <div class="cards">${c.sections.map((s) => `<details class="tile"><summary><span class="ic">${svg(s.icon)}</span><span class="tt">${esc(s.title)}</span><span class="chev">${svg('chev')}</span></summary>
-        <div class="body">${esc(s.body)}${s.note ? `<div style="margin-top:8px;font-size:12.5px">${esc(s.note)}</div>` : ''}${s.placeholder ? '<div><span class="soon">Details coming soon</span></div>' : ''}</div></details>`).join('')}</div>
-      <p class="notice">This page updates automatically. Keep it open, or scan your QR again at any time.</p>` : ''}`;
+      <section class="card g-card" aria-label="${esc(T('guest'))}"><div class="kv">
+        <div><span>${esc(T('guest'))}</span><b>${esc(g.guestName)}</b></div><div><span>${esc(T('confirmation'))}</span><b dir="ltr" style="text-align:start">${esc(g.confirmationNo)}</b></div>
+        <div><span>${esc(T('roomType'))}</span><b dir="ltr" style="text-align:start">${esc(g.roomType)}</b></div><div><span>${esc(T('arrival'))}</span><b>${fmtD(g.arrivalDate)}${g.arrivalTime ? ' · ' + esc(g.arrivalTime) : ''}</b></div></div>${prog}</section>
+      ${showInfo ? `<h2 class="sec-title wait-title">${esc(g.phase === 'ready' ? T('around') : T('whileWait'))}</h2>
+      <p class="wait-sub">${esc(g.phase === 'ready' ? T('aroundSub') : welcome)}</p>
+      <div class="links">${link(c.links.map, 'map', T('map'), T('mapSub'))}${link(c.links.website, 'globe', T('website'), c.hotelName)}</div>
+      <div class="cards">${c.sections.map((s) => `<details class="tile"><summary><span class="ic">${svg(s.icon)}</span><span class="tt">${esc(pick(s.title))}</span><span class="chev">${svg('chev')}</span></summary>
+        <div class="body">${esc(pick(s.body))}${pick(s.note) ? `<div style="margin-top:8px;font-size:12.5px">${esc(pick(s.note))}</div>` : ''}${s.placeholder ? `<div><span class="soon">${esc(T('detailsSoon'))}</span></div>` : ''}</div></details>`).join('')}</div>
+      <p class="notice">${esc(T('notice'))}</p>` : ''}`;
+    $$('.lang button', app).forEach((b) => b.addEventListener('click', () => {
+      try { localStorage.setItem('wg-guest-lang', b.dataset.lang); } catch (e) { /* remembered for this page only */ }
+      const wasOpen = $$('details.tile', app).map((d) => d.open); // keep the cards the guest had opened
+      applyLang(b.dataset.lang);
+      render();
+      $$('details.tile', app).forEach((d, i) => { d.open = !!wasOpen[i]; });
+    }));
     if (phase && phase !== g.phase) {
       try { navigator.vibrate && navigator.vibrate(g.phase === 'ready' ? [120, 60, 120] : 40); } catch (e) { /* not supported */ }
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
-    document.title = g.phase === 'ready' ? 'Your room is ready · Rixos Bab Al Bahr' : 'Your room · Rixos Bab Al Bahr';
+    document.title = (g.phase === 'ready' ? T('tabTitleReady') : T('tabTitle')) + ' · Rixos Bab Al Bahr';
     phase = g.phase;
   }
 
   function conn(ok) {
     let el = document.getElementById('conn');
     if (ok) { if (el) el.remove(); return; }
-    if (!el) { el = document.createElement('div'); el.id = 'conn'; el.className = 'conn'; el.textContent = 'Reconnecting…'; document.body.appendChild(el); }
+    if (!el) { el = document.createElement('div'); el.id = 'conn'; el.className = 'conn'; el.textContent = T('reconnecting'); document.body.appendChild(el); }
   }
 
   async function load() {
     try {
       const r = await transport('GET', `/api/guest/${encodeURIComponent(token)}${version !== null && data ? `?v=${version}&have=1` : ''}`);
-      if (r.status === 404) { app.innerHTML = `<div class="err-view"><h1>This link is not valid</h1><p class="muted">Please ask a member of the Reception team to help you.</p></div>`; stop(); return; }
+      if (r.status === 404) { applyLang(storedLang() || 'en'); app.innerHTML = `<div class="err-view"><h1>${esc(T('invalidTitle'))}</h1><p class="muted">${esc(T('invalidText'))}</p></div>`; stop(); return; }
       if (r.status === 0 || r.status >= 500) throw new Error('unavailable');
       if (r.status >= 400) throw new Error('bad');
       fails = 0; conn(true);
       if (r.body.unchanged) return;
       version = r.body.version;
       const changed = !data || JSON.stringify(data.waitingGuest) !== JSON.stringify(r.body.waitingGuest);
+      const firstLoad = !data;
       data = r.body;
-      if (changed) render(); // only redraw on a real change, so open cards and scroll position are left alone
+      if (firstLoad) applyLang(storedLang() || data.waitingGuest.language || 'en'); // guest's own choice wins over Reception's
+      if (changed || firstLoad) render(); // only redraw on a real change, so open cards and scroll position are left alone
     } catch (e) { fails++; if (fails >= 2) conn(false); }
   }
   function stop() { clearTimeout(timer); timer = null; }

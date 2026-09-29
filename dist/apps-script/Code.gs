@@ -2432,6 +2432,7 @@ const ROLES = { reception: 'reception', rooms_controller: 'rooms_controller', ad
 const STATUSES = ['waiting', 'room_assigned', 'preparing', 'ready', 'returned', 'completed', 'cancelled'];
 const ACTIVE_STATUSES = ['waiting', 'room_assigned', 'preparing', 'ready', 'returned'];
 const HK_STATUSES = ['clean', 'inspected', 'dirty', 'out_of_order'];
+const LANGUAGES = ['en', 'ar', 'ru', 'de'];
 
 // Column types: s = text, i = integer, b = boolean.
 const SCHEMA = {
@@ -2451,10 +2452,11 @@ const SCHEMA = {
     ['luggage_tag', 's'], ['associate', 's'], ['preferences', 's'], ['remarks', 's'],
     ['room_number', 's'], ['status', 's'], ['priority', 'b'], ['cancel_reason', 's'],
     ['guest_arrival_at', 's'], ['created_at', 's'], ['room_assigned_at', 's'], ['preparation_started_at', 's'], ['room_ready_at', 's'],
-    ['guest_notified_at', 's'], ['guest_returned_at', 's'], ['completed_at', 's'], ['cancelled_at', 's'], ['created_by', 'i'],
+    ['guest_notified_at', 's'], ['guest_returned_at', 's'], ['completed_at', 's'], ['cancelled_at', 's'], ['created_by', 'i'], ['language', 's'],
   ],
   StatusHistory: [['id', 'i'], ['waiting_guest_id', 'i'], ['from_status', 's'], ['to_status', 's'], ['room_number', 's'], ['changed_at', 's'], ['changed_by', 'i'], ['note', 's']],
-  GuestContent: [['sort', 'i'], ['id', 's'], ['icon', 's'], ['title', 's'], ['body', 's'], ['note', 's'], ['placeholder', 'b'], ['active', 'b']],
+  GuestContent: [['sort', 'i'], ['id', 's'], ['icon', 's'], ['title', 's'], ['body', 's'], ['note', 's'], ['placeholder', 'b'], ['active', 'b'],
+    ['title_ar', 's'], ['body_ar', 's'], ['note_ar', 's'], ['title_ru', 's'], ['body_ru', 's'], ['note_ru', 's'], ['title_de', 's'], ['body_de', 's'], ['note_de', 's']],
   Config: [['key', 's'], ['value', 's']],
   Meta: [['key', 's'], ['value', 's']],
   Audit: [['at', 's'], ['user_id', 'i'], ['action', 's'], ['detail', 's']],
@@ -2472,6 +2474,9 @@ const CONFIG_DEFAULTS = {
   hotel_map_url: 'https://easymap.ae/rixos-bab-al-bahr/', // same map link used by Room Guide
   hotel_website_url: '',                                    // not supplied yet; button stays disabled until set
   guest_welcome: 'While you wait, feel free to enjoy the resort.',
+  guest_welcome_ar: 'أثناء انتظارك، تفضّل بالاستمتاع بمرافق المنتجع.',
+  guest_welcome_ru: 'Пока вы ждёте, наслаждайтесь отдыхом на курорте.',
+  guest_welcome_de: 'Genießen Sie das Resort, während Sie warten.',
   guest_base_url: '',                                       // optional override of the web app URL used in QR codes
   archive_after_days: '30',
 };
@@ -2484,19 +2489,54 @@ const DEFAULT_ROOM_TYPES = [
 ];
 
 /**
- * PLACEHOLDER guest content. No hours, policies, venue names or contact
- * details have been supplied by the hotel, so none are invented.
- * The hotel edits the GuestContent tab; nothing here needs a code change.
+ * PLACEHOLDER guest content, in English, Arabic, Russian and German.
+ * No hours, policies, venue names or contact details have been supplied by
+ * the hotel, so none are invented. The hotel edits the GuestContent tab
+ * (columns title/body/note plus _ar, _ru, _de); nothing here needs a code
+ * change. Translations were written for this build and should be reviewed by
+ * native speakers before guests see them.
+ * Row: [sort, id, icon, placeholder, active, {en, ar, ru, de} x (title, body, note)]
  */
 const DEFAULT_GUEST_CONTENT = [
-  [1, 'all-inclusive', 'sparkle', 'All Inclusive', 'You are welcome to enjoy the all-inclusive resort benefits that apply to your booking while your room is prepared.', "Subject to the hotel's all-inclusive policy and your booking.", true, true],
-  [2, 'pools', 'pool', 'Pools', 'Pool information and locations will appear here.', '', true, true],
-  [3, 'beach', 'beach', 'Beach', 'Beach information and location will appear here.', '', true, true],
-  [4, 'dining', 'dining', 'Restaurants & Bars', "The resort's restaurants and bars will be listed here.", '', true, true],
-  [5, 'activities', 'activity', 'Entertainment & Activities', 'Entertainment and activity information will appear here.', '', true, true],
-  [6, 'wifi', 'wifi', 'Wi-Fi', 'Wi-Fi network and access details will appear here.', '', true, true],
-  [7, 'services', 'bell', 'Guest Services', 'Guest services information and contact details will appear here.', '', true, true],
+  { sort: 1, id: 'all-inclusive', icon: 'sparkle',
+    title: { en: 'All Inclusive', ar: 'الإقامة الشاملة', ru: 'Всё включено', de: 'All Inclusive' },
+    body: { en: 'You are welcome to enjoy the all-inclusive resort benefits that apply to your booking while your room is prepared.',
+      ar: 'يمكنك الاستمتاع بمزايا الإقامة الشاملة المتاحة ضمن حجزك أثناء تجهيز غرفتك.',
+      ru: 'Пока готовится ваш номер, вы можете пользоваться услугами «всё включено», предусмотренными вашим бронированием.',
+      de: 'Sie können die All-Inclusive-Leistungen Ihrer Buchung genießen, während Ihr Zimmer vorbereitet wird.' },
+    note: { en: "Subject to the hotel's all-inclusive policy and your booking.", ar: 'وفقاً لسياسة الفندق للإقامة الشاملة ولحجزك.',
+      ru: 'В соответствии с правилами отеля по системе «всё включено» и условиями вашего бронирования.', de: 'Es gelten die All-Inclusive-Bedingungen des Hotels und Ihre Buchung.' } },
+  { sort: 2, id: 'pools', icon: 'pool',
+    title: { en: 'Pools', ar: 'المسابح', ru: 'Бассейны', de: 'Pools' },
+    body: { en: 'Pool information and locations will appear here.', ar: 'ستظهر هنا معلومات المسابح ومواقعها.', ru: 'Здесь появится информация о бассейнах и их расположении.', de: 'Informationen und Standorte der Pools erscheinen hier.' } },
+  { sort: 3, id: 'beach', icon: 'beach',
+    title: { en: 'Beach', ar: 'الشاطئ', ru: 'Пляж', de: 'Strand' },
+    body: { en: 'Beach information and location will appear here.', ar: 'ستظهر هنا معلومات الشاطئ وموقعه.', ru: 'Здесь появится информация о пляже и его расположении.', de: 'Informationen und Lage des Strands erscheinen hier.' } },
+  { sort: 4, id: 'dining', icon: 'dining',
+    title: { en: 'Restaurants & Bars', ar: 'المطاعم والبارات', ru: 'Рестораны и бары', de: 'Restaurants & Bars' },
+    body: { en: "The resort's restaurants and bars will be listed here.", ar: 'ستُعرض هنا مطاعم المنتجع وبارّاته.', ru: 'Здесь будет список ресторанов и баров курорта.', de: 'Die Restaurants und Bars des Resorts werden hier aufgeführt.' } },
+  { sort: 5, id: 'activities', icon: 'activity',
+    title: { en: 'Entertainment & Activities', ar: 'الترفيه والأنشطة', ru: 'Развлечения и активности', de: 'Unterhaltung & Aktivitäten' },
+    body: { en: 'Entertainment and activity information will appear here.', ar: 'ستظهر هنا معلومات الترفيه والأنشطة.', ru: 'Здесь появится информация о развлечениях и активностях.', de: 'Informationen zu Unterhaltung und Aktivitäten erscheinen hier.' } },
+  { sort: 6, id: 'wifi', icon: 'wifi',
+    title: { en: 'Wi-Fi', ar: 'الواي فاي', ru: 'Wi-Fi', de: 'WLAN' },
+    body: { en: 'Wi-Fi network and access details will appear here.', ar: 'ستظهر هنا تفاصيل شبكة الواي فاي والاتصال بها.', ru: 'Здесь появятся данные для подключения к Wi-Fi.', de: 'Angaben zum WLAN und Zugang erscheinen hier.' } },
+  { sort: 7, id: 'services', icon: 'bell',
+    title: { en: 'Guest Services', ar: 'خدمات الضيوف', ru: 'Служба поддержки гостей', de: 'Gästeservice' },
+    body: { en: 'Guest services information and contact details will appear here.', ar: 'ستظهر هنا معلومات خدمات الضيوف وبيانات التواصل.', ru: 'Здесь появится информация о службе поддержки гостей и контакты.', de: 'Informationen und Kontaktdaten des Gästeservice erscheinen hier.' } },
 ];
+
+/** Flatten a DEFAULT_GUEST_CONTENT entry into a GuestContent row. */
+function guestContentRow(g) {
+  const row = { sort: g.sort, id: g.id, icon: g.icon, placeholder: true, active: true,
+    title: g.title.en, body: g.body.en, note: (g.note && g.note.en) || '' };
+  ['ar', 'ru', 'de'].forEach(function (l) {
+    row['title_' + l] = g.title[l] || '';
+    row['body_' + l] = g.body[l] || '';
+    row['note_' + l] = (g.note && g.note[l]) || '';
+  });
+  return row;
+}
 
 
 /* ---- src/server/30-store.js ---- */
@@ -3214,9 +3254,29 @@ const ReservationSource = {
       confirmationNo: r.confirmation_no, guestName: r.guest_name, arrivalDate: r.arrival_date, arrivalTime: r.arrival_time,
       departureDate: r.departure_date, roomType: r.room_type, adults: r.adults, children: r.children, phone: r.phone, email: r.email,
       nights: r.nights, ratePlan: r.rate_plan, mealPlan: r.meal_plan, nationality: r.nationality, vipCode: r.vip_code, specialRequests: r.special_requests,
+      suggestedLanguage: suggestLanguage(r.nationality),
     };
   },
 };
+
+const LANGUAGE_BY_COUNTRY = (function () {
+  const m = {};
+  const put = function (lang, list) { list.split(',').forEach(function (c) { m[c.trim().toUpperCase()] = lang; }); };
+  put('ar', 'AE,ARE,SA,SAU,QA,QAT,KW,KWT,BH,BHR,OM,OMN,JO,JOR,LB,LBN,SY,SYR,IQ,IRQ,EG,EGY,LY,LBY,TN,TUN,DZ,DZA,MA,MAR,SD,SDN,YE,YEM,PS,PSE,' +
+    'UNITED ARAB EMIRATES,UAE,SAUDI ARABIA,QATAR,KUWAIT,BAHRAIN,OMAN,JORDAN,LEBANON,SYRIA,IRAQ,EGYPT,LIBYA,TUNISIA,ALGERIA,MOROCCO,SUDAN,YEMEN,PALESTINE');
+  put('ru', 'RU,RUS,BY,BLR,KZ,KAZ,KG,KGZ,RUSSIA,RUSSIAN FEDERATION,BELARUS,KAZAKHSTAN,KYRGYZSTAN');
+  put('de', 'DE,DEU,AT,AUT,CH,CHE,GERMANY,AUSTRIA,SWITZERLAND');
+  return m;
+})();
+
+/** A default only: Reception can always change the guest's language. */
+function suggestLanguage(nationality) {
+  return LANGUAGE_BY_COUNTRY[String(nationality || '').trim().toUpperCase()] || 'en';
+}
+function normLanguage(v, fallback) {
+  const l = String(v || '').trim().toLowerCase();
+  return LANGUAGES.indexOf(l) !== -1 ? l : (fallback || 'en');
+}
 
 const Links = {
   base: function () {
@@ -3247,7 +3307,7 @@ const Waiting = (function () {
       arrivalDate: r.arrival_date, arrivalTime: r.arrival_time, departureDate: r.departure_date, roomType: r.room_type,
       adults: r.adults, children: r.children, phone: r.phone, email: r.email,
       luggageTag: r.luggage_tag, associate: r.associate, preferences: r.preferences, remarks: r.remarks,
-      roomNumber: r.room_number, status: r.status, priority: !!r.priority, cancelReason: r.cancel_reason,
+      roomNumber: r.room_number, status: r.status, priority: !!r.priority, cancelReason: r.cancel_reason, language: normLanguage(r.language),
       timestamps: {
         guestArrival: r.guest_arrival_at, created: r.created_at, roomAssigned: r.room_assigned_at, preparationStarted: r.preparation_started_at,
         roomReady: r.room_ready_at, guestNotified: r.guest_notified_at, guestReturned: r.guest_returned_at, completed: r.completed_at, cancelled: r.cancelled_at,
@@ -3321,6 +3381,7 @@ const Waiting = (function () {
         room_type: res.roomType, adults: res.adults, children: res.children, phone: res.phone, email: res.email,
         luggage_tag: clean(input.luggageTag, 40), associate: associate, preferences: clean(input.preferences, 500), remarks: clean(input.remarks, 500),
         room_number: '', status: 'waiting', priority: false, guest_arrival_at: now, created_at: now, created_by: user.id,
+        language: normLanguage(input.language, suggestLanguage(res.nationality)),
       });
       log(id, '', 'waiting', '', user, source === 'manual' ? 'Reservation entered manually' : '');
       Store.bump();
@@ -3335,7 +3396,7 @@ const Waiting = (function () {
       if (!isActive(r)) throw HttpError(409, 'This Waiting Guest is closed');
       const associate = clean(input.associate, 80);
       if (!associate) throw HttpError(400, 'Associate name is required');
-      const row = Store.update('WaitingGuests', r._row, { luggage_tag: clean(input.luggageTag, 40), associate: associate, preferences: clean(input.preferences, 500), remarks: clean(input.remarks, 500) });
+      const row = Store.update('WaitingGuests', r._row, { luggage_tag: clean(input.luggageTag, 40), associate: associate, preferences: clean(input.preferences, 500), remarks: clean(input.remarks, 500), language: normLanguage(input.language, r.language || 'en') });
       log(id, r.status, r.status, r.room_number, user, 'Details edited');
       Store.bump();
       return toStaff(row);
@@ -3465,7 +3526,7 @@ const Waiting = (function () {
     const r = Store.find('WaitingGuests', 'qr_token', token);
     if (!r) return null;
     const phase = r.status === 'completed' ? 'completed' : r.status === 'cancelled' ? 'cancelled' : (r.status === 'ready' || r.status === 'returned') ? 'ready' : 'preparing';
-    return { wgNumber: r.wg_number, guestName: r.guest_name, confirmationNo: r.confirmation_no, roomType: r.room_type, arrivalDate: r.arrival_date, arrivalTime: r.arrival_time, departureDate: r.departure_date, phase: phase, readyAt: r.room_ready_at };
+    return { wgNumber: r.wg_number, guestName: r.guest_name, confirmationNo: r.confirmation_no, roomType: r.room_type, arrivalDate: r.arrival_date, arrivalTime: r.arrival_time, departureDate: r.departure_date, phase: phase, readyAt: r.room_ready_at, language: normLanguage(r.language) };
   }
 
   /** Real, computed metrics only. Nothing is estimated or fabricated. */
@@ -3491,7 +3552,7 @@ const Waiting = (function () {
 
   function exportCsv() {
     const cols = ['wg_number', 'source', 'confirmation_no', 'guest_name', 'arrival_date', 'departure_date', 'room_type', 'adults', 'children', 'luggage_tag', 'associate', 'preferences', 'remarks',
-      'room_number', 'status', 'cancel_reason', 'guest_arrival_at', 'created_at', 'room_assigned_at', 'preparation_started_at', 'room_ready_at', 'guest_notified_at', 'guest_returned_at', 'completed_at', 'cancelled_at'];
+      'language', 'room_number', 'status', 'cancel_reason', 'guest_arrival_at', 'created_at', 'room_assigned_at', 'preparation_started_at', 'room_ready_at', 'guest_notified_at', 'guest_returned_at', 'completed_at', 'cancelled_at'];
     const lines = [csvLine(cols)];
     Store.all('WaitingGuests').sort(byAge).forEach(function (r) { lines.push(csvLine(cols.map(function (c) { return r[c]; }))); });
     return lines.join('\r\n');
@@ -3537,16 +3598,25 @@ const Api = (function () {
 
   const safeUrl = function (u) { return /^https?:\/\/[^\s"'<>]+$/i.test(String(u || '').trim()) ? String(u).trim() : null; };
 
+  /** Text in every language, each falling back to English when the hotel left a translation blank. */
+  function multi(row, field) {
+    const out = { en: row[field] };
+    ['ar', 'ru', 'de'].forEach(function (l) { out[l] = row[field + '_' + l] || row[field]; });
+    return out;
+  }
+
   function guestContent() {
+    const welcome = { en: Config.get('guest_welcome') };
+    ['ar', 'ru', 'de'].forEach(function (l) { welcome[l] = Config.get('guest_welcome_' + l) || welcome.en; });
     return {
       hotelName: Config.get('hotel_name'),
-      welcome: Config.get('guest_welcome'),
+      welcome: welcome,
       links: {
-        map: { label: 'Hotel Map', url: safeUrl(Config.get('hotel_map_url')) },
-        website: { label: 'Hotel Website', url: safeUrl(Config.get('hotel_website_url')) },
+        map: { url: safeUrl(Config.get('hotel_map_url')) },
+        website: { url: safeUrl(Config.get('hotel_website_url')) },
       },
       sections: Store.all('GuestContent').filter(function (s) { return s.active; }).sort(function (a, b) { return a.sort - b.sort; })
-        .map(function (s) { return { id: s.id, icon: s.icon, title: s.title, body: s.body, note: s.note, placeholder: s.placeholder }; }),
+        .map(function (s) { return { id: s.id, icon: s.icon, placeholder: s.placeholder, title: multi(s, 'title'), body: multi(s, 'body'), note: multi(s, 'note') }; }),
     };
   }
 
@@ -3677,7 +3747,7 @@ function setup() {
   Locks.run(function () {
     if (!Store.all('RoomTypes').length) Store.insertMany('RoomTypes', DEFAULT_ROOM_TYPES.map(function (t) { return { code: t[0], name: t[1] }; }));
     if (!Store.all('GuestContent').length) {
-      Store.insertMany('GuestContent', DEFAULT_GUEST_CONTENT.map(function (g) { return { sort: g[0], id: g[1], icon: g[2], title: g[3], body: g[4], note: g[5], placeholder: g[6], active: g[7] }; }));
+      Store.insertMany('GuestContent', DEFAULT_GUEST_CONTENT.map(guestContentRow));
     }
     if (!Store.all('Config').length) {
       Store.insertMany('Config', Object.keys(CONFIG_DEFAULTS).map(function (k) { return { key: k, value: CONFIG_DEFAULTS[k] }; }));

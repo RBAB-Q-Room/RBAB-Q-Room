@@ -31,16 +31,25 @@ const Api = (function () {
 
   const safeUrl = function (u) { return /^https?:\/\/[^\s"'<>]+$/i.test(String(u || '').trim()) ? String(u).trim() : null; };
 
+  /** Text in every language, each falling back to English when the hotel left a translation blank. */
+  function multi(row, field) {
+    const out = { en: row[field] };
+    ['ar', 'ru', 'de'].forEach(function (l) { out[l] = row[field + '_' + l] || row[field]; });
+    return out;
+  }
+
   function guestContent() {
+    const welcome = { en: Config.get('guest_welcome') };
+    ['ar', 'ru', 'de'].forEach(function (l) { welcome[l] = Config.get('guest_welcome_' + l) || welcome.en; });
     return {
       hotelName: Config.get('hotel_name'),
-      welcome: Config.get('guest_welcome'),
+      welcome: welcome,
       links: {
-        map: { label: 'Hotel Map', url: safeUrl(Config.get('hotel_map_url')) },
-        website: { label: 'Hotel Website', url: safeUrl(Config.get('hotel_website_url')) },
+        map: { url: safeUrl(Config.get('hotel_map_url')) },
+        website: { url: safeUrl(Config.get('hotel_website_url')) },
       },
       sections: Store.all('GuestContent').filter(function (s) { return s.active; }).sort(function (a, b) { return a.sort - b.sort; })
-        .map(function (s) { return { id: s.id, icon: s.icon, title: s.title, body: s.body, note: s.note, placeholder: s.placeholder }; }),
+        .map(function (s) { return { id: s.id, icon: s.icon, placeholder: s.placeholder, title: multi(s, 'title'), body: multi(s, 'body'), note: multi(s, 'note') }; }),
     };
   }
 

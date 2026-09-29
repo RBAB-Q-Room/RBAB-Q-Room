@@ -42,7 +42,7 @@ WG.views.controller = function (root, user) {
     return `<button class="${cls(g)}${isNew ? ' q-new' : ''}" data-id="${g.id}" aria-label="${esc(g.wgNumber)} ${esc(g.guestName)}">
       <span class="bar"></span>${timerHtml(g)}
       <div class="main">
-        <div class="l1"><span class="wg">${esc(g.wgNumber)}</span><span class="nm">${esc(g.guestName)}</span>${g.priority ? '<span class="flag">PRIORITY</span>' : ''}${g.source === 'manual' ? '<span class="type-pill">Manual</span>' : ''}</div>
+        <div class="l1"><span class="wg">${esc(g.wgNumber)}</span><span class="nm">${esc(g.guestName)}</span>${g.priority ? '<span class="flag">PRIORITY</span>' : ''}${g.source === 'manual' ? '<span class="type-pill">Manual</span>' : ''}${g.language && g.language !== 'en' ? `<span class="type-pill" title="Guest language">${esc(langInfo(g.language).name)}</span>` : ''}</div>
         <div class="l2"><span>${icon('key')}${esc(g.confirmationNo)}</span><span class="type-pill">${esc(g.roomType)}</span><span>${icon('user')}${g.adults}A${g.children ? ` ${g.children}C` : ''}</span>
           <span>${icon('clock')}Arr ${esc(g.arrivalTime || fmtClock(g.timestamps.guestArrival))}</span>${g.luggageTag ? `<span>${icon('bag')}${esc(g.luggageTag)}</span>` : ''}<span>${esc(g.associate || '')}</span></div>
         ${g.preferences || g.remarks ? `<div class="l3">${g.preferences ? `<span class="note" title="${esc(g.preferences)}">Pref: ${esc(g.preferences)}</span>` : ''}${g.remarks ? `<span class="note rem" title="${esc(g.remarks)}">Rem: ${esc(g.remarks)}</span>` : ''}</div>` : ''}
@@ -122,7 +122,8 @@ WG.views.controller = function (root, user) {
       <div class="d-sec"><div class="kv">
         <div><span>Room type</span><b>${esc(g.roomType)} · ${esc(typeName(g.roomType))}</b></div><div><span>Guests</span><b>${pax(g)}</b></div>
         <div><span>Arrival</span><b>${fmtDate(g.arrivalDate)} ${esc(g.arrivalTime || '')}</b></div><div><span>Departure</span><b>${fmtDate(g.departureDate)}</b></div>
-        <div><span>Luggage tag</span><b>${esc(g.luggageTag || '-')}</b></div><div><span>Associate</span><b>${esc(g.associate || '-')}</b></div></div></div>
+        <div><span>Luggage tag</span><b>${esc(g.luggageTag || '-')}</b></div><div><span>Associate</span><b>${esc(g.associate || '-')}</b></div>
+        <div><span>Guest language</span><b>${esc(langInfo(g.language).name)}</b></div></div></div>
       ${g.preferences || g.remarks ? `<div class="d-sec">${g.preferences ? `<div class="pref-box"><span>Guest preferences</span>${esc(g.preferences)}</div>` : ''}${g.remarks ? `<div class="pref-box rem"><span>Remarks</span>${esc(g.remarks)}</div>` : ''}</div>` : ''}
       <div class="d-sec"><div class="section-label">Room</div>
         ${g.roomNumber ? `<div style="margin-bottom:10px"><span class="muted">Assigned:</span> <b class="serif" style="font-size:22px">${esc(g.roomNumber)}</b></div>` : ''}

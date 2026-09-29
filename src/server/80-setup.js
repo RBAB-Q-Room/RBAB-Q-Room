@@ -13,7 +13,7 @@ function setup() {
   Locks.run(function () {
     if (!Store.all('RoomTypes').length) Store.insertMany('RoomTypes', DEFAULT_ROOM_TYPES.map(function (t) { return { code: t[0], name: t[1] }; }));
     if (!Store.all('GuestContent').length) {
-      Store.insertMany('GuestContent', DEFAULT_GUEST_CONTENT.map(function (g) { return { sort: g[0], id: g[1], icon: g[2], title: g[3], body: g[4], note: g[5], placeholder: g[6], active: g[7] }; }));
+      Store.insertMany('GuestContent', DEFAULT_GUEST_CONTENT.map(guestContentRow));
     }
     if (!Store.all('Config').length) {
       Store.insertMany('Config', Object.keys(CONFIG_DEFAULTS).map(function (k) { return { key: k, value: CONFIG_DEFAULTS[k] }; }));

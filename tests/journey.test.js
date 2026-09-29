@@ -65,7 +65,7 @@ test('guest page exposes only guest-safe fields', () => {
   for (const secret of ['Layla', 'T-4471', 'High floor', 'Internal note', '+971', 'example.com', 'phone', 'email', 'associate', 'luggage', 'remarks', 'created_by', 'roomNumber']) {
     assert.ok(!body.includes(secret), 'guest response must not contain: ' + secret);
   }
-  assert.deepEqual(Object.keys(t.guest(token).body.waitingGuest).sort(), ['arrivalDate', 'arrivalTime', 'confirmationNo', 'departureDate', 'guestName', 'phase', 'readyAt', 'roomType', 'wgNumber'], 'exact whitelist of guest fields');
+  assert.deepEqual(Object.keys(t.guest(token).body.waitingGuest).sort(), ['arrivalDate', 'arrivalTime', 'confirmationNo', 'departureDate', 'guestName', 'language', 'phase', 'readyAt', 'roomType', 'wgNumber'], 'exact whitelist of guest fields');
   assert.equal(t.guest('x'.repeat(40)).status, 404);
   assert.equal(t.guest('short').status, 404);
   assert.equal(t.b.call('', 'GET', '/api/guest/' + '0'.repeat(64)).status, 404);
