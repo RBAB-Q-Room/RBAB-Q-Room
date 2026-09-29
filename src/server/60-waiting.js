@@ -26,7 +26,7 @@ const ReservationSource = {
       confirmationNo: r.confirmation_no, guestName: r.guest_name, arrivalDate: r.arrival_date, arrivalTime: r.arrival_time,
       departureDate: r.departure_date, roomType: r.room_type, adults: r.adults, children: r.children, phone: r.phone, email: r.email,
       nights: r.nights, ratePlan: r.rate_plan, mealPlan: r.meal_plan, nationality: r.nationality, vipCode: r.vip_code, specialRequests: r.special_requests,
-      suggestedLanguage: suggestLanguage(r.nationality),
+      suggestedLanguage: suggestLanguage_(r.nationality),
     };
   },
 };
@@ -42,10 +42,10 @@ const LANGUAGE_BY_COUNTRY = (function () {
 })();
 
 /** A default only: Reception can always change the guest's language. */
-function suggestLanguage(nationality) {
+function suggestLanguage_(nationality) {
   return LANGUAGE_BY_COUNTRY[String(nationality || '').trim().toUpperCase()] || 'en';
 }
-function normLanguage(v, fallback) {
+function normLanguage_(v, fallback) {
   const l = String(v || '').trim().toLowerCase();
   return LANGUAGES.indexOf(l) !== -1 ? l : (fallback || 'en');
 }
@@ -70,7 +70,7 @@ const Waiting = (function () {
   const TS = { room_assigned: 'room_assigned_at', preparing: 'preparation_started_at', ready: 'room_ready_at', returned: 'guest_returned_at', completed: 'completed_at' };
 
   function role(user, roles) {
-    if (!user || roles.indexOf(user.role) === -1) throw HttpError(403, 'Not allowed for your role');
+    if (!user || roles.indexOf(user.role) === -1) throw HttpError_(403, 'Not allowed for your role');
   }
 
   function toStaff(r) {
@@ -79,7 +79,7 @@ const Waiting = (function () {
       arrivalDate: r.arrival_date, arrivalTime: r.arrival_time, departureDate: r.departure_date, roomType: r.room_type,
       adults: r.adults, children: r.children, phone: r.phone, email: r.email,
       luggageTag: r.luggage_tag, associate: r.associate, preferences: r.preferences, remarks: r.remarks,
-      roomNumber: r.room_number, status: r.status, priority: !!r.priority, cancelReason: r.cancel_reason, language: normLanguage(r.language),
+      roomNumber: r.room_number, status: r.status, priority: !!r.priority, cancelReason: r.cancel_reason, language: normLanguage_(r.language),
       timestamps: {
         guestArrival: r.guest_arrival_at, created: r.created_at, roomAssigned: r.room_assigned_at, preparationStarted: r.preparation_started_at,
         roomReady: r.room_ready_at, guestNotified: r.guest_notified_at, guestReturned: r.guest_returned_at, completed: r.completed_at, cancelled: r.cancelled_at,
@@ -94,12 +94,12 @@ const Waiting = (function () {
   }
 
   function log(id, from, to, room, user, note) {
-    Store.insert('StatusHistory', { id: counter('history_counter'), waiting_guest_id: id, from_status: from || '', to_status: to, room_number: room || '', changed_at: nowIso(), changed_by: user ? user.id : '', note: note || '' });
+    Store.insert('StatusHistory', { id: counter('history_counter'), waiting_guest_id: id, from_status: from || '', to_status: to, room_number: room || '', changed_at: nowIso_(), changed_by: user ? user.id : '', note: note || '' });
   }
 
   function must(id) {
     const r = Store.find('WaitingGuests', 'id', id);
-    if (!r) throw HttpError(404, 'Waiting Guest not found');
+    if (!r) throw HttpError_(404, 'Waiting Guest not found');
     return r;
   }
 
@@ -108,13 +108,13 @@ const Waiting = (function () {
   function validateManual(m, confirmationNo) {
     m = m || {};
     const errs = [];
-    const name = clean(m.guestName, 120);
-    const arr = parseDateText(m.arrivalDate);
-    const dep = parseDateText(m.departureDate);
-    const time = parseTimeText(m.arrivalTime);
-    const type = clean(m.roomType, 20).toUpperCase();
-    const adults = toInt(m.adults, 0);
-    const children = toInt(m.children, 0);
+    const name = clean_(m.guestName, 120);
+    const arr = parseDateText_(m.arrivalDate);
+    const dep = parseDateText_(m.departureDate);
+    const time = parseTimeText_(m.arrivalTime);
+    const type = clean_(m.roomType, 20).toUpperCase();
+    const adults = toInt_(m.adults, 0);
+    const children = toInt_(m.children, 0);
     if (!/^[A-Za-z0-9\-\/]{1,30}$/.test(confirmationNo)) errs.push('Confirmation number is required');
     if (!name) errs.push('Guest name is required');
     if (!arr) errs.push('Arrival date is required');
@@ -124,36 +124,36 @@ const Waiting = (function () {
     if (adults < 1 || adults > 20) errs.push('Adults must be 1 to 20');
     if (children < 0 || children > 20) errs.push('Children must be 0 to 20');
     if (time === null) errs.push('Arrival time is not valid');
-    if (errs.length) throw HttpError(400, errs.join('. '), { fields: errs });
-    return { confirmationNo: confirmationNo, guestName: name, arrivalDate: arr, arrivalTime: time || '', departureDate: dep, roomType: type, adults: adults, children: children, phone: clean(m.phone, 40), email: clean(m.email, 120) };
+    if (errs.length) throw HttpError_(400, errs.join('. '), { fields: errs });
+    return { confirmationNo: confirmationNo, guestName: name, arrivalDate: arr, arrivalTime: time || '', departureDate: dep, roomType: type, adults: adults, children: children, phone: clean_(m.phone, 40), email: clean_(m.email, 120) };
   }
 
   function create(user, confirmationNo, input) {
     role(user, ['reception']);
     input = input || {};
-    const conf = clean(confirmationNo, 30);
-    const associate = clean(input.associate, 80);
-    if (!associate) throw HttpError(400, 'Associate name is required', { field: 'associate' });
+    const conf = clean_(confirmationNo, 30);
+    const associate = clean_(input.associate, 80);
+    if (!associate) throw HttpError_(400, 'Associate name is required', { field: 'associate' });
     return Locks.run(function () {
       let res = ReservationSource.findByConfirmation(conf);
       let source = 'import';
       if (!res) {
-        if (!input.manual) throw HttpError(404, 'Reservation not found');
+        if (!input.manual) throw HttpError_(404, 'Reservation not found');
         res = validateManual(input.manual, conf);
         source = 'manual';
       }
       const dup = Store.all('WaitingGuests').filter(function (r) { return r.confirmation_no === res.confirmationNo && isActive(r); })[0];
-      if (dup) throw HttpError(409, dup.wg_number + ' is already active for this reservation', { waitingGuest: toStaff(dup) });
-      const now = nowIso();
+      if (dup) throw HttpError_(409, dup.wg_number + ' is already active for this reservation', { waitingGuest: toStaff(dup) });
+      const now = nowIso_();
       const id = counter('wg_id');
       const seq = counter('wg_number');
       const row = Store.insert('WaitingGuests', {
-        id: id, wg_number: Config.get('wg_prefix') + '-' + String(seq).padStart(Config.num('wg_pad') || 4, '0'), qr_token: randomToken(), source: source,
+        id: id, wg_number: Config.get('wg_prefix') + '-' + String(seq).padStart(Config.num('wg_pad') || 4, '0'), qr_token: randomToken_(), source: source,
         confirmation_no: res.confirmationNo, guest_name: res.guestName, arrival_date: res.arrivalDate, arrival_time: res.arrivalTime, departure_date: res.departureDate,
         room_type: res.roomType, adults: res.adults, children: res.children, phone: res.phone, email: res.email,
-        luggage_tag: clean(input.luggageTag, 40), associate: associate, preferences: clean(input.preferences, 500), remarks: clean(input.remarks, 500),
+        luggage_tag: clean_(input.luggageTag, 40), associate: associate, preferences: clean_(input.preferences, 500), remarks: clean_(input.remarks, 500),
         room_number: '', status: 'waiting', priority: false, guest_arrival_at: now, created_at: now, created_by: user.id,
-        language: normLanguage(input.language, suggestLanguage(res.nationality)),
+        language: normLanguage_(input.language, suggestLanguage_(res.nationality)),
       });
       log(id, '', 'waiting', '', user, source === 'manual' ? 'Reservation entered manually' : '');
       Store.bump();
@@ -165,10 +165,10 @@ const Waiting = (function () {
     role(user, ['reception']);
     return Locks.run(function () {
       const r = must(id);
-      if (!isActive(r)) throw HttpError(409, 'This Waiting Guest is closed');
-      const associate = clean(input.associate, 80);
-      if (!associate) throw HttpError(400, 'Associate name is required');
-      const row = Store.update('WaitingGuests', r._row, { luggage_tag: clean(input.luggageTag, 40), associate: associate, preferences: clean(input.preferences, 500), remarks: clean(input.remarks, 500), language: normLanguage(input.language, r.language || 'en') });
+      if (!isActive(r)) throw HttpError_(409, 'This Waiting Guest is closed');
+      const associate = clean_(input.associate, 80);
+      if (!associate) throw HttpError_(400, 'Associate name is required');
+      const row = Store.update('WaitingGuests', r._row, { luggage_tag: clean_(input.luggageTag, 40), associate: associate, preferences: clean_(input.preferences, 500), remarks: clean_(input.remarks, 500), language: normLanguage_(input.language, r.language || 'en') });
       log(id, r.status, r.status, r.room_number, user, 'Details edited');
       Store.bump();
       return toStaff(row);
@@ -179,13 +179,13 @@ const Waiting = (function () {
     role(user, ['rooms_controller']);
     return Locks.run(function () {
       const wg = must(id);
-      if (['waiting', 'room_assigned', 'preparing'].indexOf(wg.status) === -1) throw HttpError(409, 'Room can no longer be changed at this status');
-      const room = Store.find('Rooms', 'room_number', clean(roomNumber, 10));
-      if (!room) throw HttpError(404, 'Room not found');
-      if (room.hk_status === 'out_of_order') throw HttpError(409, 'Room ' + room.room_number + ' is out of order');
+      if (['waiting', 'room_assigned', 'preparing'].indexOf(wg.status) === -1) throw HttpError_(409, 'Room can no longer be changed at this status');
+      const room = Store.find('Rooms', 'room_number', clean_(roomNumber, 10));
+      if (!room) throw HttpError_(404, 'Room not found');
+      if (room.hk_status === 'out_of_order') throw HttpError_(409, 'Room ' + room.room_number + ' is out of order');
       const clash = Store.all('WaitingGuests').filter(function (r) { return r.room_number === room.room_number && isActive(r) && r.id !== id; })[0];
-      if (clash) throw HttpError(409, 'Room ' + room.room_number + ' is already held by ' + clash.wg_number);
-      const now = nowIso();
+      if (clash) throw HttpError_(409, 'Room ' + room.room_number + ' is already held by ' + clash.wg_number);
+      const now = nowIso_();
       const reassigned = wg.room_number && wg.room_number !== room.room_number;
       const patch = { room_number: room.room_number };
       if (wg.status === 'waiting') { patch.status = 'room_assigned'; patch.room_assigned_at = now; }
@@ -198,13 +198,13 @@ const Waiting = (function () {
 
   function setStatus(user, id, to) {
     const rule = TRANSITIONS[to];
-    if (!rule) throw HttpError(400, 'Unknown or unsupported status');
+    if (!rule) throw HttpError_(400, 'Unknown or unsupported status');
     role(user, rule.roles);
     return Locks.run(function () {
       const wg = must(id);
-      if (rule.from.indexOf(wg.status) === -1) throw HttpError(409, 'Cannot move from ' + wg.status + ' to ' + to + '. Refresh: it may have just changed.');
-      if (to === 'ready' && !wg.room_number) throw HttpError(409, 'Assign a room first');
-      const now = nowIso();
+      if (rule.from.indexOf(wg.status) === -1) throw HttpError_(409, 'Cannot move from ' + wg.status + ' to ' + to + '. Refresh: it may have just changed.');
+      if (to === 'ready' && !wg.room_number) throw HttpError_(409, 'Assign a room first');
+      const now = nowIso_();
       const patch = { status: to };
       patch[TS[to]] = now;
       if (to === 'ready') patch.guest_notified_at = now;
@@ -223,12 +223,12 @@ const Waiting = (function () {
 
   function cancel(user, id, reason) {
     role(user, ['reception', 'rooms_controller']);
-    const why = clean(reason, 200);
-    if (why.length < 3) throw HttpError(400, 'Please give a short reason', { field: 'reason' });
+    const why = clean_(reason, 200);
+    if (why.length < 3) throw HttpError_(400, 'Please give a short reason', { field: 'reason' });
     return Locks.run(function () {
       const wg = must(id);
-      if (!isActive(wg)) throw HttpError(409, 'This Waiting Guest is already closed');
-      const now = nowIso();
+      if (!isActive(wg)) throw HttpError_(409, 'This Waiting Guest is already closed');
+      const now = nowIso_();
       const row = Store.update('WaitingGuests', wg._row, { status: 'cancelled', cancelled_at: now, cancel_reason: why });
       log(id, wg.status, 'cancelled', wg.room_number, user, why);
       Store.bump();
@@ -240,7 +240,7 @@ const Waiting = (function () {
     role(user, ['rooms_controller']);
     return Locks.run(function () {
       const wg = must(id);
-      if (!isActive(wg)) throw HttpError(409, 'Already closed');
+      if (!isActive(wg)) throw HttpError_(409, 'Already closed');
       const row = Store.update('WaitingGuests', wg._row, { priority: !!priority });
       log(id, wg.status, wg.status, wg.room_number, user, priority ? 'Priority on' : 'Priority off');
       Store.bump();
@@ -298,7 +298,7 @@ const Waiting = (function () {
     const r = Store.find('WaitingGuests', 'qr_token', token);
     if (!r) return null;
     const phase = r.status === 'completed' ? 'completed' : r.status === 'cancelled' ? 'cancelled' : (r.status === 'ready' || r.status === 'returned') ? 'ready' : 'preparing';
-    return { wgNumber: r.wg_number, guestName: r.guest_name, confirmationNo: r.confirmation_no, roomType: r.room_type, arrivalDate: r.arrival_date, arrivalTime: r.arrival_time, departureDate: r.departure_date, phase: phase, readyAt: r.room_ready_at, language: normLanguage(r.language) };
+    return { wgNumber: r.wg_number, guestName: r.guest_name, confirmationNo: r.confirmation_no, roomType: r.room_type, arrivalDate: r.arrival_date, arrivalTime: r.arrival_time, departureDate: r.departure_date, phase: phase, readyAt: r.room_ready_at, language: normLanguage_(r.language) };
   }
 
   /** Real, computed metrics only. Nothing is estimated or fabricated. */
@@ -308,7 +308,7 @@ const Waiting = (function () {
     const done = rows.filter(function (r) { return r.status === 'completed'; });
     const secs = function (a, b) { return a && b ? (Date.parse(b) - Date.parse(a)) / 1000 : null; };
     const avg = function (xs) { const v = xs.filter(function (x) { return x !== null; }); return v.length ? Math.round(v.reduce(function (s, x) { return s + x; }, 0) / v.length) : null; };
-    const now = nowIso();
+    const now = nowIso_();
     const waitingNow = active.filter(function (r) { return r.status !== 'ready' && r.status !== 'returned'; }).map(function (r) { return secs(r.created_at, now); });
     return {
       total: rows.length, active: active.length, completed: done.length,
@@ -325,8 +325,8 @@ const Waiting = (function () {
   function exportCsv() {
     const cols = ['wg_number', 'source', 'confirmation_no', 'guest_name', 'arrival_date', 'departure_date', 'room_type', 'adults', 'children', 'luggage_tag', 'associate', 'preferences', 'remarks',
       'language', 'room_number', 'status', 'cancel_reason', 'guest_arrival_at', 'created_at', 'room_assigned_at', 'preparation_started_at', 'room_ready_at', 'guest_notified_at', 'guest_returned_at', 'completed_at', 'cancelled_at'];
-    const lines = [csvLine(cols)];
-    Store.all('WaitingGuests').sort(byAge).forEach(function (r) { lines.push(csvLine(cols.map(function (c) { return r[c]; }))); });
+    const lines = [csvLine_(cols)];
+    Store.all('WaitingGuests').sort(byAge).forEach(function (r) { lines.push(csvLine_(cols.map(function (c) { return r[c]; }))); });
     return lines.join('\r\n');
   }
 

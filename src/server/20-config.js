@@ -3,6 +3,9 @@
  * Every table below is one tab of the Google Sheet that holds the data.
  * ===================================================================== */
 
+/** Bump whenever SCHEMA gains a tab or column (append columns at the end only). */
+const SCHEMA_VERSION = 3;
+
 const ROLES = { reception: 'reception', rooms_controller: 'rooms_controller', admin: 'admin' };
 const STATUSES = ['waiting', 'room_assigned', 'preparing', 'ready', 'returned', 'completed', 'cancelled'];
 const ACTIVE_STATUSES = ['waiting', 'room_assigned', 'preparing', 'ready', 'returned'];
@@ -102,7 +105,7 @@ const DEFAULT_GUEST_CONTENT = [
 ];
 
 /** Flatten a DEFAULT_GUEST_CONTENT entry into a GuestContent row. */
-function guestContentRow(g) {
+function guestContentRow_(g) {
   const row = { sort: g.sort, id: g.id, icon: g.icon, placeholder: true, active: true,
     title: g.title.en, body: g.body.en, note: (g.note && g.note.en) || '' };
   ['ar', 'ru', 'de'].forEach(function (l) {

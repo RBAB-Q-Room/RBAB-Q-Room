@@ -16,8 +16,8 @@ const Importer = (function () {
   };
 
   function limit(text) {
-    if (typeof text !== 'string' || !text.trim()) throw HttpError(400, 'The file is empty');
-    if (text.length > MAX_CHARS) throw HttpError(413, 'File is too large (max about 2 MB). Split it into smaller files.');
+    if (typeof text !== 'string' || !text.trim()) throw HttpError_(400, 'The file is empty');
+    if (text.length > MAX_CHARS) throw HttpError_(413, 'File is too large (max about 2 MB). Split it into smaller files.');
   }
 
   function cell(row, map, key) { return map[key] === undefined ? '' : String(row[map[key]] === undefined ? '' : row[map[key]]).trim(); }
@@ -34,7 +34,7 @@ const Importer = (function () {
     const det = Csv.detect(rows, Csv.ARRIVAL_FIELDS, override);
     const missing = Csv.ARRIVAL_FIELDS.filter(function (f) { return f.required && det.map[f.key] === undefined; }).map(function (f) { return f.key; });
     const data = rows.slice(det.headerIndex + 1);
-    if (data.length > MAX_ROWS) throw HttpError(413, 'Too many rows (max ' + MAX_ROWS + ' per import)');
+    if (data.length > MAX_ROWS) throw HttpError_(413, 'Too many rows (max ' + MAX_ROWS + ' per import)');
     const out = { fields: Csv.ARRIVAL_FIELDS.map(function (f) { return { key: f.key, label: f.label, required: f.required }; }), headers: det.headers, map: det.map, missing: missing, headerLine: det.headerIndex + 1, total: data.length, valid: [], errors: [], warnings: [] };
     if (missing.length) return out;
     const types = knownTypes();
@@ -45,12 +45,12 @@ const Importer = (function () {
       const m = det.map;
       const conf = cell(row, m, 'confirmation_no');
       const name = cell(row, m, 'guest_name');
-      const arr = parseDateText(cell(row, m, 'arrival_date'));
-      const dep = parseDateText(cell(row, m, 'departure_date'));
+      const arr = parseDateText_(cell(row, m, 'arrival_date'));
+      const dep = parseDateText_(cell(row, m, 'departure_date'));
       const type = cell(row, m, 'room_type').toUpperCase();
       const adultsRaw = cell(row, m, 'adults');
       const childRaw = cell(row, m, 'children');
-      const time = parseTimeText(cell(row, m, 'arrival_time'));
+      const time = parseTimeText_(cell(row, m, 'arrival_time'));
       const errs = [];
       if (!conf) errs.push('missing confirmation number');
       else if (!/^[A-Za-z0-9\-\/]{1,30}$/.test(conf)) errs.push('confirmation number has unexpected characters');
@@ -68,12 +68,12 @@ const Importer = (function () {
       if (seen[conf]) out.warnings.push({ line: line, message: 'duplicate confirmation ' + conf + ' in file: the later row is used' });
       seen[conf] = true;
       if (!types[type] && !unknownTypes[type]) { unknownTypes[type] = true; out.warnings.push({ line: line, message: 'room type "' + type + '" is not in the RoomTypes tab (imported anyway)' }); }
-      const nights = m.nights !== undefined && cell(row, m, 'nights') !== '' ? toInt(cell(row, m, 'nights'), '') : Math.round((Date.parse(dep) - Date.parse(arr)) / 86400000);
+      const nights = m.nights !== undefined && cell(row, m, 'nights') !== '' ? toInt_(cell(row, m, 'nights'), '') : Math.round((Date.parse(dep) - Date.parse(arr)) / 86400000);
       out.valid.push({
-        confirmation_no: conf, guest_name: clean(name, 120), arrival_date: arr, arrival_time: time || '', departure_date: dep, room_type: type,
-        adults: adults, children: children, phone: clean(cell(row, m, 'phone'), 40), email: clean(cell(row, m, 'email'), 120), nights: nights,
-        rate_plan: clean(cell(row, m, 'rate_plan'), 60), meal_plan: clean(cell(row, m, 'meal_plan'), 60), nationality: clean(cell(row, m, 'nationality'), 40),
-        vip_code: clean(cell(row, m, 'vip_code'), 20), special_requests: clean(cell(row, m, 'special_requests'), 300),
+        confirmation_no: conf, guest_name: clean_(name, 120), arrival_date: arr, arrival_time: time || '', departure_date: dep, room_type: type,
+        adults: adults, children: children, phone: clean_(cell(row, m, 'phone'), 40), email: clean_(cell(row, m, 'email'), 120), nights: nights,
+        rate_plan: clean_(cell(row, m, 'rate_plan'), 60), meal_plan: clean_(cell(row, m, 'meal_plan'), 60), nationality: clean_(cell(row, m, 'nationality'), 40),
+        vip_code: clean_(cell(row, m, 'vip_code'), 20), special_requests: clean_(cell(row, m, 'special_requests'), 300),
       });
     });
     return out;
@@ -91,14 +91,14 @@ const Importer = (function () {
 
   function commitArrivals(user, body) {
     const a = analyzeArrivals(body.csv, body.map);
-    if (a.missing.length) throw HttpError(400, 'Required columns are not mapped: ' + a.missing.join(', '));
-    if (!a.valid.length) throw HttpError(400, 'There are no valid rows to import');
-    if (a.errors.length && !body.allowErrors) throw HttpError(409, a.errors.length + ' row(s) have errors. Fix the file, or import the valid rows only.', { errorCount: a.errors.length });
+    if (a.missing.length) throw HttpError_(400, 'Required columns are not mapped: ' + a.missing.join(', '));
+    if (!a.valid.length) throw HttpError_(400, 'There are no valid rows to import');
+    if (a.errors.length && !body.allowErrors) throw HttpError_(409, a.errors.length + ' row(s) have errors. Fix the file, or import the valid rows only.', { errorCount: a.errors.length });
     return Locks.run(function () {
       // last occurrence of a confirmation number wins
       const byConf = {};
       a.valid.forEach(function (r) { byConf[r.confirmation_no] = r; });
-      const now = nowIso();
+      const now = nowIso_();
       let added = 0, updated = 0;
       if (body.replaceAll) Store.clear('Reservations');
       const existing = {};
@@ -110,7 +110,7 @@ const Importer = (function () {
         else { inserts.push(rec); added++; }
       });
       Store.insertMany('Reservations', inserts);
-      audit(user, 'import.arrivals', added + ' added, ' + updated + ' updated, ' + a.errors.length + ' skipped' + (body.replaceAll ? ', replaced all' : ''));
+      audit_(user, 'import.arrivals', added + ' added, ' + updated + ' updated, ' + a.errors.length + ' skipped' + (body.replaceAll ? ', replaced all' : ''));
       Store.bump();
       return { added: added, updated: updated, skipped: a.errors.length };
     });
@@ -122,7 +122,7 @@ const Importer = (function () {
     const det = Csv.detect(rows, Csv.ROOM_FIELDS, override);
     const missing = Csv.ROOM_FIELDS.filter(function (f) { return f.required && det.map[f.key] === undefined; }).map(function (f) { return f.key; });
     const data = rows.slice(det.headerIndex + 1);
-    if (data.length > MAX_ROWS) throw HttpError(413, 'Too many rows (max ' + MAX_ROWS + ' per import)');
+    if (data.length > MAX_ROWS) throw HttpError_(413, 'Too many rows (max ' + MAX_ROWS + ' per import)');
     const out = { fields: Csv.ROOM_FIELDS.map(function (f) { return { key: f.key, label: f.label, required: f.required }; }), headers: det.headers, map: det.map, missing: missing, headerLine: det.headerIndex + 1, total: data.length, valid: [], errors: [], warnings: [] };
     if (missing.length) return out;
     const seen = {};
@@ -140,7 +140,7 @@ const Importer = (function () {
       if (errs.length) { out.errors.push({ line: line, message: errs.join('; '), confirmation: num }); return; }
       if (seen[num]) out.warnings.push({ line: line, message: 'duplicate room ' + num + ' in file: the later row is used' });
       seen[num] = true;
-      out.valid.push({ room_number: num, building: clean(cell(row, m, 'building'), 40), floor: clean(cell(row, m, 'floor'), 10), room_type: type, hk_status: hk });
+      out.valid.push({ room_number: num, building: clean_(cell(row, m, 'building'), 40), floor: clean_(cell(row, m, 'floor'), 10), room_type: type, hk_status: hk });
     });
     return out;
   }
@@ -149,9 +149,9 @@ const Importer = (function () {
 
   function commitRooms(user, body) {
     const a = analyzeRooms(body.csv, body.map);
-    if (a.missing.length) throw HttpError(400, 'Required columns are not mapped: ' + a.missing.join(', '));
-    if (!a.valid.length) throw HttpError(400, 'There are no valid rows to import');
-    if (a.errors.length && !body.allowErrors) throw HttpError(409, a.errors.length + ' row(s) have errors. Fix the file, or import the valid rows only.', { errorCount: a.errors.length });
+    if (a.missing.length) throw HttpError_(400, 'Required columns are not mapped: ' + a.missing.join(', '));
+    if (!a.valid.length) throw HttpError_(400, 'There are no valid rows to import');
+    if (a.errors.length && !body.allowErrors) throw HttpError_(409, a.errors.length + ' row(s) have errors. Fix the file, or import the valid rows only.', { errorCount: a.errors.length });
     return Locks.run(function () {
       const byNum = {};
       a.valid.forEach(function (r) { byNum[r.room_number] = r; });
@@ -172,7 +172,7 @@ const Importer = (function () {
         if (!types[t]) { types[t] = true; newTypes.push({ code: t, name: t }); }
       });
       Store.insertMany('RoomTypes', newTypes);
-      audit(user, 'import.rooms', added + ' added, ' + updated + ' updated');
+      audit_(user, 'import.rooms', added + ' added, ' + updated + ' updated');
       Store.bump();
       return { added: added, updated: updated, skipped: a.errors.length };
     });

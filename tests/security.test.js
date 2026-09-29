@@ -181,3 +181,62 @@ function createGuestLink(t) {
   const { token } = createGuest(t, t.b.ev('Store').all('WaitingGuests').length ? '51840233' : '51840217');
   return t.guest(token).body.content ? t.guest(token).body : t.guest(token).body;
 }
+
+test('only doGet, apiCall and guarded editor functions are callable from the browser', () => {
+  const { loadBackend } = require('../dev/backend');
+  const b = loadBackend();
+  const fakeGlobals = new Set(['SpreadsheetApp', 'Utilities', 'CacheService', 'LockService', 'PropertiesService', 'ScriptApp', 'Session', 'Logger', 'HtmlService', 'console']);
+  // google.script.run can call every top-level function whose name does not end with "_"
+  const callable = Object.keys(b.ctx).filter((k) => typeof b.ctx[k] === 'function' && !k.endsWith('_') && !fakeGlobals.has(k)).sort();
+  assert.deepEqual(callable, ['apiCall', 'archiveOld', 'createUserFromEditor', 'doGet', 'installNightlyArchive', 'loadDemoData', 'runSelfTest', 'setup'].sort());
+});
+
+test('editor-only functions refuse web visitors (anonymous or not the owner)', () => {
+  const { boot } = require('./helpers');
+  const t = boot();
+  for (const who of ['', 'someone.else@example.com']) {
+    t.b.state.activeUser = who;
+    for (const fn of ['setup', 'loadDemoData', 'runSelfTest', 'installNightlyArchive', 'archiveOld']) {
+      assert.throws(() => t.b.ctx[fn](), /Apps Script editor/, `${fn} must refuse ${who || 'anonymous'}`);
+    }
+    assert.throws(() => t.b.ctx.createUserFromEditor('evil', 'Evil', 'admin'), /Apps Script editor/);
+    assert.throws(() => t.b.ctx.archiveOld({ triggerUid: 'FORGED' }), /Apps Script editor/, 'a forged trigger id is refused');
+  }
+  assert.ok(!t.b.ev('Store').all('Users').some((u) => u.username === 'evil'), 'no user was created');
+  // the owner can, and a real trigger can
+  t.b.state.activeUser = 'owner@example.com';
+  t.b.ctx.installNightlyArchive();
+  t.b.state.activeUser = '';
+  const uid = t.b.state && t.b.ctx.ScriptApp.getProjectTriggers()[0].getUniqueId();
+  assert.doesNotThrow(() => t.b.ctx.archiveOld({ triggerUid: uid }));
+  // if Google returns no email at all (scope missing), everything fails closed
+  t.b.state.activeUser = ''; t.b.state.owner = '';
+  assert.throws(() => t.b.ctx.setup(), /Apps Script editor/);
+});
+
+test('a standalone script creates its own database sheet on setup, once', () => {
+  const { loadBackend } = require('../dev/backend');
+  const b = loadBackend({ bound: false });
+  assert.equal(b.call('', 'GET', '/api/guest/' + 'a'.repeat(64)).status, 500, 'before setup the app reports it is not set up');
+  assert.match(b.ctx.setup(), /Created the database sheet/);
+  assert.equal(b.state.created, 1);
+  assert.doesNotMatch(b.ctx.setup(), /Created the database sheet/);
+  assert.equal(b.state.created, 1, 'never creates a second sheet');
+});
+
+test('new code upgrades an older sheet automatically on the first request', () => {
+  const { boot } = require('./helpers');
+  const t = boot();
+  const S = t.b.ev('Store');
+  S.kvSet('Meta', 'schema_version', '1');
+  t.b.state.cache.clear();
+  // simulate an old sheet: drop a newer column header and a newer setting
+  const sd = t.b.state.sheets.WaitingGuests;
+  const cols = t.b.ev('SCHEMA').WaitingGuests.length;
+  delete sd.cells['1,' + cols];
+  const cfg = S.find('Config', 'key', 'late_warn_minutes'); S.remove('Config', cfg._row);
+  assert.equal(t.rec('GET', '/api/waiting-guests').status, 200);
+  S.reset();
+  assert.equal(S.kvGet('Meta', 'schema_version'), String(t.b.ev('SCHEMA_VERSION')));
+  assert.ok(S.find('Config', 'key', 'late_warn_minutes'), 'missing setting restored');
+});

@@ -18,7 +18,7 @@ const Api = (function () {
       try {
         const k = decodeURIComponent(i === -1 ? kv : kv.slice(0, i));
         query[k] = i === -1 ? '' : decodeURIComponent(kv.slice(i + 1).replace(/\+/g, ' '));
-      } catch (e) { throw HttpError(400, 'Bad request'); }
+      } catch (e) { throw HttpError_(400, 'Bad request'); }
     });
     return { path: path, query: query };
   }
@@ -62,7 +62,7 @@ const Api = (function () {
       const v = Store.version();
       if (query.v !== undefined && String(query.v) === String(v) && query.have === '1') return { status: 200, body: { unchanged: true, version: v } };
       const view = Waiting.guestView(m[1]);
-      if (!view) throw HttpError(404, 'This link is not valid');
+      if (!view) throw HttpError_(404, 'This link is not valid');
       return { status: 200, body: { waitingGuest: view, content: guestContent(), version: v } };
     }
     if (path === '/api/login' && method === 'POST') {
@@ -73,8 +73,8 @@ const Api = (function () {
 
     // ---- everything below needs a signed-in staff user ----
     const user = Auth.userFromToken(token);
-    if (!user) throw HttpError(401, 'Sign in required');
-    const need = function (roles) { if (roles.indexOf(user.role) === -1) throw HttpError(403, 'Not allowed for your role'); };
+    if (!user) throw HttpError_(401, 'Sign in required');
+    const need = function (roles) { if (roles.indexOf(user.role) === -1) throw HttpError_(403, 'Not allowed for your role'); };
 
     if (path === '/api/me' && method === 'GET') return { status: 200, body: { user: user } };
     if (path === '/api/me/password' && method === 'POST') return { status: 200, body: Auth.changeOwnPassword(user, body.current, body.next) };
@@ -99,8 +99,8 @@ const Api = (function () {
       }
       if (sub === 'qr' && method === 'GET') {
         const url = Links.guestUrl(Store.find('WaitingGuests', 'id', id) ? Store.find('WaitingGuests', 'id', id).qr_token : '');
-        if (!Store.find('WaitingGuests', 'id', id)) throw HttpError(404, 'Waiting Guest not found');
-        return { status: 200, body: { url: url, svg: qrSvg(url) } };
+        if (!Store.find('WaitingGuests', 'id', id)) throw HttpError_(404, 'Waiting Guest not found');
+        return { status: 200, body: { url: url, svg: qrSvg_(url) } };
       }
       if (sub === 'assign-room' && method === 'POST') return { status: 200, body: { waitingGuest: Waiting.assignRoom(user, id, body.roomNumber) } };
       if (sub === 'status' && method === 'POST') return { status: 200, body: { waitingGuest: Waiting.setStatus(user, id, body.status) } };
@@ -125,20 +125,21 @@ const Api = (function () {
     if (path === '/api/admin/summary' && method === 'GET') {
       need(['admin']);
       return { status: 200, body: { reservations: Store.all('Reservations').length, rooms: Store.all('Rooms').length, users: Auth.listUsers().length,
-        arrivalsToday: Store.all('Reservations').filter(function (r) { return r.arrival_date === todayIso(); }).length, today: todayIso(), guestBase: Links.base(),
+        arrivalsToday: Store.all('Reservations').filter(function (r) { return r.arrival_date === todayIso_(); }).length, today: todayIso_(), guestBase: Links.base(),
         active: Waiting.queue() } };
     }
-    throw HttpError(404, 'Not found');
+    throw HttpError_(404, 'Not found');
   }
 
   function handle(token, method, pathWithQuery, body) {
     try {
       Store.reset();
+      ensureCurrent_(); // upgrades the sheet once after new code is deployed
       const p = parsePath(pathWithQuery);
-      if (typeof pathWithQuery !== 'string' || pathWithQuery.length > 2000) throw HttpError(400, 'Bad request');
+      if (typeof pathWithQuery !== 'string' || pathWithQuery.length > 2000) throw HttpError_(400, 'Bad request');
       let b = {};
       if (body && typeof body === 'object') b = body;
-      else if (typeof body === 'string' && body) { try { b = JSON.parse(body); } catch (e) { throw HttpError(400, 'Bad request'); } }
+      else if (typeof body === 'string' && body) { try { b = JSON.parse(body); } catch (e) { throw HttpError_(400, 'Bad request'); } }
       const out = route(typeof token === 'string' ? token : '', String(method).toUpperCase(), p.path, p.query, b);
       out.t = Date.now(); // server clock, so screens show correct timers even if the PC clock is off
       return out;
@@ -153,8 +154,8 @@ const Api = (function () {
 })();
 
 /** Render a URL as a self-contained SVG QR code (no external service, nothing leaves Google). */
-function qrSvg(text) {
-  const qr = qrcode(0, 'M');
+function qrSvg_(text) {
+  const qr = QRCODE_(0, 'M');
   qr.addData(text);
   qr.make();
   const n = qr.getModuleCount(), cell = 8, margin = 2, size = (n + margin * 2) * cell;

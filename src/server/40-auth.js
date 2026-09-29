@@ -17,7 +17,7 @@ const Auth = (function () {
     const rounds = Math.max(1, Config.num('auth_rounds'));
     let h = String(salt);
     for (let i = 0; i < rounds; i++) {
-      h = bytesToHex(Utilities.computeHmacSha256Signature(h, String(password) + ':' + salt));
+      h = bytesToHex_(Utilities.computeHmacSha256Signature(h, String(password) + ':' + salt));
     }
     return h;
   }
@@ -32,12 +32,12 @@ const Auth = (function () {
   function publicUser(u) { return { id: u.id, username: u.username, name: u.display_name, role: u.role }; }
 
   function validPassword(pw) {
-    if (typeof pw !== 'string' || pw.length < 8) throw HttpError(400, 'Password must be at least 8 characters');
-    if (pw.length > 100) throw HttpError(400, 'Password is too long');
+    if (typeof pw !== 'string' || pw.length < 8) throw HttpError_(400, 'Password must be at least 8 characters');
+    if (pw.length > 100) throw HttpError_(400, 'Password is too long');
   }
 
   function validUsername(u) {
-    if (!/^[A-Za-z0-9._-]{3,32}$/.test(u)) throw HttpError(400, 'Username must be 3-32 letters, numbers, dot, dash or underscore');
+    if (!/^[A-Za-z0-9._-]{3,32}$/.test(u)) throw HttpError_(400, 'Username must be 3-32 letters, numbers, dot, dash or underscore');
   }
 
   function findUserByName(username) {
@@ -47,30 +47,30 @@ const Auth = (function () {
     return null;
   }
 
-  function throttleKey(username) { return 'wg:fail:' + sha256Hex(String(username || '').toLowerCase()); }
+  function throttleKey(username) { return 'wg:fail:' + sha256Hex_(String(username || '').toLowerCase()); }
 
   function login(username, password) {
     const cache = CacheService.getScriptCache();
     const key = throttleKey(username);
     const fails = parseInt(cache.get(key) || '0', 10);
-    if (fails >= 5) throw HttpError(429, 'Too many failed attempts. Try again in 10 minutes.');
+    if (fails >= 5) throw HttpError_(429, 'Too many failed attempts. Try again in 10 minutes.');
     const u = findUserByName(username);
     // Always hash, so unknown users cost the same as wrong passwords.
     const computed = hashPassword(String(password || ''), u ? u.salt : 'no-such-user');
     const ok = u && u.active && constantTimeEquals(computed, u.hash);
     if (!ok) {
       cache.put(key, String(fails + 1), 600);
-      throw HttpError(401, 'Incorrect username or password');
+      throw HttpError_(401, 'Incorrect username or password');
     }
     cache.remove(key);
     return Locks.run(function () {
-      const token = randomToken();
+      const token = randomToken_();
       const hours = Config.num('session_hours') || 12;
-      const now = nowIso();
+      const now = nowIso_();
       // opportunistic cleanup of expired sessions
       Store.all('Sessions').filter(function (s) { return s.expires_at < now; }).reverse().forEach(function (s) { Store.remove('Sessions', s._row); });
-      Store.insert('Sessions', { token_hash: sha256Hex(token), user_id: u.id, expires_at: new Date(Date.now() + hours * 3600e3).toISOString() });
-      audit(u, 'login', '');
+      Store.insert('Sessions', { token_hash: sha256Hex_(token), user_id: u.id, expires_at: new Date(Date.now() + hours * 3600e3).toISOString() });
+      audit_(u, 'login', '');
       return { token: token, user: publicUser(u) };
     });
   }
@@ -78,7 +78,7 @@ const Auth = (function () {
   /** Resolve a session token to a user, or null. Result cached for 60 s. */
   function userFromToken(token) {
     if (!token || typeof token !== 'string' || token.length !== 64) return null;
-    const hash = sha256Hex(token);
+    const hash = sha256Hex_(token);
     const cache = CacheService.getScriptCache();
     const hit = cache.get('wg:s:' + hash);
     if (hit) {
@@ -86,7 +86,7 @@ const Auth = (function () {
       if (c.exp > Date.now()) return c.user;
     }
     const s = Store.find('Sessions', 'token_hash', hash);
-    if (!s || s.expires_at < nowIso()) return null;
+    if (!s || s.expires_at < nowIso_()) return null;
     const u = Store.find('Users', 'id', s.user_id);
     if (!u || !u.active) return null;
     const user = publicUser(u);
@@ -96,7 +96,7 @@ const Auth = (function () {
 
   function logout(token) {
     if (!token || typeof token !== 'string') return;
-    const hash = sha256Hex(token);
+    const hash = sha256Hex_(token);
     CacheService.getScriptCache().remove('wg:s:' + hash);
     Locks.run(function () {
       const s = Store.find('Sessions', 'token_hash', hash);
@@ -118,18 +118,18 @@ const Auth = (function () {
   }
 
   function createUser(actor, input) {
-    const username = clean(input.username, 32);
-    const name = clean(input.name, 80);
+    const username = clean_(input.username, 32);
+    const name = clean_(input.name, 80);
     validUsername(username);
-    if (!name) throw HttpError(400, 'Name is required');
-    if (!ROLES[input.role]) throw HttpError(400, 'Choose a valid role');
+    if (!name) throw HttpError_(400, 'Name is required');
+    if (!ROLES[input.role]) throw HttpError_(400, 'Choose a valid role');
     return Locks.run(function () {
-      if (findUserByName(username)) throw HttpError(409, 'That username already exists');
-      const password = input.password ? String(input.password) : randomPassword(14);
+      if (findUserByName(username)) throw HttpError_(409, 'That username already exists');
+      const password = input.password ? String(input.password) : randomPassword_(14);
       validPassword(password);
-      const salt = randomToken().slice(0, 32);
-      const u = Store.insert('Users', { id: nextUserId(), username: username, display_name: name, role: input.role, salt: salt, hash: hashPassword(password, salt), active: true, created_at: nowIso() });
-      audit(actor, 'user.create', username + ' (' + input.role + ')');
+      const salt = randomToken_().slice(0, 32);
+      const u = Store.insert('Users', { id: nextUserId(), username: username, display_name: name, role: input.role, salt: salt, hash: hashPassword(password, salt), active: true, created_at: nowIso_() });
+      audit_(actor, 'user.create', username + ' (' + input.role + ')');
       Store.bump();
       return { user: { id: u.id, username: u.username, name: u.display_name, role: u.role, active: true }, password: password };
     });
@@ -140,12 +140,12 @@ const Auth = (function () {
   function setActive(actor, id, active) {
     return Locks.run(function () {
       const u = Store.find('Users', 'id', id);
-      if (!u) throw HttpError(404, 'User not found');
-      if (!active && u.role === 'admin' && activeAdmins().length <= 1 && u.active) throw HttpError(409, 'You cannot deactivate the last active admin');
-      if (!active && actor && actor.id === id) throw HttpError(409, 'You cannot deactivate your own account');
+      if (!u) throw HttpError_(404, 'User not found');
+      if (!active && u.role === 'admin' && activeAdmins().length <= 1 && u.active) throw HttpError_(409, 'You cannot deactivate the last active admin');
+      if (!active && actor && actor.id === id) throw HttpError_(409, 'You cannot deactivate your own account');
       Store.update('Users', u._row, { active: !!active });
       if (!active) killSessions(id);
-      audit(actor, active ? 'user.activate' : 'user.deactivate', u.username);
+      audit_(actor, active ? 'user.activate' : 'user.deactivate', u.username);
       Store.bump();
       return { ok: true };
     });
@@ -154,12 +154,12 @@ const Auth = (function () {
   function resetPassword(actor, id) {
     return Locks.run(function () {
       const u = Store.find('Users', 'id', id);
-      if (!u) throw HttpError(404, 'User not found');
-      const password = randomPassword(14);
-      const salt = randomToken().slice(0, 32);
+      if (!u) throw HttpError_(404, 'User not found');
+      const password = randomPassword_(14);
+      const salt = randomToken_().slice(0, 32);
       Store.update('Users', u._row, { salt: salt, hash: hashPassword(password, salt) });
       killSessions(id);
-      audit(actor, 'user.reset_password', u.username);
+      audit_(actor, 'user.reset_password', u.username);
       return { password: password };
     });
   }
@@ -168,10 +168,10 @@ const Auth = (function () {
     validPassword(next);
     return Locks.run(function () {
       const u = Store.find('Users', 'id', user.id);
-      if (!u || !constantTimeEquals(hashPassword(String(current || ''), u.salt), u.hash)) throw HttpError(403, 'Current password is incorrect');
-      const salt = randomToken().slice(0, 32);
+      if (!u || !constantTimeEquals(hashPassword(String(current || ''), u.salt), u.hash)) throw HttpError_(403, 'Current password is incorrect');
+      const salt = randomToken_().slice(0, 32);
       Store.update('Users', u._row, { salt: salt, hash: hashPassword(next, salt) });
-      audit(user, 'user.change_password', u.username);
+      audit_(user, 'user.change_password', u.username);
       return { ok: true };
     });
   }

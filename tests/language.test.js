@@ -86,6 +86,6 @@ test('guest content is served in every language with English as the fallback', (
 
 test('nationality names and codes map to a language, unknown stays English', () => {
   const t = boot({ demo: false });
-  const f = t.b.ev('suggestLanguage');
+  const f = t.b.ev('suggestLanguage_');
   for (const [n, l] of [['AE', 'ar'], ['United Arab Emirates', 'ar'], ['sau', 'ar'], ['EG', 'ar'], ['RU', 'ru'], ['Russian Federation', 'ru'], ['kz', 'ru'], ['DE', 'de'], ['Austria', 'de'], ['CH', 'de'], ['GB', 'en'], ['CN', 'en'], ['', 'en'], [null, 'en']]) assert.equal(f(n), l, String(n));
 });

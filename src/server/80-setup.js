@@ -4,31 +4,79 @@
  * ===================================================================== */
 
 /**
- * RUN ONCE. Creates every tab, the default room types and guest content,
- * and the first admin login. The admin password is shown in the log ONCE.
+ * Only the script owner, running a function from the Apps Script editor, may
+ * pass. Every top-level function without a trailing underscore can also be
+ * called by web-app visitors through google.script.run, so each editor-only
+ * function starts with this check. It fails closed: if Google returns no
+ * email (missing userinfo.email scope, anonymous visitor), it refuses.
+ */
+function requireEditor_() {
+  let active = '', effective = '';
+  try {
+    active = Session.getActiveUser().getEmail();
+    effective = Session.getEffectiveUser().getEmail();
+  } catch (e) { /* no email available */ }
+  if (!active || active !== effective) {
+    throw new Error('Run this from the Apps Script editor while signed in as the owner of the script.');
+  }
+}
+
+/**
+ * RUN ONCE. Creates the database sheet (if the script is not attached to one),
+ * every tab, the default room types and guest content, and the first admin
+ * login. The admin password is shown in the log ONCE.
  * Safe to run again: it never overwrites existing data.
  */
 function setup() {
-  Store.ensureSchema();
-  Locks.run(function () {
-    if (!Store.all('RoomTypes').length) Store.insertMany('RoomTypes', DEFAULT_ROOM_TYPES.map(function (t) { return { code: t[0], name: t[1] }; }));
-    if (!Store.all('GuestContent').length) {
-      Store.insertMany('GuestContent', DEFAULT_GUEST_CONTENT.map(guestContentRow));
-    }
-    if (!Store.all('Config').length) {
-      Store.insertMany('Config', Object.keys(CONFIG_DEFAULTS).map(function (k) { return { key: k, value: CONFIG_DEFAULTS[k] }; }));
-    }
-    if (Store.kvGet('Meta', 'version') === null) Store.kvSet('Meta', 'version', 1);
-  });
+  requireEditor_();
+  const msg = setup_();
+  Logger.log(msg);
+  return msg;
+}
+
+function setup_() {
+  const createdSheet = Store.bootstrap();
+  migrate_();
   let created = null;
   if (!Store.all('Users').length) {
     created = Auth.createUser(null, { username: 'admin', name: 'Administrator', role: 'admin' });
   }
-  const msg = created
+  return (createdSheet ? 'Created the database sheet "Waiting Guest Database" in your Google Drive.\n' : '') + (created
     ? 'SETUP COMPLETE.\nFirst admin login (shown once, copy it now):\n  username: admin\n  password: ' + created.password + '\nNext: deploy as a web app, sign in, change this password, then create Reception and Rooms Controller users.'
-    : 'SETUP COMPLETE. Tabs are up to date. Existing users were left unchanged.';
-  Logger.log(msg);
-  return msg;
+    : 'SETUP COMPLETE. Tabs are up to date. Existing users were left unchanged.');
+}
+
+/**
+ * Bring the sheet up to the current schema: new tabs, new columns (always
+ * appended at the end, so existing data never moves), default rows and any
+ * new settings. Idempotent.
+ */
+function migrate_() {
+  Store.ensureSchema();
+  Locks.run(function () {
+    if (!Store.all('RoomTypes').length) Store.insertMany('RoomTypes', DEFAULT_ROOM_TYPES.map(function (t) { return { code: t[0], name: t[1] }; }));
+    if (!Store.all('GuestContent').length) Store.insertMany('GuestContent', DEFAULT_GUEST_CONTENT.map(guestContentRow_));
+    const have = {};
+    Store.all('Config').forEach(function (r) { have[r.key] = true; });
+    Store.insertMany('Config', Object.keys(CONFIG_DEFAULTS).filter(function (k) { return !have[k]; }).map(function (k) { return { key: k, value: CONFIG_DEFAULTS[k] }; }));
+    if (Store.kvGet('Meta', 'version') === null) Store.kvSet('Meta', 'version', 1);
+    Store.kvSet('Meta', 'schema_version', SCHEMA_VERSION);
+  });
+  CacheService.getScriptCache().put('wg:schema', String(SCHEMA_VERSION), 21600);
+}
+
+/**
+ * Called before every API request. After new code is pasted in, the first
+ * request upgrades the sheet automatically, so nobody has to remember to run
+ * setup() again. Cheap: one cache read in the normal case.
+ */
+function ensureCurrent_() {
+  const cache = CacheService.getScriptCache();
+  if (cache.get('wg:schema') === String(SCHEMA_VERSION)) return;
+  let current = null;
+  try { current = Store.kvGet('Meta', 'schema_version'); } catch (e) { current = null; }
+  if (current === String(SCHEMA_VERSION)) { cache.put('wg:schema', String(SCHEMA_VERSION), 21600); return; }
+  migrate_();
 }
 
 /**
@@ -37,8 +85,9 @@ function setup() {
  * on the live sheet. Passwords are printed to the log once.
  */
 function loadDemoData() {
-  setup();
-  const today = todayIso();
+  requireEditor_();
+  setup_();
+  const today = todayIso_();
   const plus = function (n) { const d = new Date(Date.parse(today + 'T00:00:00Z') + n * 86400000); return d.toISOString().slice(0, 10); };
   const R = [
     ['51840217', 'Hassan Al Mansoori', '10:40', 4, 'KGAOV', 2, 0, '+971 50 555 0142', 'h.almansoori@example.com', 'Bed & Breakfast', 'AE', '', 'Quiet room if possible'],
@@ -54,7 +103,7 @@ function loadDemoData() {
     const have = {};
     Store.all('Reservations').forEach(function (r) { have[r.confirmation_no] = true; });
     Store.insertMany('Reservations', R.filter(function (r) { return !have[r[0]]; }).map(function (r) {
-      return { confirmation_no: r[0], guest_name: r[1], arrival_date: today, arrival_time: r[2], departure_date: plus(r[3]), room_type: r[4], adults: r[5], children: r[6], phone: r[7], email: r[8], nights: r[3], rate_plan: 'Mock rate', meal_plan: r[9], nationality: r[10], vip_code: r[11], special_requests: r[12], imported_at: nowIso() };
+      return { confirmation_no: r[0], guest_name: r[1], arrival_date: today, arrival_time: r[2], departure_date: plus(r[3]), room_type: r[4], adults: r[5], children: r[6], phone: r[7], email: r[8], nights: r[3], rate_plan: 'Mock rate', meal_plan: r[9], nationality: r[10], vip_code: r[11], special_requests: r[12], imported_at: nowIso_() };
     }));
     if (!Store.all('Rooms').length) {
       const types = ['KGA', 'KGAOV', 'KGE', 'KGEOV', 'TWA', 'TWAOV', 'SKB', 'SKC', 'SKD'];
@@ -81,6 +130,7 @@ function loadDemoData() {
 
 /** Add a login from the editor if you cannot reach the app: createUserFromEditor('name','Full Name','reception') */
 function createUserFromEditor(username, name, role) {
+  requireEditor_();
   const c = Auth.createUser(null, { username: username, name: name, role: role });
   Logger.log('User created. Username: ' + c.user.username + '  Password (shown once): ' + c.password);
   return c;
@@ -92,6 +142,7 @@ function createUserFromEditor(username, name, role) {
  * checks what the guest can and cannot see, then removes every trace.
  */
 function runSelfTest() {
+  requireEditor_();
   const log = [];
   const check = function (cond, label) { log.push((cond ? 'PASS  ' : 'FAIL  ') + label); if (!cond) throw new Error('Self-test failed: ' + label); };
   const stamp = String(Date.now()).slice(-6);
@@ -106,7 +157,7 @@ function runSelfTest() {
     const b = Auth.createUser(null, { username: ctl.username, name: 'Self test controller', role: 'rooms_controller', password: 'SelfTest-' + stamp + 'b' });
     rec.id = a.user.id; ctl.id = b.user.id;
     Locks.run(function () {
-      Store.insert('Reservations', { confirmation_no: conf, guest_name: 'Self Test', arrival_date: todayIso(), arrival_time: '10:00', departure_date: todayIso(), room_type: 'KGA', adults: 2, children: 1, phone: '+971 00 000 0000', email: 'selftest@example.com', nights: 1, imported_at: nowIso() });
+      Store.insert('Reservations', { confirmation_no: conf, guest_name: 'Self Test', arrival_date: todayIso_(), arrival_time: '10:00', departure_date: todayIso_(), room_type: 'KGA', adults: 2, children: 1, phone: '+971 00 000 0000', email: 'selftest@example.com', nights: 1, imported_at: nowIso_() });
       Store.insert('Rooms', { room_number: room, building: 'TEST', floor: '0', room_type: 'KGA', hk_status: 'clean' });
     });
     const t0 = Date.now();
@@ -155,7 +206,12 @@ function runSelfTest() {
 }
 
 /** Move old completed/cancelled Waiting Guests to the Archive tab to keep the sheet fast. */
-function archiveOld() {
+function archiveOld(e) {
+  // Runs from the nightly trigger, or by the owner from the editor. The trigger id is
+  // checked against this project's own triggers so a web visitor cannot fake it.
+  const uid = e && e.triggerUid ? String(e.triggerUid) : '';
+  const fromTrigger = uid && ScriptApp.getProjectTriggers().some(function (t) { return t.getUniqueId() === uid; });
+  if (!fromTrigger) requireEditor_();
   const days = Config.num('archive_after_days') || 30;
   const cutoff = new Date(Date.now() - days * 86400000).toISOString();
   return Locks.run(function () {
@@ -183,6 +239,7 @@ function archiveOld() {
 
 /** Optional: run once to archive automatically every night. */
 function installNightlyArchive() {
+  requireEditor_();
   ScriptApp.getProjectTriggers().forEach(function (t) { if (t.getHandlerFunction() === 'archiveOld') ScriptApp.deleteTrigger(t); });
   ScriptApp.newTrigger('archiveOld').timeBased().everyDays(1).atHour(4).create();
   Logger.log('Nightly archive installed (04:00).');

@@ -11,8 +11,9 @@
 const crypto = require('node:crypto');
 const fs = require('node:fs');
 
-function createGoogle({ persistFile = null, scriptUrl = 'https://script.google.com/macros/s/TEST/exec', htmlFile = null, timeZone = 'Asia/Dubai' } = {}) {
-  const state = { sheets: {}, props: {}, cache: new Map(), lockBusy: false, log: [], apiCalls: 0 };
+function createGoogle({ persistFile = null, scriptUrl = 'https://script.google.com/macros/s/TEST/exec', htmlFile = null, timeZone = 'Asia/Dubai', bound = true } = {}) {
+  // activeUser: the owner in the editor; '' for an anonymous web-app visitor (see requireEditor_).
+  const state = { sheets: {}, props: {}, cache: new Map(), lockBusy: false, log: [], apiCalls: 0, activeUser: 'owner@example.com', owner: 'owner@example.com', bound, created: 0 };
 
   if (persistFile && fs.existsSync(persistFile)) {
     const saved = JSON.parse(fs.readFileSync(persistFile, 'utf8'));
@@ -69,7 +70,8 @@ function createGoogle({ persistFile = null, scriptUrl = 'https://script.google.c
   }
 
   const SpreadsheetApp = {
-    getActive: () => SpreadsheetApp._book,
+    getActive: () => (state.bound ? SpreadsheetApp._book : null),
+    create: () => { state.created++; return Object.assign({ getId: () => 'SHEET_ID_1', getUrl: () => 'https://docs.google.com/spreadsheets/d/SHEET_ID_1/edit' }, SpreadsheetApp._book); },
     openById: () => SpreadsheetApp._book,
     _book: {
       getSheetByName: (n) => (state.sheets[n] ? makeSheet(n) : null),
@@ -110,10 +112,15 @@ function createGoogle({ persistFile = null, scriptUrl = 'https://script.google.c
   const triggers = [];
   const ScriptApp = {
     getService: () => ({ getUrl: () => scriptUrl }),
-    getProjectTriggers: () => triggers, deleteTrigger: () => {},
-    newTrigger: () => ({ timeBased: () => ({ everyDays: () => ({ atHour: () => ({ create: () => triggers.push({}) }) }) }) }),
+    getProjectTriggers: () => triggers,
+    deleteTrigger: (t) => { const i = triggers.indexOf(t); if (i >= 0) triggers.splice(i, 1); },
+    newTrigger: (fn) => ({ timeBased: () => ({ everyDays: () => ({ atHour: () => ({ create: () => { const t = { getHandlerFunction: () => fn, getUniqueId: () => 'TRIG' + (triggers.length + 1) }; triggers.push(t); return t; } }) }) }) }),
   };
-  const Session = { getScriptTimeZone: () => timeZone };
+  const Session = {
+    getScriptTimeZone: () => timeZone,
+    getActiveUser: () => ({ getEmail: () => state.activeUser }),
+    getEffectiveUser: () => ({ getEmail: () => state.owner }),
+  };
   const Logger = { log: (m) => { state.log.push(String(m)); } };
   const HtmlService = {
     XFrameOptionsMode: { DEFAULT: 'DEFAULT' },

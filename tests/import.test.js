@@ -7,7 +7,7 @@ const HEADER = 'Confirmation Number,Guest Name,Arrival,Departure,Room Type,Adult
 
 test('date and time parsing (day first, several formats, real dates only)', () => {
   const t = boot({ demo: false });
-  const d = t.b.ev('parseDateText'), tm = t.b.ev('parseTimeText');
+  const d = t.b.ev('parseDateText_'), tm = t.b.ev('parseTimeText_');
   assert.equal(d('2026-09-29'), '2026-09-29');
   assert.equal(d('29/09/2026'), '2026-09-29');
   assert.equal(d('29-09-2026'), '2026-09-29');

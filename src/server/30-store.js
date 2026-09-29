@@ -21,7 +21,7 @@ const Store = (function () {
     try { ss = SpreadsheetApp.getActive(); } catch (e) { ss = null; }
     if (!ss) {
       const id = PropertiesService.getScriptProperties().getProperty('SPREADSHEET_ID');
-      if (!id) throw HttpError(500, 'Not configured: open the script from the Google Sheet (Extensions > Apps Script) or set SPREADSHEET_ID.');
+      if (!id) throw HttpError_(500, 'The system is not set up yet. The owner must run setup() in the Apps Script editor.');
       ss = SpreadsheetApp.openById(id);
     }
     return ss;
@@ -29,7 +29,7 @@ const Store = (function () {
 
   function sheet(name) {
     const sh = spreadsheet().getSheetByName(name);
-    if (!sh) throw HttpError(500, 'The "' + name + '" tab is missing. Run setup() once from the Apps Script editor.');
+    if (!sh) throw HttpError_(500, 'The "' + name + '" tab is missing. Run setup() once from the Apps Script editor.');
     return sh;
   }
 
@@ -65,7 +65,7 @@ const Store = (function () {
     const vals = sh.getRange(1, 1, last, cols.length).getValues();
     for (let c = 0; c < cols.length; c++) {
       if (String(vals[0][c]) !== cols[c][0]) {
-        throw HttpError(500, 'The header row of the "' + name + '" tab was changed (column ' + (c + 1) + ' should be "' + cols[c][0] + '"). Restore it, or run setup().');
+        throw HttpError_(500, 'The header row of the "' + name + '" tab was changed (column ' + (c + 1) + ' should be "' + cols[c][0] + '"). Restore it, or run setup().');
       }
     }
     let rows = [];
@@ -102,7 +102,7 @@ const Store = (function () {
   function update(name, rowNo, patch) {
     const cols = SCHEMA[name];
     const cur = all(name).filter(function (r) { return r._row === rowNo; })[0];
-    if (!cur) throw HttpError(404, 'Row not found');
+    if (!cur) throw HttpError_(404, 'Row not found');
     const next = Object.assign({}, cur, patch);
     const cells = objToRow(cols, next);
     sheet(name).getRange(rowNo, 1, 1, cols.length).setValues([cells]);
@@ -165,6 +165,18 @@ const Store = (function () {
   }
 
   // ---- setup ------------------------------------------------------------
+  /** For a standalone script (not opened from a Sheet): create the database sheet once. */
+  function bootstrap() {
+    let bound = null;
+    try { bound = SpreadsheetApp.getActive(); } catch (e) { bound = null; }
+    const props = PropertiesService.getScriptProperties();
+    if (bound || props.getProperty('SPREADSHEET_ID')) return false;
+    const created = SpreadsheetApp.create('Waiting Guest Database');
+    props.setProperty('SPREADSHEET_ID', created.getId());
+    ss = created;
+    return true;
+  }
+
   function ensureSchema() {
     const book = spreadsheet();
     Object.keys(SCHEMA).forEach(function (name) {
@@ -183,7 +195,7 @@ const Store = (function () {
   function reset() { memo = {}; }
 
   return { all: all, insert: insert, insertMany: insertMany, update: update, remove: remove, clear: clear, find: find,
-    kvGet: kvGet, kvSet: kvSet, version: version, bump: bump, ensureSchema: ensureSchema, reset: reset, spreadsheet: spreadsheet };
+    kvGet: kvGet, kvSet: kvSet, version: version, bump: bump, ensureSchema: ensureSchema, bootstrap: bootstrap, reset: reset, spreadsheet: spreadsheet };
 })();
 
 const Locks = {
@@ -192,7 +204,7 @@ const Locks = {
     const lock = LockService.getScriptLock();
     let got = false;
     try { got = lock.tryLock(20000); } catch (e) { got = false; }
-    if (!got) throw HttpError(503, 'The system is busy. Please try again in a moment.');
+    if (!got) throw HttpError_(503, 'The system is busy. Please try again in a moment.');
     try {
       Store.reset();
       return fn();
@@ -207,9 +219,9 @@ const Config = {
     const v = Store.kvGet('Config', key);
     return v === null || v === '' ? (CONFIG_DEFAULTS[key] === undefined ? '' : CONFIG_DEFAULTS[key]) : v;
   },
-  num: function (key) { return toInt(Config.get(key), toInt(CONFIG_DEFAULTS[key], 0)); },
+  num: function (key) { return toInt_(Config.get(key), toInt_(CONFIG_DEFAULTS[key], 0)); },
 };
 
-function audit(user, action, detail) {
-  Store.insert('Audit', { at: nowIso(), user_id: user ? user.id : '', action: action, detail: clean(detail, 500) });
+function audit_(user, action, detail) {
+  Store.insert('Audit', { at: nowIso_(), user_id: user ? user.id : '', action: action, detail: clean_(detail, 500) });
 }
