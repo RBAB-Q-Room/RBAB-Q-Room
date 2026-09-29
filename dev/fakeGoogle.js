@@ -119,7 +119,7 @@ function createGoogle({ persistFile = null, scriptUrl = 'https://script.google.c
     XFrameOptionsMode: { DEFAULT: 'DEFAULT' },
     createTemplateFromFile: () => {
       const tpl = { evaluate: () => {
-        const out = { title: '', meta: {}, setTitle(t) { this.title = t; return this; }, addMetaTag(k, v) { this.meta[k] = v; return this; }, setXFrameOptionsMode() { return this; },
+        const out = { title: '', meta: {}, setTitle(t) { this.title = t; return this; }, addMetaTag(k, v) { if (k !== 'viewport') throw new Error("The meta tag that you've specified is not allowed in this context."); this.meta[k] = v; return this; }, setXFrameOptionsMode() { return this; },
           getContent: () => fs.readFileSync(htmlFile, 'utf8').replace(/<\?!= boot \?>/g, tpl.boot) };
         return out;
       } };

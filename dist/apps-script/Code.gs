@@ -3937,9 +3937,9 @@ function doGet(e) {
   // JSON is escaped so it cannot break out of the script tag.
   tpl.boot = JSON.stringify({ mode: t ? 'guest' : 'staff', token: t, platform: 'gas' }).replace(/</g, '\\u003c');
   return tpl.evaluate()
+    // Apps Script only permits a few meta tags (viewport); others such as "referrer" throw. Links already use rel=noreferrer.
     .setTitle(t ? 'Your room · Rixos Bab Al Bahr' : 'Waiting Guest')
     .addMetaTag('viewport', 'width=device-width, initial-scale=1, viewport-fit=cover')
-    .addMetaTag('referrer', 'no-referrer')
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.DEFAULT);
 }
 
