@@ -1,0 +1,61 @@
+body { background: var(--paper); }
+.g-shell { max-width: 520px; margin: 0 auto; padding: 0 16px calc(28px + env(safe-area-inset-bottom)); min-height: 100vh; display: flex; flex-direction: column; }
+.g-top { display: flex; justify-content: center; padding: calc(18px + env(safe-area-inset-top)) 0 16px; }
+.g-foot { text-align: center; color: var(--ink-soft); font-size: 12px; letter-spacing: .06em; text-transform: uppercase; margin-top: auto; padding-top: 28px; }
+
+.hero { border-radius: 24px; padding: 30px 22px 26px; text-align: center; color: #fff; background: linear-gradient(155deg, #6B4E33 0%, #4F3A26 100%); box-shadow: var(--shadow); position: relative; overflow: hidden; transition: background .6s var(--ease); animation: rise .5s var(--ease); }
+.hero::before { content: ""; position: absolute; inset: -40% -20% auto auto; width: 320px; height: 320px; border-radius: 50%; background: radial-gradient(circle, rgba(201,162,75,.35), transparent 65%); pointer-events: none; }
+.hero.ready { background: linear-gradient(155deg, #2F7F5A 0%, #1F5B40 100%); }
+.hero.ready::before { background: radial-gradient(circle, rgba(255,255,255,.28), transparent 65%); }
+.hero.done { background: linear-gradient(155deg, #5c5f66, #43464c); }
+.hero > * { position: relative; }
+.eyebrow { font-size: 11.5px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; opacity: .85; }
+.hero h1 { font-family: "Source Serif 4", Georgia, serif; font-weight: 600; font-size: clamp(30px, 9vw, 40px); line-height: 1.12; margin: 12px 0 10px; letter-spacing: .005em; text-transform: none; }
+.hero p { margin: 0 auto; max-width: 34ch; font-size: 15px; line-height: 1.5; opacity: .95; }
+.badge { width: 68px; height: 68px; border-radius: 50%; margin: 0 auto 4px; display: flex; align-items: center; justify-content: center; background: rgba(255,255,255,.14); border: 1px solid rgba(255,255,255,.3); }
+.badge svg { width: 30px; height: 30px; stroke-width: 2.2; }
+.hero.ready .badge { animation: pop .7s var(--ease); background: rgba(255,255,255,.2); }
+.hero:not(.ready):not(.done) .badge svg { animation: sway 3.2s ease-in-out infinite; }
+@keyframes sway { 50% { transform: rotate(12deg) scale(1.06); } }
+@keyframes pop { from { transform: scale(.3); opacity: 0; } 60% { transform: scale(1.12); } }
+.ref { margin-top: 20px; display: inline-flex; flex-direction: column; gap: 2px; background: rgba(255,255,255,.12); border: 1px solid rgba(255,255,255,.25); border-radius: 14px; padding: 10px 22px; }
+.ref span { font-size: 10.5px; letter-spacing: .12em; text-transform: uppercase; opacity: .8; font-weight: 700; }
+.ref b { font-family: "Source Serif 4", Georgia, serif; font-size: 30px; letter-spacing: .04em; font-weight: 600; }
+
+.g-card { padding: 18px 18px 8px; margin-top: 14px; }
+.g-card .kv { grid-template-columns: 1fr 1fr; padding-bottom: 12px; }
+.g-card h2, .sec-title { font-family: "Source Serif 4", Georgia, serif; font-size: 22px; font-weight: 600; }
+
+.progress { display: flex; align-items: center; margin: 16px 4px 4px; }
+.progress .p { display: flex; flex-direction: column; align-items: center; gap: 6px; flex: 0 0 auto; width: 76px; font-size: 11px; font-weight: 600; color: var(--ink-soft); text-align: center; }
+.progress .p i { width: 14px; height: 14px; border-radius: 50%; border: 2px solid var(--line); background: var(--panel); transition: all .4s var(--ease); }
+.progress .p.on { color: var(--ink); } .progress .p.on i { background: var(--s-ready); border-color: var(--s-ready); }
+.progress .p.cur i { border-color: var(--bronze); background: var(--bronze-soft); box-shadow: 0 0 0 4px color-mix(in srgb, var(--bronze) 22%, transparent); animation: pulse2 2s infinite; }
+.progress .ln { flex: 1; height: 2px; background: var(--line); margin-bottom: 22px; }
+.progress .ln.on { background: var(--s-ready); }
+@keyframes pulse2 { 50% { box-shadow: 0 0 0 7px transparent; } }
+
+.wait-title { margin: 30px 4px 4px; }
+.wait-sub { margin: 0 4px 14px; color: var(--ink-soft); font-size: 14px; }
+.links { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px; }
+.link-btn { display: flex; flex-direction: column; gap: 6px; padding: 16px 14px; border-radius: 16px; text-decoration: none; color: var(--ink); background: var(--panel); border: 1px solid var(--line); box-shadow: var(--shadow-sm); font-weight: 700; min-height: 88px; transition: transform .15s, border-color .15s; }
+.link-btn:hover { border-color: var(--bronze); transform: translateY(-1px); }
+.link-btn svg { width: 22px; height: 22px; color: var(--bronze); }
+.link-btn small { font-weight: 500; color: var(--ink-soft); font-size: 12px; }
+.link-btn.off { opacity: .6; pointer-events: none; }
+.cards { display: flex; flex-direction: column; gap: 10px; }
+.tile { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; box-shadow: var(--shadow-sm); overflow: hidden; }
+.tile summary { list-style: none; cursor: pointer; display: flex; align-items: center; gap: 14px; padding: 16px; min-height: 60px; }
+.tile summary::-webkit-details-marker { display: none; }
+.tile .ic { width: 42px; height: 42px; border-radius: 12px; background: var(--bronze-soft); color: var(--bronze-deep); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.tile .ic svg { width: 22px; height: 22px; }
+.tile .tt { font-weight: 700; font-size: 15.5px; flex: 1; }
+.tile .chev { transition: transform .25s var(--ease); color: var(--ink-soft); }
+.tile[open] .chev { transform: rotate(180deg); }
+.tile .body { padding: 0 16px 16px 72px; color: var(--ink-soft); font-size: 14px; line-height: 1.55; animation: fade .3s; }
+.tile .soon { display: inline-block; margin-top: 8px; font-size: 10.5px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--bronze-deep); background: var(--bronze-soft); padding: 2px 8px; border-radius: 6px; }
+.notice { margin: 24px 4px 0; font-size: 12px; color: var(--ink-soft); text-align: center; }
+.err-view { text-align: center; padding: 60px 20px; }
+.err-view h1 { font-family: "Source Serif 4", Georgia, serif; font-size: 26px; margin-bottom: 8px; }
+.conn { position: fixed; left: 50%; transform: translateX(-50%); bottom: 14px; background: var(--ink); color: var(--paper); padding: 8px 14px; border-radius: 18px; font-size: 12.5px; font-weight: 600; z-index: 20; }
+@media (max-width: 360px) { .links { grid-template-columns: 1fr; } .progress .p { width: 64px; } }

@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sign in · Waiting Guest</title>
+<link rel="icon" type="image/png" sizes="32x32" href="/assets/favicon-32.png">
+<link rel="apple-touch-icon" href="/assets/apple-touch-icon.png">
+<link rel="stylesheet" href="/css/base.css">
+</head>
+<body>
+<main class="auth-gate">
+  <div class="card auth-card">
+    <div class="auth-logo"><img src="/assets/rixos-logo.png" alt="Rixos Bab Al Bahr"></div>
+    <h1>Waiting Guest</h1>
+    <div class="auth-sub">Reception and Rooms Controller. Sign in to continue.</div>
+    <form id="form">
+      <label class="field"><span>Username</span><input class="in" id="u" autocomplete="username" autofocus required></label>
+      <label class="field"><span>Password</span><input class="in" id="p" type="password" autocomplete="current-password" required></label>
+      <div class="banner err" id="err" role="alert" hidden></div>
+      <button class="btn btn-primary" id="go" type="submit">Sign in</button>
+    </form>
+  </div>
+</main>
+<script src="/js/common.js"></script>
+<script src="/js/login.js"></script>
+</body>
+</html>
