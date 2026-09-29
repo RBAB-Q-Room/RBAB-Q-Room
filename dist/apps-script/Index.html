@@ -53,6 +53,7 @@ html[data-theme="dark"] {
 }
 
 * { box-sizing: border-box; }
+[hidden] { display: none !important; } /* class display rules (banner, field-error) must not override the hidden attribute */
 html, body { margin: 0; background: var(--paper); color: var(--ink); transition: background .2s ease, color .2s ease; }
 body { font-size: 14px; line-height: 1.45; -webkit-font-smoothing: antialiased; }
 :focus-visible { outline: 2px solid var(--bronze); outline-offset: 2px; }
@@ -1588,7 +1589,7 @@ WG.views.guest = function (root, token) {
       </section>
       <section class="card g-card" aria-label="${esc(T('guest'))}"><div class="kv">
         <div><span>${esc(T('guest'))}</span><b>${esc(g.guestName)}</b></div><div><span>${esc(T('confirmation'))}</span><b dir="ltr" style="text-align:start">${esc(g.confirmationNo)}</b></div>
-        <div><span>${esc(T('roomType'))}</span><b dir="ltr" style="text-align:start">${esc(g.roomType)}</b></div><div><span>${esc(T('arrival'))}</span><b>${fmtD(g.arrivalDate)}${g.arrivalTime ? ' · ' + esc(g.arrivalTime) : ''}</b></div></div>${prog}</section>
+        <div><span>${esc(T('roomType'))}</span><b dir="ltr" style="text-align:start">${esc(g.roomType)}</b></div><div><span>${esc(T('arrival'))}</span><b>${fmtD(g.arrivalDate)}${g.arrivalTime ? `${langInfo(lang).dir === 'rtl' ? ' ' : ' · '}<bdi dir="ltr">${esc(g.arrivalTime)}</bdi>` : ''}</b></div></div>${prog}</section>
       ${showInfo ? `<h2 class="sec-title wait-title">${esc(g.phase === 'ready' ? T('around') : T('whileWait'))}</h2>
       <p class="wait-sub">${esc(g.phase === 'ready' ? T('aroundSub') : welcome)}</p>
       <div class="links">${link(c.links.map, 'map', T('map'), T('mapSub'))}${link(c.links.website, 'globe', T('website'), c.hotelName)}</div>

@@ -43,6 +43,7 @@ html[data-theme="dark"] {
 }
 
 * { box-sizing: border-box; }
+[hidden] { display: none !important; } /* class display rules (banner, field-error) must not override the hidden attribute */
 html, body { margin: 0; background: var(--paper); color: var(--ink); transition: background .2s ease, color .2s ease; }
 body { font-size: 14px; line-height: 1.45; -webkit-font-smoothing: antialiased; }
 :focus-visible { outline: 2px solid var(--bronze); outline-offset: 2px; }

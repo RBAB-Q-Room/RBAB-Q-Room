@@ -68,7 +68,7 @@ WG.views.guest = function (root, token) {
       </section>
       <section class="card g-card" aria-label="${esc(T('guest'))}"><div class="kv">
         <div><span>${esc(T('guest'))}</span><b>${esc(g.guestName)}</b></div><div><span>${esc(T('confirmation'))}</span><b dir="ltr" style="text-align:start">${esc(g.confirmationNo)}</b></div>
-        <div><span>${esc(T('roomType'))}</span><b dir="ltr" style="text-align:start">${esc(g.roomType)}</b></div><div><span>${esc(T('arrival'))}</span><b>${fmtD(g.arrivalDate)}${g.arrivalTime ? ' · ' + esc(g.arrivalTime) : ''}</b></div></div>${prog}</section>
+        <div><span>${esc(T('roomType'))}</span><b dir="ltr" style="text-align:start">${esc(g.roomType)}</b></div><div><span>${esc(T('arrival'))}</span><b>${fmtD(g.arrivalDate)}${g.arrivalTime ? `${langInfo(lang).dir === 'rtl' ? ' ' : ' · '}<bdi dir="ltr">${esc(g.arrivalTime)}</bdi>` : ''}</b></div></div>${prog}</section>
       ${showInfo ? `<h2 class="sec-title wait-title">${esc(g.phase === 'ready' ? T('around') : T('whileWait'))}</h2>
       <p class="wait-sub">${esc(g.phase === 'ready' ? T('aroundSub') : welcome)}</p>
       <div class="links">${link(c.links.map, 'map', T('map'), T('mapSub'))}${link(c.links.website, 'globe', T('website'), c.hotelName)}</div>
