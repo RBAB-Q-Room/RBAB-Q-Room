@@ -59,6 +59,25 @@ const Links = {
   guestUrl: function (token) { return Links.base() + (Links.base().indexOf('?') === -1 ? '?' : '&') + 't=' + token; },
 };
 
+function cleanTags_(v) {
+  const list = Array.isArray(v) ? v : String(v || '').split(',');
+  const out = [];
+  list.forEach(function (t) { t = String(t).trim().toLowerCase(); if (GUEST_TAGS.indexOf(t) !== -1 && out.indexOf(t) === -1) out.push(t); });
+  return out.join(',');
+}
+function parseTags_(s) { return String(s || '').split(',').filter(function (t) { return GUEST_TAGS.indexOf(t) !== -1; }); }
+
+/** Lowercase, remove accents, keep letters/digits/spaces: "Jürgen  O'Neil" -> "jurgen oneil". */
+function fold_(s) {
+  return String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9\u0600-\u06ff\u0400-\u04ff ]+/g, '').replace(/\s+/g, ' ').trim();
+}
+/** Local calendar date and hour of an ISO timestamp, in the hotel's time zone. */
+function localParts_(iso) {
+  if (!iso) return null;
+  const s = Utilities.formatDate(new Date(iso), Session.getScriptTimeZone(), 'yyyy-MM-dd HH');
+  return { date: s.slice(0, 10), hour: parseInt(s.slice(11, 13), 10) };
+}
+
 const Waiting = (function () {
   // Which role may move a guest INTO which status, and from where.
   const TRANSITIONS = {
@@ -80,9 +99,12 @@ const Waiting = (function () {
       adults: r.adults, children: r.children, phone: r.phone, email: r.email,
       luggageTag: r.luggage_tag, associate: r.associate, preferences: r.preferences, remarks: r.remarks,
       roomNumber: r.room_number, status: r.status, priority: !!r.priority, cancelReason: r.cancel_reason, language: normLanguage_(r.language),
+      vipCode: r.vip_code, tags: parseTags_(r.tags), createSeconds: r.create_seconds || null,
+      feedback: r.feedback_at ? { rating: r.feedback_rating, helpful: r.feedback_helpful, at: r.feedback_at } : null,
       timestamps: {
         guestArrival: r.guest_arrival_at, created: r.created_at, roomAssigned: r.room_assigned_at, preparationStarted: r.preparation_started_at,
         roomReady: r.room_ready_at, guestNotified: r.guest_notified_at, guestReturned: r.guest_returned_at, completed: r.completed_at, cancelled: r.cancelled_at,
+        qrOpened: r.qr_first_opened_at, guestSawReady: r.guest_seen_ready_at,
       },
     };
   }
@@ -154,6 +176,9 @@ const Waiting = (function () {
         luggage_tag: clean_(input.luggageTag, 40), associate: associate, preferences: clean_(input.preferences, 500), remarks: clean_(input.remarks, 500),
         room_number: '', status: 'waiting', priority: false, guest_arrival_at: now, created_at: now, created_by: user.id,
         language: normLanguage_(input.language, suggestLanguage_(res.nationality)),
+        vip_code: clean_(res.vipCode, 20), tags: cleanTags_(input.tags),
+        // Measured time Reception spent from opening the reservation to pressing Create (seconds).
+        create_seconds: (function (n) { return n >= 1 && n <= 1800 ? n : ''; })(toInt_(input.createSeconds, 0)),
       });
       log(id, '', 'waiting', '', user, source === 'manual' ? 'Reservation entered manually' : '');
       Store.bump();
@@ -168,7 +193,8 @@ const Waiting = (function () {
       if (!isActive(r)) throw HttpError_(409, 'This Waiting Guest is closed');
       const associate = clean_(input.associate, 80);
       if (!associate) throw HttpError_(400, 'Associate name is required');
-      const row = Store.update('WaitingGuests', r._row, { luggage_tag: clean_(input.luggageTag, 40), associate: associate, preferences: clean_(input.preferences, 500), remarks: clean_(input.remarks, 500), language: normLanguage_(input.language, r.language || 'en') });
+      const row = Store.update('WaitingGuests', r._row, { luggage_tag: clean_(input.luggageTag, 40), associate: associate, preferences: clean_(input.preferences, 500), remarks: clean_(input.remarks, 500), language: normLanguage_(input.language, r.language || 'en'),
+        tags: input.tags === undefined ? r.tags : cleanTags_(input.tags) });
       log(id, r.status, r.status, r.room_number, user, 'Details edited');
       Store.bump();
       return toStaff(row);
@@ -270,14 +296,43 @@ const Waiting = (function () {
       .map(function (h) { return { from: h.from_status, to: h.to_status, roomNumber: h.room_number, at: h.changed_at, note: h.note, by: users[h.changed_by] || '' }; });
   }
 
-  /** Reception search: confirmation number, guest name or WG number. */
+  /**
+   * Staff search, forgiving: confirmation number, guest name (accents and case
+   * ignored, any word order), Waiting Guest number ("wg 12", "0012", "12"),
+   * room number or luggage tag.
+   */
   function search(term) {
-    const t = String(term || '').trim().toLowerCase();
-    if (t.length < 2) return { reservations: [], waitingGuests: [] };
-    const wgs = Store.all('WaitingGuests').filter(function (r) {
-      return r.confirmation_no.toLowerCase().indexOf(t) === 0 || r.guest_name.toLowerCase().indexOf(t) !== -1 || r.wg_number.toLowerCase().indexOf(t) !== -1;
-    }).sort(function (a, b) { return (isActive(b) ? 1 : 0) - (isActive(a) ? 1 : 0) || (b.created_at < a.created_at ? -1 : 1); }).slice(0, 20).map(toStaff);
-    return { reservations: ReservationSource.searchByConfirmation(t, 8), waitingGuests: wgs };
+    const raw = String(term || '').trim();
+    const t = fold_(raw);
+    if (t.length < 2 && !/^\d$/.test(t)) return { reservations: [], waitingGuests: [] };
+    const words = t.split(' ');
+    const digits = raw.replace(/\D/g, '');
+    const compact = t.replace(/ /g, '');
+    // "12", "0012", "wg 12", "WG-0012" all mean Waiting Guest 12 (short numbers only, so confirmation numbers don't collide)
+    const wgMatch = raw.match(/^(?:[a-z]{1,4}\s*-?\s*)?0*(\d{1,5})$/i);
+    const wgNum = wgMatch && (/^[a-z]/i.test(raw) || digits.length <= 5) ? parseInt(wgMatch[1], 10) : null;
+    const hit = function (r) {
+      const name = fold_(r.guest_name);
+      if (words.every(function (w) { return name.indexOf(w) !== -1; })) return true;
+      if (r.confirmation_no.toLowerCase().indexOf(compact) === 0) return true;
+      const wg = r.wg_number.toLowerCase().replace(/[^a-z0-9]/g, '');
+      if (wg.indexOf(compact) !== -1) return true;
+      if (wgNum !== null && parseInt(r.wg_number.replace(/\D/g, ''), 10) === wgNum) return true;
+      if (r.room_number && r.room_number.toLowerCase() === compact) return true;
+      if (r.luggage_tag && fold_(r.luggage_tag).replace(/ /g, '') === compact) return true;
+      return false;
+    };
+    const wgs = Store.all('WaitingGuests').filter(hit)
+      .sort(function (a, b) { return (isActive(b) ? 1 : 0) - (isActive(a) ? 1 : 0) || (b.created_at < a.created_at ? -1 : 1); }).slice(0, 20).map(toStaff);
+    const res = ReservationSource.searchByConfirmation(raw.replace(/\s/g, ''), 8);
+    if (res.length < 8 && /[a-z\u0600-\u06ff\u0400-\u04ff]/.test(t)) {
+      // also find arrivals by name, so Reception can search "mansoori" before a record exists
+      const seen = {};
+      res.forEach(function (r) { seen[r.confirmationNo] = true; });
+      Store.all('Reservations').filter(function (r) { return !seen[r.confirmation_no] && words.every(function (w) { return fold_(r.guest_name).indexOf(w) !== -1; }); })
+        .slice(0, 8 - res.length).forEach(function (r) { res.push(ReservationSource.shape(r)); });
+    }
+    return { reservations: res, waitingGuests: wgs };
   }
 
   function availableRooms(forId) {
@@ -289,48 +344,142 @@ const Waiting = (function () {
       .sort(function (a, b) { return (b.matchesType ? 1 : 0) - (a.matchesType ? 1 : 0) || (a.roomNumber < b.roomNumber ? -1 : 1); });
   }
 
-  /**
-   * What the guest may see. Deliberately excludes phone, email, associate,
-   * luggage tag, remarks, preferences, room number, priority and internal ids.
-   */
-  function guestView(token) {
-    if (typeof token !== 'string' || !/^[A-Za-z0-9_-]{20,64}$/.test(token)) return null;
-    const r = Store.find('WaitingGuests', 'qr_token', token);
-    if (!r) return null;
-    const phase = r.status === 'completed' ? 'completed' : r.status === 'cancelled' ? 'cancelled' : (r.status === 'ready' || r.status === 'returned') ? 'ready' : 'preparing';
-    return { wgNumber: r.wg_number, guestName: r.guest_name, confirmationNo: r.confirmation_no, roomType: r.room_type, arrivalDate: r.arrival_date, arrivalTime: r.arrival_time, departureDate: r.departure_date, phase: phase, readyAt: r.room_ready_at, language: normLanguage_(r.language) };
+  const PHASE = { waiting: 'received', room_assigned: 'assigned', preparing: 'preparing', ready: 'ready', returned: 'ready', completed: 'completed', cancelled: 'cancelled' };
+
+  function validToken(token) { return typeof token === 'string' && /^[A-Za-z0-9_-]{20,64}$/.test(token); }
+
+  function expired(r) {
+    const closedAt = r.completed_at || r.cancelled_at;
+    if (!closedAt) return false;
+    return Date.now() - Date.parse(closedAt) > Math.max(1, Config.num('qr_expire_hours')) * 3600e3;
   }
 
-  /** Real, computed metrics only. Nothing is estimated or fabricated. */
-  function metrics() {
-    const rows = Store.all('WaitingGuests').filter(function (r) { return r.status !== 'cancelled'; });
-    const active = rows.filter(isActive);
-    const done = rows.filter(function (r) { return r.status === 'completed'; });
-    const secs = function (a, b) { return a && b ? (Date.parse(b) - Date.parse(a)) / 1000 : null; };
-    const avg = function (xs) { const v = xs.filter(function (x) { return x !== null; }); return v.length ? Math.round(v.reduce(function (s, x) { return s + x; }, 0) / v.length) : null; };
-    const now = nowIso_();
-    const waitingNow = active.filter(function (r) { return r.status !== 'ready' && r.status !== 'returned'; }).map(function (r) { return secs(r.created_at, now); });
+  /**
+   * What the guest may see. A fixed whitelist: never phone, email, associate,
+   * luggage tag, remarks, preferences, room number, priority, VIP or internal ids.
+   * After a record has been closed for qr_expire_hours, only the phase is shown.
+   */
+  function guestView(token) {
+    if (!validToken(token)) return null;
+    const r = Store.find('WaitingGuests', 'qr_token', token);
+    if (!r) return null;
+    if (expired(r)) return { phase: 'expired', language: normLanguage_(r.language) };
+    const type = Store.find('RoomTypes', 'code', r.room_type);
     return {
-      total: rows.length, active: active.length, completed: done.length,
-      cancelled: Store.all('WaitingGuests').length - rows.length,
-      avgWaitToReadySec: avg(rows.map(function (r) { return secs(r.created_at, r.room_ready_at); })),
-      avgReadyToReturnSec: avg(rows.map(function (r) { return secs(r.room_ready_at, r.guest_returned_at); })),
-      avgTotalSec: avg(done.map(function (r) { return secs(r.created_at, r.completed_at); })),
-      longestActiveWaitSec: waitingNow.length ? Math.max.apply(null, waitingNow) : 0,
-      readyAwaitingGuest: active.filter(function (r) { return r.status === 'ready'; }).length,
+      wgNumber: r.wg_number, guestName: r.guest_name, confirmationNo: r.confirmation_no,
+      roomType: r.room_type, roomTypeName: type && type.name && type.name !== r.room_type ? type.name : '',
+      arrivalDate: r.arrival_date, arrivalTime: r.arrival_time, departureDate: r.departure_date,
+      phase: PHASE[r.status] || 'received', readyAt: r.room_ready_at, language: normLanguage_(r.language),
+      canGiveFeedback: r.status === 'completed' && !r.feedback_at, feedbackGiven: !!r.feedback_at,
+    };
+  }
+
+  /**
+   * The guest's page is on screen: record the first QR opening and the first time
+   * the guest saw "room ready". Real events only; each is written once.
+   */
+  function markSeen(token) {
+    if (!validToken(token)) return;
+    const peek = Store.find('WaitingGuests', 'qr_token', token);
+    if (!peek || expired(peek)) return;
+    const readyNow = peek.status === 'ready' || peek.status === 'returned';
+    if (peek.qr_first_opened_at && (!readyNow || peek.guest_seen_ready_at)) return;
+    Locks.run(function () {
+      const r = Store.find('WaitingGuests', 'qr_token', token);
+      if (!r) return;
+      const patch = {};
+      const now = nowIso_();
+      if (!r.qr_first_opened_at) patch.qr_first_opened_at = now;
+      if ((r.status === 'ready' || r.status === 'returned') && !r.guest_seen_ready_at) patch.guest_seen_ready_at = now;
+      if (!Object.keys(patch).length) return;
+      Store.update('WaitingGuests', r._row, patch);
+      Store.bump();
+    });
+  }
+
+  function feedback(token, body) {
+    if (!validToken(token)) throw HttpError_(404, 'This link is not valid');
+    body = body || {};
+    const rating = toInt_(body.rating, 0);
+    if (rating < 1 || rating > 5) throw HttpError_(400, 'Please choose 1 to 5 stars');
+    const helpful = body.helpful === 'yes' || body.helpful === 'no' ? body.helpful : '';
+    return Locks.run(function () {
+      const r = Store.find('WaitingGuests', 'qr_token', token);
+      if (!r || expired(r)) throw HttpError_(404, 'This link is not valid');
+      if (r.status !== 'completed') throw HttpError_(409, 'Feedback opens after check-in');
+      if (r.feedback_at) throw HttpError_(409, 'Thank you, we already have your feedback');
+      Store.update('WaitingGuests', r._row, { feedback_rating: rating, feedback_helpful: helpful, feedback_at: nowIso_() });
+      Store.bump();
+      return { ok: true };
+    });
+  }
+
+  /**
+   * Real, computed metrics only. Nothing is estimated or fabricated.
+   * range: 'today' (hotel time zone), '7d' or '30d'. Live figures (active,
+   * waiting now) are always "right now".
+   */
+  function metrics(range) {
+    const days = range === '30d' ? 30 : range === '7d' ? 7 : 1;
+    const today = todayIso_();
+    const start = new Date(Date.parse(today + 'T00:00:00Z') - (days - 1) * 86400000).toISOString().slice(0, 10);
+    const all = Store.all('WaitingGuests');
+    const now = nowIso_();
+    const secs = function (a, b) { return a && b ? Math.max(0, (Date.parse(b) - Date.parse(a)) / 1000) : null; };
+    const avg = function (xs) { const v = xs.filter(function (x) { return x !== null && x !== undefined && x !== ''; }); return v.length ? Math.round(v.reduce(function (s, x) { return s + Number(x); }, 0) / v.length) : null; };
+    const inRange = function (iso) { const p = localParts_(iso); return !!p && p.date >= start && p.date <= today; };
+
+    const active = all.filter(isActive);
+    const waitingNow = active.filter(function (r) { return r.status !== 'ready' && r.status !== 'returned'; });
+    const created = all.filter(function (r) { return inRange(r.created_at); });
+    const real = created.filter(function (r) { return r.status !== 'cancelled'; });
+    const done = all.filter(function (r) { return r.status === 'completed' && inRange(r.completed_at); });
+    const readyIn = all.filter(function (r) { return r.room_ready_at && inRange(r.room_ready_at); });
+    const aware = readyIn.map(function (r) { return secs(r.room_ready_at, r.guest_seen_ready_at); });
+    const fb = all.filter(function (r) { return r.feedback_at && inRange(r.feedback_at); });
+
+    const hourly = []; for (let h = 0; h < 24; h++) hourly.push(0);
+    const daily = {};
+    for (let d = 0; d < days; d++) daily[new Date(Date.parse(start + 'T00:00:00Z') + d * 86400000).toISOString().slice(0, 10)] = 0;
+    real.forEach(function (r) { const p = localParts_(r.created_at); hourly[p.hour]++; if (daily[p.date] !== undefined) daily[p.date]++; });
+
+    return {
+      range: days === 1 ? 'today' : days + 'd', from: start, to: today,
+      // right now
+      active: active.length,
       stillWaitingForRoom: waitingNow.length,
+      readyAwaitingGuest: active.filter(function (r) { return r.status === 'ready'; }).length,
+      longestActiveWaitSec: waitingNow.length ? Math.max.apply(null, waitingNow.map(function (r) { return secs(r.created_at, now); })) : 0,
+      // in range
+      created: real.length,
+      cancelled: created.length - real.length,
+      completed: done.length,
+      avgWaitToReadySec: avg(real.map(function (r) { return secs(r.created_at, r.room_ready_at); })),
+      avgReadyToReturnSec: avg(readyIn.map(function (r) { return secs(r.room_ready_at, r.guest_returned_at); })),
+      avgTotalSec: avg(done.map(function (r) { return secs(r.created_at, r.completed_at); })),
+      avgCreateSec: avg(real.map(function (r) { return r.create_seconds || null; })),
+      qrOpened: real.filter(function (r) { return !!r.qr_first_opened_at; }).length,
+      readyCount: readyIn.length,
+      awareCount: aware.filter(function (x) { return x !== null; }).length,
+      avgAwarenessSec: avg(aware),
+      feedbackCount: fb.length,
+      avgRating: fb.length ? Math.round(fb.reduce(function (s, r) { return s + r.feedback_rating; }, 0) / fb.length * 10) / 10 : null,
+      helpfulYes: fb.filter(function (r) { return r.feedback_helpful === 'yes'; }).length,
+      helpfulAnswered: fb.filter(function (r) { return r.feedback_helpful; }).length,
+      hourly: hourly,
+      daily: Object.keys(daily).map(function (k) { return { date: k, count: daily[k] }; }),
     };
   }
 
   function exportCsv() {
     const cols = ['wg_number', 'source', 'confirmation_no', 'guest_name', 'arrival_date', 'departure_date', 'room_type', 'adults', 'children', 'luggage_tag', 'associate', 'preferences', 'remarks',
-      'language', 'room_number', 'status', 'cancel_reason', 'guest_arrival_at', 'created_at', 'room_assigned_at', 'preparation_started_at', 'room_ready_at', 'guest_notified_at', 'guest_returned_at', 'completed_at', 'cancelled_at'];
+      'language', 'vip_code', 'tags', 'room_number', 'status', 'cancel_reason', 'guest_arrival_at', 'created_at', 'room_assigned_at', 'preparation_started_at', 'room_ready_at', 'guest_notified_at', 'qr_first_opened_at', 'guest_seen_ready_at', 'guest_returned_at', 'completed_at', 'cancelled_at', 'create_seconds', 'feedback_rating', 'feedback_helpful'];
     const lines = [csvLine_(cols)];
     Store.all('WaitingGuests').sort(byAge).forEach(function (r) { lines.push(csvLine_(cols.map(function (c) { return r[c]; }))); });
     return lines.join('\r\n');
   }
 
   return { create: create, editDetails: editDetails, assignRoom: assignRoom, setStatus: setStatus, cancel: cancel, setPriority: setPriority,
-    queue: queue, recentClosed: recentClosed, get: get, history: history, search: search, availableRooms: availableRooms, guestView: guestView,
+    queue: queue, recentClosed: recentClosed, get: get, history: history, search: search, availableRooms: availableRooms, guestView: guestView, markSeen: markSeen, feedback: feedback,
     metrics: metrics, exportCsv: exportCsv, toStaff: toStaff };
 })();

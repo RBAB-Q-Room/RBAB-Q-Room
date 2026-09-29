@@ -2459,10 +2459,14 @@ const SCHEMA = {
     ['room_number', 's'], ['status', 's'], ['priority', 'b'], ['cancel_reason', 's'],
     ['guest_arrival_at', 's'], ['created_at', 's'], ['room_assigned_at', 's'], ['preparation_started_at', 's'], ['room_ready_at', 's'],
     ['guest_notified_at', 's'], ['guest_returned_at', 's'], ['completed_at', 's'], ['cancelled_at', 's'], ['created_by', 'i'], ['language', 's'],
+    // schema 3
+    ['vip_code', 's'], ['tags', 's'], ['qr_first_opened_at', 's'], ['guest_seen_ready_at', 's'],
+    ['feedback_rating', 'i'], ['feedback_helpful', 's'], ['feedback_at', 's'], ['create_seconds', 'i'],
   ],
   StatusHistory: [['id', 'i'], ['waiting_guest_id', 'i'], ['from_status', 's'], ['to_status', 's'], ['room_number', 's'], ['changed_at', 's'], ['changed_by', 'i'], ['note', 's']],
   GuestContent: [['sort', 'i'], ['id', 's'], ['icon', 's'], ['title', 's'], ['body', 's'], ['note', 's'], ['placeholder', 'b'], ['active', 'b'],
-    ['title_ar', 's'], ['body_ar', 's'], ['note_ar', 's'], ['title_ru', 's'], ['body_ru', 's'], ['note_ru', 's'], ['title_de', 's'], ['body_de', 's'], ['note_de', 's']],
+    ['title_ar', 's'], ['body_ar', 's'], ['note_ar', 's'], ['title_ru', 's'], ['body_ru', 's'], ['note_ru', 's'], ['title_de', 's'], ['body_de', 's'], ['note_de', 's'],
+    ['highlight', 's'], ['highlight_ar', 's'], ['highlight_ru', 's'], ['highlight_de', 's']],
   Config: [['key', 's'], ['value', 's']],
   Meta: [['key', 's'], ['value', 's']],
   Audit: [['at', 's'], ['user_id', 'i'], ['action', 's'], ['detail', 's']],
@@ -2485,7 +2489,47 @@ const CONFIG_DEFAULTS = {
   guest_welcome_de: 'Genießen Sie das Resort, während Sie warten.',
   guest_base_url: '',                                       // optional override of the web app URL used in QR codes
   archive_after_days: '30',
+  qr_expire_hours: '24',           // a guest link stops showing details this long after completion
+  guest_show_placeholders: '1',    // show resort cards that still have placeholder text (turn off for live use)
+  // Business case assumptions (illustrative, edited by management). Blank = not provided.
+  bc_daily_checkins: '100',
+  bc_waiting_pct: '65',
+  bc_manual_minutes: '',           // minutes Reception spent on one paper Waiting Card
+  bc_digital_minutes: '',          // blank = use the measured creation time
+  bc_print_cost: '',               // AED per printed piece
+  bc_print_pieces: '',             // printed pieces per paper Waiting Card
+  bc_comm_minutes: '',             // minutes of manual follow-up per waiting guest (calls, desk queries)
+  bc_qr_adoption_pct: '',          // blank = use the measured QR opening rate
 };
+
+/** Settings an admin may change in the app, with validation rules. */
+const SETTINGS_SPEC = {
+  hotel_name: { type: 'text', max: 80, required: true },
+  hotel_map_url: { type: 'url' },
+  hotel_website_url: { type: 'url' },
+  wg_prefix: { type: 'prefix' },
+  late_warn_minutes: { type: 'int', min: 1, max: 600 },
+  late_alert_minutes: { type: 'int', min: 2, max: 900 },
+  qr_expire_hours: { type: 'int', min: 1, max: 168 },
+  archive_after_days: { type: 'int', min: 1, max: 365 },
+  session_hours: { type: 'int', min: 1, max: 24 },
+  guest_show_placeholders: { type: 'bool' },
+  guest_welcome: { type: 'text', max: 160 },
+  guest_welcome_ar: { type: 'text', max: 160 },
+  guest_welcome_ru: { type: 'text', max: 160 },
+  guest_welcome_de: { type: 'text', max: 160 },
+  bc_daily_checkins: { type: 'num', min: 0, max: 5000 },
+  bc_waiting_pct: { type: 'num', min: 0, max: 100 },
+  bc_manual_minutes: { type: 'num', min: 0, max: 120 },
+  bc_digital_minutes: { type: 'num', min: 0, max: 120 },
+  bc_print_cost: { type: 'num', min: 0, max: 1000 },
+  bc_print_pieces: { type: 'num', min: 0, max: 50 },
+  bc_comm_minutes: { type: 'num', min: 0, max: 120 },
+  bc_qr_adoption_pct: { type: 'num', min: 0, max: 100 },
+};
+
+/** Optional quick tags Reception can add in one tap. They feed the transparent priority reasons. */
+const GUEST_TAGS = ['occasion', 'accessibility'];
 
 // Opera room type codes and names, as used by the Room Guide application.
 const DEFAULT_ROOM_TYPES = [
@@ -3305,6 +3349,25 @@ const Links = {
   guestUrl: function (token) { return Links.base() + (Links.base().indexOf('?') === -1 ? '?' : '&') + 't=' + token; },
 };
 
+function cleanTags_(v) {
+  const list = Array.isArray(v) ? v : String(v || '').split(',');
+  const out = [];
+  list.forEach(function (t) { t = String(t).trim().toLowerCase(); if (GUEST_TAGS.indexOf(t) !== -1 && out.indexOf(t) === -1) out.push(t); });
+  return out.join(',');
+}
+function parseTags_(s) { return String(s || '').split(',').filter(function (t) { return GUEST_TAGS.indexOf(t) !== -1; }); }
+
+/** Lowercase, remove accents, keep letters/digits/spaces: "Jürgen  O'Neil" -> "jurgen oneil". */
+function fold_(s) {
+  return String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9\u0600-\u06ff\u0400-\u04ff ]+/g, '').replace(/\s+/g, ' ').trim();
+}
+/** Local calendar date and hour of an ISO timestamp, in the hotel's time zone. */
+function localParts_(iso) {
+  if (!iso) return null;
+  const s = Utilities.formatDate(new Date(iso), Session.getScriptTimeZone(), 'yyyy-MM-dd HH');
+  return { date: s.slice(0, 10), hour: parseInt(s.slice(11, 13), 10) };
+}
+
 const Waiting = (function () {
   // Which role may move a guest INTO which status, and from where.
   const TRANSITIONS = {
@@ -3326,9 +3389,12 @@ const Waiting = (function () {
       adults: r.adults, children: r.children, phone: r.phone, email: r.email,
       luggageTag: r.luggage_tag, associate: r.associate, preferences: r.preferences, remarks: r.remarks,
       roomNumber: r.room_number, status: r.status, priority: !!r.priority, cancelReason: r.cancel_reason, language: normLanguage_(r.language),
+      vipCode: r.vip_code, tags: parseTags_(r.tags), createSeconds: r.create_seconds || null,
+      feedback: r.feedback_at ? { rating: r.feedback_rating, helpful: r.feedback_helpful, at: r.feedback_at } : null,
       timestamps: {
         guestArrival: r.guest_arrival_at, created: r.created_at, roomAssigned: r.room_assigned_at, preparationStarted: r.preparation_started_at,
         roomReady: r.room_ready_at, guestNotified: r.guest_notified_at, guestReturned: r.guest_returned_at, completed: r.completed_at, cancelled: r.cancelled_at,
+        qrOpened: r.qr_first_opened_at, guestSawReady: r.guest_seen_ready_at,
       },
     };
   }
@@ -3400,6 +3466,9 @@ const Waiting = (function () {
         luggage_tag: clean_(input.luggageTag, 40), associate: associate, preferences: clean_(input.preferences, 500), remarks: clean_(input.remarks, 500),
         room_number: '', status: 'waiting', priority: false, guest_arrival_at: now, created_at: now, created_by: user.id,
         language: normLanguage_(input.language, suggestLanguage_(res.nationality)),
+        vip_code: clean_(res.vipCode, 20), tags: cleanTags_(input.tags),
+        // Measured time Reception spent from opening the reservation to pressing Create (seconds).
+        create_seconds: (function (n) { return n >= 1 && n <= 1800 ? n : ''; })(toInt_(input.createSeconds, 0)),
       });
       log(id, '', 'waiting', '', user, source === 'manual' ? 'Reservation entered manually' : '');
       Store.bump();
@@ -3414,7 +3483,8 @@ const Waiting = (function () {
       if (!isActive(r)) throw HttpError_(409, 'This Waiting Guest is closed');
       const associate = clean_(input.associate, 80);
       if (!associate) throw HttpError_(400, 'Associate name is required');
-      const row = Store.update('WaitingGuests', r._row, { luggage_tag: clean_(input.luggageTag, 40), associate: associate, preferences: clean_(input.preferences, 500), remarks: clean_(input.remarks, 500), language: normLanguage_(input.language, r.language || 'en') });
+      const row = Store.update('WaitingGuests', r._row, { luggage_tag: clean_(input.luggageTag, 40), associate: associate, preferences: clean_(input.preferences, 500), remarks: clean_(input.remarks, 500), language: normLanguage_(input.language, r.language || 'en'),
+        tags: input.tags === undefined ? r.tags : cleanTags_(input.tags) });
       log(id, r.status, r.status, r.room_number, user, 'Details edited');
       Store.bump();
       return toStaff(row);
@@ -3516,14 +3586,43 @@ const Waiting = (function () {
       .map(function (h) { return { from: h.from_status, to: h.to_status, roomNumber: h.room_number, at: h.changed_at, note: h.note, by: users[h.changed_by] || '' }; });
   }
 
-  /** Reception search: confirmation number, guest name or WG number. */
+  /**
+   * Staff search, forgiving: confirmation number, guest name (accents and case
+   * ignored, any word order), Waiting Guest number ("wg 12", "0012", "12"),
+   * room number or luggage tag.
+   */
   function search(term) {
-    const t = String(term || '').trim().toLowerCase();
-    if (t.length < 2) return { reservations: [], waitingGuests: [] };
-    const wgs = Store.all('WaitingGuests').filter(function (r) {
-      return r.confirmation_no.toLowerCase().indexOf(t) === 0 || r.guest_name.toLowerCase().indexOf(t) !== -1 || r.wg_number.toLowerCase().indexOf(t) !== -1;
-    }).sort(function (a, b) { return (isActive(b) ? 1 : 0) - (isActive(a) ? 1 : 0) || (b.created_at < a.created_at ? -1 : 1); }).slice(0, 20).map(toStaff);
-    return { reservations: ReservationSource.searchByConfirmation(t, 8), waitingGuests: wgs };
+    const raw = String(term || '').trim();
+    const t = fold_(raw);
+    if (t.length < 2 && !/^\d$/.test(t)) return { reservations: [], waitingGuests: [] };
+    const words = t.split(' ');
+    const digits = raw.replace(/\D/g, '');
+    const compact = t.replace(/ /g, '');
+    // "12", "0012", "wg 12", "WG-0012" all mean Waiting Guest 12 (short numbers only, so confirmation numbers don't collide)
+    const wgMatch = raw.match(/^(?:[a-z]{1,4}\s*-?\s*)?0*(\d{1,5})$/i);
+    const wgNum = wgMatch && (/^[a-z]/i.test(raw) || digits.length <= 5) ? parseInt(wgMatch[1], 10) : null;
+    const hit = function (r) {
+      const name = fold_(r.guest_name);
+      if (words.every(function (w) { return name.indexOf(w) !== -1; })) return true;
+      if (r.confirmation_no.toLowerCase().indexOf(compact) === 0) return true;
+      const wg = r.wg_number.toLowerCase().replace(/[^a-z0-9]/g, '');
+      if (wg.indexOf(compact) !== -1) return true;
+      if (wgNum !== null && parseInt(r.wg_number.replace(/\D/g, ''), 10) === wgNum) return true;
+      if (r.room_number && r.room_number.toLowerCase() === compact) return true;
+      if (r.luggage_tag && fold_(r.luggage_tag).replace(/ /g, '') === compact) return true;
+      return false;
+    };
+    const wgs = Store.all('WaitingGuests').filter(hit)
+      .sort(function (a, b) { return (isActive(b) ? 1 : 0) - (isActive(a) ? 1 : 0) || (b.created_at < a.created_at ? -1 : 1); }).slice(0, 20).map(toStaff);
+    const res = ReservationSource.searchByConfirmation(raw.replace(/\s/g, ''), 8);
+    if (res.length < 8 && /[a-z\u0600-\u06ff\u0400-\u04ff]/.test(t)) {
+      // also find arrivals by name, so Reception can search "mansoori" before a record exists
+      const seen = {};
+      res.forEach(function (r) { seen[r.confirmationNo] = true; });
+      Store.all('Reservations').filter(function (r) { return !seen[r.confirmation_no] && words.every(function (w) { return fold_(r.guest_name).indexOf(w) !== -1; }); })
+        .slice(0, 8 - res.length).forEach(function (r) { res.push(ReservationSource.shape(r)); });
+    }
+    return { reservations: res, waitingGuests: wgs };
   }
 
   function availableRooms(forId) {
@@ -3535,49 +3634,143 @@ const Waiting = (function () {
       .sort(function (a, b) { return (b.matchesType ? 1 : 0) - (a.matchesType ? 1 : 0) || (a.roomNumber < b.roomNumber ? -1 : 1); });
   }
 
-  /**
-   * What the guest may see. Deliberately excludes phone, email, associate,
-   * luggage tag, remarks, preferences, room number, priority and internal ids.
-   */
-  function guestView(token) {
-    if (typeof token !== 'string' || !/^[A-Za-z0-9_-]{20,64}$/.test(token)) return null;
-    const r = Store.find('WaitingGuests', 'qr_token', token);
-    if (!r) return null;
-    const phase = r.status === 'completed' ? 'completed' : r.status === 'cancelled' ? 'cancelled' : (r.status === 'ready' || r.status === 'returned') ? 'ready' : 'preparing';
-    return { wgNumber: r.wg_number, guestName: r.guest_name, confirmationNo: r.confirmation_no, roomType: r.room_type, arrivalDate: r.arrival_date, arrivalTime: r.arrival_time, departureDate: r.departure_date, phase: phase, readyAt: r.room_ready_at, language: normLanguage_(r.language) };
+  const PHASE = { waiting: 'received', room_assigned: 'assigned', preparing: 'preparing', ready: 'ready', returned: 'ready', completed: 'completed', cancelled: 'cancelled' };
+
+  function validToken(token) { return typeof token === 'string' && /^[A-Za-z0-9_-]{20,64}$/.test(token); }
+
+  function expired(r) {
+    const closedAt = r.completed_at || r.cancelled_at;
+    if (!closedAt) return false;
+    return Date.now() - Date.parse(closedAt) > Math.max(1, Config.num('qr_expire_hours')) * 3600e3;
   }
 
-  /** Real, computed metrics only. Nothing is estimated or fabricated. */
-  function metrics() {
-    const rows = Store.all('WaitingGuests').filter(function (r) { return r.status !== 'cancelled'; });
-    const active = rows.filter(isActive);
-    const done = rows.filter(function (r) { return r.status === 'completed'; });
-    const secs = function (a, b) { return a && b ? (Date.parse(b) - Date.parse(a)) / 1000 : null; };
-    const avg = function (xs) { const v = xs.filter(function (x) { return x !== null; }); return v.length ? Math.round(v.reduce(function (s, x) { return s + x; }, 0) / v.length) : null; };
-    const now = nowIso_();
-    const waitingNow = active.filter(function (r) { return r.status !== 'ready' && r.status !== 'returned'; }).map(function (r) { return secs(r.created_at, now); });
+  /**
+   * What the guest may see. A fixed whitelist: never phone, email, associate,
+   * luggage tag, remarks, preferences, room number, priority, VIP or internal ids.
+   * After a record has been closed for qr_expire_hours, only the phase is shown.
+   */
+  function guestView(token) {
+    if (!validToken(token)) return null;
+    const r = Store.find('WaitingGuests', 'qr_token', token);
+    if (!r) return null;
+    if (expired(r)) return { phase: 'expired', language: normLanguage_(r.language) };
+    const type = Store.find('RoomTypes', 'code', r.room_type);
     return {
-      total: rows.length, active: active.length, completed: done.length,
-      cancelled: Store.all('WaitingGuests').length - rows.length,
-      avgWaitToReadySec: avg(rows.map(function (r) { return secs(r.created_at, r.room_ready_at); })),
-      avgReadyToReturnSec: avg(rows.map(function (r) { return secs(r.room_ready_at, r.guest_returned_at); })),
-      avgTotalSec: avg(done.map(function (r) { return secs(r.created_at, r.completed_at); })),
-      longestActiveWaitSec: waitingNow.length ? Math.max.apply(null, waitingNow) : 0,
-      readyAwaitingGuest: active.filter(function (r) { return r.status === 'ready'; }).length,
+      wgNumber: r.wg_number, guestName: r.guest_name, confirmationNo: r.confirmation_no,
+      roomType: r.room_type, roomTypeName: type && type.name && type.name !== r.room_type ? type.name : '',
+      arrivalDate: r.arrival_date, arrivalTime: r.arrival_time, departureDate: r.departure_date,
+      phase: PHASE[r.status] || 'received', readyAt: r.room_ready_at, language: normLanguage_(r.language),
+      canGiveFeedback: r.status === 'completed' && !r.feedback_at, feedbackGiven: !!r.feedback_at,
+    };
+  }
+
+  /**
+   * The guest's page is on screen: record the first QR opening and the first time
+   * the guest saw "room ready". Real events only; each is written once.
+   */
+  function markSeen(token) {
+    if (!validToken(token)) return;
+    const peek = Store.find('WaitingGuests', 'qr_token', token);
+    if (!peek || expired(peek)) return;
+    const readyNow = peek.status === 'ready' || peek.status === 'returned';
+    if (peek.qr_first_opened_at && (!readyNow || peek.guest_seen_ready_at)) return;
+    Locks.run(function () {
+      const r = Store.find('WaitingGuests', 'qr_token', token);
+      if (!r) return;
+      const patch = {};
+      const now = nowIso_();
+      if (!r.qr_first_opened_at) patch.qr_first_opened_at = now;
+      if ((r.status === 'ready' || r.status === 'returned') && !r.guest_seen_ready_at) patch.guest_seen_ready_at = now;
+      if (!Object.keys(patch).length) return;
+      Store.update('WaitingGuests', r._row, patch);
+      Store.bump();
+    });
+  }
+
+  function feedback(token, body) {
+    if (!validToken(token)) throw HttpError_(404, 'This link is not valid');
+    body = body || {};
+    const rating = toInt_(body.rating, 0);
+    if (rating < 1 || rating > 5) throw HttpError_(400, 'Please choose 1 to 5 stars');
+    const helpful = body.helpful === 'yes' || body.helpful === 'no' ? body.helpful : '';
+    return Locks.run(function () {
+      const r = Store.find('WaitingGuests', 'qr_token', token);
+      if (!r || expired(r)) throw HttpError_(404, 'This link is not valid');
+      if (r.status !== 'completed') throw HttpError_(409, 'Feedback opens after check-in');
+      if (r.feedback_at) throw HttpError_(409, 'Thank you, we already have your feedback');
+      Store.update('WaitingGuests', r._row, { feedback_rating: rating, feedback_helpful: helpful, feedback_at: nowIso_() });
+      Store.bump();
+      return { ok: true };
+    });
+  }
+
+  /**
+   * Real, computed metrics only. Nothing is estimated or fabricated.
+   * range: 'today' (hotel time zone), '7d' or '30d'. Live figures (active,
+   * waiting now) are always "right now".
+   */
+  function metrics(range) {
+    const days = range === '30d' ? 30 : range === '7d' ? 7 : 1;
+    const today = todayIso_();
+    const start = new Date(Date.parse(today + 'T00:00:00Z') - (days - 1) * 86400000).toISOString().slice(0, 10);
+    const all = Store.all('WaitingGuests');
+    const now = nowIso_();
+    const secs = function (a, b) { return a && b ? Math.max(0, (Date.parse(b) - Date.parse(a)) / 1000) : null; };
+    const avg = function (xs) { const v = xs.filter(function (x) { return x !== null && x !== undefined && x !== ''; }); return v.length ? Math.round(v.reduce(function (s, x) { return s + Number(x); }, 0) / v.length) : null; };
+    const inRange = function (iso) { const p = localParts_(iso); return !!p && p.date >= start && p.date <= today; };
+
+    const active = all.filter(isActive);
+    const waitingNow = active.filter(function (r) { return r.status !== 'ready' && r.status !== 'returned'; });
+    const created = all.filter(function (r) { return inRange(r.created_at); });
+    const real = created.filter(function (r) { return r.status !== 'cancelled'; });
+    const done = all.filter(function (r) { return r.status === 'completed' && inRange(r.completed_at); });
+    const readyIn = all.filter(function (r) { return r.room_ready_at && inRange(r.room_ready_at); });
+    const aware = readyIn.map(function (r) { return secs(r.room_ready_at, r.guest_seen_ready_at); });
+    const fb = all.filter(function (r) { return r.feedback_at && inRange(r.feedback_at); });
+
+    const hourly = []; for (let h = 0; h < 24; h++) hourly.push(0);
+    const daily = {};
+    for (let d = 0; d < days; d++) daily[new Date(Date.parse(start + 'T00:00:00Z') + d * 86400000).toISOString().slice(0, 10)] = 0;
+    real.forEach(function (r) { const p = localParts_(r.created_at); hourly[p.hour]++; if (daily[p.date] !== undefined) daily[p.date]++; });
+
+    return {
+      range: days === 1 ? 'today' : days + 'd', from: start, to: today,
+      // right now
+      active: active.length,
       stillWaitingForRoom: waitingNow.length,
+      readyAwaitingGuest: active.filter(function (r) { return r.status === 'ready'; }).length,
+      longestActiveWaitSec: waitingNow.length ? Math.max.apply(null, waitingNow.map(function (r) { return secs(r.created_at, now); })) : 0,
+      // in range
+      created: real.length,
+      cancelled: created.length - real.length,
+      completed: done.length,
+      avgWaitToReadySec: avg(real.map(function (r) { return secs(r.created_at, r.room_ready_at); })),
+      avgReadyToReturnSec: avg(readyIn.map(function (r) { return secs(r.room_ready_at, r.guest_returned_at); })),
+      avgTotalSec: avg(done.map(function (r) { return secs(r.created_at, r.completed_at); })),
+      avgCreateSec: avg(real.map(function (r) { return r.create_seconds || null; })),
+      qrOpened: real.filter(function (r) { return !!r.qr_first_opened_at; }).length,
+      readyCount: readyIn.length,
+      awareCount: aware.filter(function (x) { return x !== null; }).length,
+      avgAwarenessSec: avg(aware),
+      feedbackCount: fb.length,
+      avgRating: fb.length ? Math.round(fb.reduce(function (s, r) { return s + r.feedback_rating; }, 0) / fb.length * 10) / 10 : null,
+      helpfulYes: fb.filter(function (r) { return r.feedback_helpful === 'yes'; }).length,
+      helpfulAnswered: fb.filter(function (r) { return r.feedback_helpful; }).length,
+      hourly: hourly,
+      daily: Object.keys(daily).map(function (k) { return { date: k, count: daily[k] }; }),
     };
   }
 
   function exportCsv() {
     const cols = ['wg_number', 'source', 'confirmation_no', 'guest_name', 'arrival_date', 'departure_date', 'room_type', 'adults', 'children', 'luggage_tag', 'associate', 'preferences', 'remarks',
-      'language', 'room_number', 'status', 'cancel_reason', 'guest_arrival_at', 'created_at', 'room_assigned_at', 'preparation_started_at', 'room_ready_at', 'guest_notified_at', 'guest_returned_at', 'completed_at', 'cancelled_at'];
+      'language', 'vip_code', 'tags', 'room_number', 'status', 'cancel_reason', 'guest_arrival_at', 'created_at', 'room_assigned_at', 'preparation_started_at', 'room_ready_at', 'guest_notified_at', 'qr_first_opened_at', 'guest_seen_ready_at', 'guest_returned_at', 'completed_at', 'cancelled_at', 'create_seconds', 'feedback_rating', 'feedback_helpful'];
     const lines = [csvLine_(cols)];
     Store.all('WaitingGuests').sort(byAge).forEach(function (r) { lines.push(csvLine_(cols.map(function (c) { return r[c]; }))); });
     return lines.join('\r\n');
   }
 
   return { create: create, editDetails: editDetails, assignRoom: assignRoom, setStatus: setStatus, cancel: cancel, setPriority: setPriority,
-    queue: queue, recentClosed: recentClosed, get: get, history: history, search: search, availableRooms: availableRooms, guestView: guestView,
+    queue: queue, recentClosed: recentClosed, get: get, history: history, search: search, availableRooms: availableRooms, guestView: guestView, markSeen: markSeen, feedback: feedback,
     metrics: metrics, exportCsv: exportCsv, toStaff: toStaff };
 })();
 
@@ -3624,6 +3817,7 @@ const Api = (function () {
   }
 
   function guestContent() {
+    const showPlaceholders = Config.get('guest_show_placeholders') !== '0';
     const welcome = { en: Config.get('guest_welcome') };
     ['ar', 'ru', 'de'].forEach(function (l) { welcome[l] = Config.get('guest_welcome_' + l) || welcome.en; });
     return {
@@ -3633,9 +3827,109 @@ const Api = (function () {
         map: { url: safeUrl(Config.get('hotel_map_url')) },
         website: { url: safeUrl(Config.get('hotel_website_url')) },
       },
-      sections: Store.all('GuestContent').filter(function (s) { return s.active; }).sort(function (a, b) { return a.sort - b.sort; })
-        .map(function (s) { return { id: s.id, icon: s.icon, placeholder: s.placeholder, title: multi(s, 'title'), body: multi(s, 'body'), note: multi(s, 'note') }; }),
+      sections: Store.all('GuestContent').filter(function (s) { return s.active && (!s.placeholder || showPlaceholders); }).sort(function (a, b) { return a.sort - b.sort; })
+        .map(function (s) {
+          return { id: s.id, icon: s.icon, placeholder: s.placeholder, title: multi(s, 'title'), body: multi(s, 'body'), note: multi(s, 'note'),
+            highlight: s.highlight ? multi(s, 'highlight') : null };
+        }),
     };
+  }
+
+  /** Everything the guest page needs in one object. Used by the API and to pre-render the page in doGet. */
+  function guestPayload(token) {
+    const view = Waiting.guestView(token);
+    if (!view) return null;
+    return { waitingGuest: view, content: view.phase === 'expired' ? null : guestContent(), version: Store.version() };
+  }
+
+  function setting(key, raw) {
+    const spec = SETTINGS_SPEC[key];
+    const v = raw === null || raw === undefined ? '' : String(raw).trim();
+    const label = key.replace(/_/g, ' ');
+    if (spec.type === 'bool') return v === '1' || v === 'true' ? '1' : '0';
+    if (spec.type === 'url') {
+      if (!v) return '';
+      if (!safeUrl(v) || v.length > 300) throw HttpError_(400, 'Enter a full web address starting with https:// for ' + label, { field: key });
+      return v;
+    }
+    if (spec.type === 'prefix') {
+      if (!/^[A-Za-z]{1,4}$/.test(v)) throw HttpError_(400, 'The Waiting Guest prefix must be 1 to 4 letters', { field: key });
+      return v.toUpperCase();
+    }
+    if (spec.type === 'int' || spec.type === 'num') {
+      if (!v && spec.type === 'num') return '';
+      const n = Number(v);
+      if (!isFinite(n) || n < spec.min || n > spec.max || (spec.type === 'int' && Math.floor(n) !== n)) {
+        throw HttpError_(400, 'Enter a number from ' + spec.min + ' to ' + spec.max + ' for ' + label, { field: key });
+      }
+      return String(n);
+    }
+    const t = clean_(v, spec.max || 200);
+    if (spec.required && !t) throw HttpError_(400, label + ' is required', { field: key });
+    return t;
+  }
+
+  function settingsView() {
+    const values = {};
+    Object.keys(SETTINGS_SPEC).forEach(function (k) { values[k] = Config.get(k); });
+    return { values: values, placeholders: Store.all('GuestContent').filter(function (s) { return s.active && s.placeholder; }).length };
+  }
+
+  function saveSettings(user, input) {
+    input = input || {};
+    return Locks.run(function () {
+      const clean = {};
+      Object.keys(input).forEach(function (k) { if (SETTINGS_SPEC[k]) clean[k] = setting(k, input[k]); });
+      const warn = toInt_(clean.late_warn_minutes !== undefined ? clean.late_warn_minutes : Config.get('late_warn_minutes'), 30);
+      const alert = toInt_(clean.late_alert_minutes !== undefined ? clean.late_alert_minutes : Config.get('late_alert_minutes'), 60);
+      if (alert <= warn) throw HttpError_(400, 'The long-wait threshold must be higher than the attention threshold', { field: 'late_alert_minutes' });
+      Object.keys(clean).forEach(function (k) { Store.kvSet('Config', k, clean[k]); });
+      audit_(user, 'settings.save', Object.keys(clean).join(', '));
+      Store.bump();
+      return settingsView();
+    });
+  }
+
+  const CONTENT_FIELDS = ['title', 'body', 'note', 'highlight'];
+  const CONTENT_MAX = { title: 60, body: 600, note: 200, highlight: 120 };
+
+  function contentView() {
+    return { sections: Store.all('GuestContent').sort(function (a, b) { return a.sort - b.sort; }).map(function (s) {
+      const o = { id: s.id, icon: s.icon, sort: s.sort, active: s.active, placeholder: s.placeholder };
+      CONTENT_FIELDS.forEach(function (f) { o[f] = s[f]; ['ar', 'ru', 'de'].forEach(function (l) { o[f + '_' + l] = s[f + '_' + l]; }); });
+      return o;
+    }) };
+  }
+
+  function saveContent(user, input) {
+    input = input || {};
+    return Locks.run(function () {
+      const row = Store.find('GuestContent', 'id', String(input.id || ''));
+      if (!row) throw HttpError_(404, 'Section not found');
+      const patch = {};
+      CONTENT_FIELDS.forEach(function (f) {
+        ['', '_ar', '_ru', '_de'].forEach(function (l) { if (input[f + l] !== undefined) patch[f + l] = clean_(input[f + l], CONTENT_MAX[f]); });
+      });
+      if (patch.title !== undefined && !patch.title) throw HttpError_(400, 'The English title is required', { field: 'title' });
+      // When the English text changes, drop translations that are still the original placeholder
+      // wording, so those guests see the new English text instead of stale placeholder text.
+      const defaults = DEFAULT_GUEST_CONTENT.filter(function (d) { return d.id === row.id; })[0];
+      if (defaults) {
+        ['title', 'body', 'note'].forEach(function (f) {
+          if (patch[f] === undefined || patch[f] === row[f]) return;
+          ['ar', 'ru', 'de'].forEach(function (l) {
+            const original = defaults[f] && defaults[f][l];
+            if (input[f + '_' + l] === undefined && original && row[f + '_' + l] === original) patch[f + '_' + l] = '';
+          });
+        });
+      }
+      if (input.active !== undefined) patch.active = !!input.active;
+      if (input.placeholder !== undefined) patch.placeholder = !!input.placeholder;
+      Store.update('GuestContent', row._row, patch);
+      audit_(user, 'content.save', row.id);
+      Store.bump();
+      return contentView();
+    });
   }
 
   function route(token, method, path, query, body) {
@@ -3646,9 +3940,14 @@ const Api = (function () {
     if ((m = path.match(/^\/api\/guest\/([A-Za-z0-9_-]+)$/)) && method === 'GET') {
       const v = Store.version();
       if (query.v !== undefined && String(query.v) === String(v) && query.have === '1') return { status: 200, body: { unchanged: true, version: v } };
-      const view = Waiting.guestView(m[1]);
-      if (!view) throw HttpError_(404, 'This link is not valid');
-      return { status: 200, body: { waitingGuest: view, content: guestContent(), version: v } };
+      // seen=1: the page is visible on the guest's screen (records first QR opening / first sight of "room ready")
+      if (query.seen === '1') Waiting.markSeen(m[1]);
+      const payload = guestPayload(m[1]);
+      if (!payload) throw HttpError_(404, 'This link is not valid');
+      return { status: 200, body: payload };
+    }
+    if ((m = path.match(/^\/api\/guest\/([A-Za-z0-9_-]+)\/feedback$/)) && method === 'POST') {
+      return { status: 200, body: Waiting.feedback(m[1], body) };
     }
     if (path === '/api/login' && method === 'POST') {
       const out = Auth.login(body.username, body.password);
@@ -3670,7 +3969,7 @@ const Api = (function () {
         lateWarnMinutes: Config.num('late_warn_minutes'), lateAlertMinutes: Config.num('late_alert_minutes'), hotelName: Config.get('hotel_name'),
       } };
     }
-    if (path === '/api/metrics' && method === 'GET') return { status: 200, body: Waiting.metrics() };
+    if (path === '/api/metrics' && method === 'GET') return { status: 200, body: Waiting.metrics(query.range) };
 
     if (path === '/api/search' && method === 'GET') { need(['reception']); return { status: 200, body: Waiting.search(query.q) }; }
     if (path === '/api/waiting-guests' && method === 'GET') return { status: 200, body: { active: Waiting.queue(), completed: Waiting.recentClosed(15) } };
@@ -3706,6 +4005,10 @@ const Api = (function () {
     if (path === '/api/import/arrivals' && method === 'POST') { need(['admin']); return { status: 200, body: Importer.commitArrivals(user, body) }; }
     if (path === '/api/import/rooms/preview' && method === 'POST') { need(['admin']); return { status: 200, body: Importer.previewRooms(body) }; }
     if (path === '/api/import/rooms' && method === 'POST') { need(['admin']); return { status: 200, body: Importer.commitRooms(user, body) }; }
+    if (path === '/api/admin/settings' && method === 'GET') { need(['admin']); return { status: 200, body: settingsView() }; }
+    if (path === '/api/admin/settings' && method === 'POST') { need(['admin']); return { status: 200, body: saveSettings(user, body.values) }; }
+    if (path === '/api/admin/guest-content' && method === 'GET') { need(['admin']); return { status: 200, body: contentView() }; }
+    if (path === '/api/admin/guest-content' && method === 'POST') { need(['admin']); return { status: 200, body: saveContent(user, body) }; }
     if (path === '/api/export/waiting-guests' && method === 'GET') { need(['admin']); return { status: 200, body: { csv: Waiting.exportCsv() } }; }
     if (path === '/api/admin/summary' && method === 'GET') {
       need(['admin']);
@@ -3735,7 +4038,7 @@ const Api = (function () {
     }
   }
 
-  return { handle: handle };
+  return { handle: handle, guestPayload: guestPayload };
 })();
 
 /** Render a URL as a self-contained SVG QR code (no external service, nothing leaves Google). */
@@ -3928,7 +4231,7 @@ function runSelfTest() {
     const token = qr.body.url.split('t=')[1];
     check(call(cs, 'GET', '/api/waiting-guests').body.active.some(function (g) { return g.id === wg.id; }), 'guest appears in the Rooms Controller queue');
     const g1 = Api.handle('', 'GET', '/api/guest/' + token);
-    check(g1.status === 200 && g1.body.waitingGuest.phase === 'preparing', 'guest page shows "being prepared"');
+    check(g1.status === 200 && g1.body.waitingGuest.phase === 'received', 'guest page shows the request was received');
     const leak = JSON.stringify(g1.body.waitingGuest);
     check(['selftest@example.com', '+971 00', 'T-1', 'secret remark', 'Self test"'].every(function (s) { return leak.indexOf(s) === -1; }), 'guest page hides phone, email, luggage tag, remarks, associate');
     check(call(rs, 'POST', '/api/waiting-guests/' + wg.id + '/assign-room', { roomNumber: room }).status === 403, 'reception cannot assign rooms');
@@ -4011,7 +4314,13 @@ function doGet(e) {
   const t = typeof params.t === 'string' && /^[A-Za-z0-9_-]{20,64}$/.test(params.t) ? params.t : '';
   const tpl = HtmlService.createTemplateFromFile('Index');
   // JSON is escaped so it cannot break out of the script tag.
-  tpl.boot = JSON.stringify({ mode: t ? 'guest' : 'staff', token: t, platform: 'gas' }).replace(/</g, '\\u003c');
+  // For a guest, embed their (guest-safe) status in the page, so it renders on the
+  // first paint instead of after a second round trip to the server.
+  let data = null;
+  if (t) {
+    try { Store.reset(); ensureCurrent_(); data = Api.guestPayload(t); } catch (err) { data = null; }
+  }
+  tpl.boot = JSON.stringify({ mode: t ? 'guest' : 'staff', token: t, platform: 'gas', data: data }).replace(/</g, '\\u003c').replace(/\u2028/g, '\\u2028').replace(/\u2029/g, '\\u2029');
   return tpl.evaluate()
     // Apps Script only permits a few meta tags (viewport); others such as "referrer" throw. Links already use rel=noreferrer.
     .setTitle(t ? 'Your room · Rixos Bab Al Bahr' : 'Waiting Guest')

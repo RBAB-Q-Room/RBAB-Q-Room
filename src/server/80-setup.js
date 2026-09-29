@@ -175,7 +175,7 @@ function runSelfTest() {
     const token = qr.body.url.split('t=')[1];
     check(call(cs, 'GET', '/api/waiting-guests').body.active.some(function (g) { return g.id === wg.id; }), 'guest appears in the Rooms Controller queue');
     const g1 = Api.handle('', 'GET', '/api/guest/' + token);
-    check(g1.status === 200 && g1.body.waitingGuest.phase === 'preparing', 'guest page shows "being prepared"');
+    check(g1.status === 200 && g1.body.waitingGuest.phase === 'received', 'guest page shows the request was received');
     const leak = JSON.stringify(g1.body.waitingGuest);
     check(['selftest@example.com', '+971 00', 'T-1', 'secret remark', 'Self test"'].every(function (s) { return leak.indexOf(s) === -1; }), 'guest page hides phone, email, luggage tag, remarks, associate');
     check(call(rs, 'POST', '/api/waiting-guests/' + wg.id + '/assign-room', { roomNumber: room }).status === 403, 'reception cannot assign rooms');

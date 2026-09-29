@@ -39,6 +39,7 @@ const Api = (function () {
   }
 
   function guestContent() {
+    const showPlaceholders = Config.get('guest_show_placeholders') !== '0';
     const welcome = { en: Config.get('guest_welcome') };
     ['ar', 'ru', 'de'].forEach(function (l) { welcome[l] = Config.get('guest_welcome_' + l) || welcome.en; });
     return {
@@ -48,9 +49,109 @@ const Api = (function () {
         map: { url: safeUrl(Config.get('hotel_map_url')) },
         website: { url: safeUrl(Config.get('hotel_website_url')) },
       },
-      sections: Store.all('GuestContent').filter(function (s) { return s.active; }).sort(function (a, b) { return a.sort - b.sort; })
-        .map(function (s) { return { id: s.id, icon: s.icon, placeholder: s.placeholder, title: multi(s, 'title'), body: multi(s, 'body'), note: multi(s, 'note') }; }),
+      sections: Store.all('GuestContent').filter(function (s) { return s.active && (!s.placeholder || showPlaceholders); }).sort(function (a, b) { return a.sort - b.sort; })
+        .map(function (s) {
+          return { id: s.id, icon: s.icon, placeholder: s.placeholder, title: multi(s, 'title'), body: multi(s, 'body'), note: multi(s, 'note'),
+            highlight: s.highlight ? multi(s, 'highlight') : null };
+        }),
     };
+  }
+
+  /** Everything the guest page needs in one object. Used by the API and to pre-render the page in doGet. */
+  function guestPayload(token) {
+    const view = Waiting.guestView(token);
+    if (!view) return null;
+    return { waitingGuest: view, content: view.phase === 'expired' ? null : guestContent(), version: Store.version() };
+  }
+
+  function setting(key, raw) {
+    const spec = SETTINGS_SPEC[key];
+    const v = raw === null || raw === undefined ? '' : String(raw).trim();
+    const label = key.replace(/_/g, ' ');
+    if (spec.type === 'bool') return v === '1' || v === 'true' ? '1' : '0';
+    if (spec.type === 'url') {
+      if (!v) return '';
+      if (!safeUrl(v) || v.length > 300) throw HttpError_(400, 'Enter a full web address starting with https:// for ' + label, { field: key });
+      return v;
+    }
+    if (spec.type === 'prefix') {
+      if (!/^[A-Za-z]{1,4}$/.test(v)) throw HttpError_(400, 'The Waiting Guest prefix must be 1 to 4 letters', { field: key });
+      return v.toUpperCase();
+    }
+    if (spec.type === 'int' || spec.type === 'num') {
+      if (!v && spec.type === 'num') return '';
+      const n = Number(v);
+      if (!isFinite(n) || n < spec.min || n > spec.max || (spec.type === 'int' && Math.floor(n) !== n)) {
+        throw HttpError_(400, 'Enter a number from ' + spec.min + ' to ' + spec.max + ' for ' + label, { field: key });
+      }
+      return String(n);
+    }
+    const t = clean_(v, spec.max || 200);
+    if (spec.required && !t) throw HttpError_(400, label + ' is required', { field: key });
+    return t;
+  }
+
+  function settingsView() {
+    const values = {};
+    Object.keys(SETTINGS_SPEC).forEach(function (k) { values[k] = Config.get(k); });
+    return { values: values, placeholders: Store.all('GuestContent').filter(function (s) { return s.active && s.placeholder; }).length };
+  }
+
+  function saveSettings(user, input) {
+    input = input || {};
+    return Locks.run(function () {
+      const clean = {};
+      Object.keys(input).forEach(function (k) { if (SETTINGS_SPEC[k]) clean[k] = setting(k, input[k]); });
+      const warn = toInt_(clean.late_warn_minutes !== undefined ? clean.late_warn_minutes : Config.get('late_warn_minutes'), 30);
+      const alert = toInt_(clean.late_alert_minutes !== undefined ? clean.late_alert_minutes : Config.get('late_alert_minutes'), 60);
+      if (alert <= warn) throw HttpError_(400, 'The long-wait threshold must be higher than the attention threshold', { field: 'late_alert_minutes' });
+      Object.keys(clean).forEach(function (k) { Store.kvSet('Config', k, clean[k]); });
+      audit_(user, 'settings.save', Object.keys(clean).join(', '));
+      Store.bump();
+      return settingsView();
+    });
+  }
+
+  const CONTENT_FIELDS = ['title', 'body', 'note', 'highlight'];
+  const CONTENT_MAX = { title: 60, body: 600, note: 200, highlight: 120 };
+
+  function contentView() {
+    return { sections: Store.all('GuestContent').sort(function (a, b) { return a.sort - b.sort; }).map(function (s) {
+      const o = { id: s.id, icon: s.icon, sort: s.sort, active: s.active, placeholder: s.placeholder };
+      CONTENT_FIELDS.forEach(function (f) { o[f] = s[f]; ['ar', 'ru', 'de'].forEach(function (l) { o[f + '_' + l] = s[f + '_' + l]; }); });
+      return o;
+    }) };
+  }
+
+  function saveContent(user, input) {
+    input = input || {};
+    return Locks.run(function () {
+      const row = Store.find('GuestContent', 'id', String(input.id || ''));
+      if (!row) throw HttpError_(404, 'Section not found');
+      const patch = {};
+      CONTENT_FIELDS.forEach(function (f) {
+        ['', '_ar', '_ru', '_de'].forEach(function (l) { if (input[f + l] !== undefined) patch[f + l] = clean_(input[f + l], CONTENT_MAX[f]); });
+      });
+      if (patch.title !== undefined && !patch.title) throw HttpError_(400, 'The English title is required', { field: 'title' });
+      // When the English text changes, drop translations that are still the original placeholder
+      // wording, so those guests see the new English text instead of stale placeholder text.
+      const defaults = DEFAULT_GUEST_CONTENT.filter(function (d) { return d.id === row.id; })[0];
+      if (defaults) {
+        ['title', 'body', 'note'].forEach(function (f) {
+          if (patch[f] === undefined || patch[f] === row[f]) return;
+          ['ar', 'ru', 'de'].forEach(function (l) {
+            const original = defaults[f] && defaults[f][l];
+            if (input[f + '_' + l] === undefined && original && row[f + '_' + l] === original) patch[f + '_' + l] = '';
+          });
+        });
+      }
+      if (input.active !== undefined) patch.active = !!input.active;
+      if (input.placeholder !== undefined) patch.placeholder = !!input.placeholder;
+      Store.update('GuestContent', row._row, patch);
+      audit_(user, 'content.save', row.id);
+      Store.bump();
+      return contentView();
+    });
   }
 
   function route(token, method, path, query, body) {
@@ -61,9 +162,14 @@ const Api = (function () {
     if ((m = path.match(/^\/api\/guest\/([A-Za-z0-9_-]+)$/)) && method === 'GET') {
       const v = Store.version();
       if (query.v !== undefined && String(query.v) === String(v) && query.have === '1') return { status: 200, body: { unchanged: true, version: v } };
-      const view = Waiting.guestView(m[1]);
-      if (!view) throw HttpError_(404, 'This link is not valid');
-      return { status: 200, body: { waitingGuest: view, content: guestContent(), version: v } };
+      // seen=1: the page is visible on the guest's screen (records first QR opening / first sight of "room ready")
+      if (query.seen === '1') Waiting.markSeen(m[1]);
+      const payload = guestPayload(m[1]);
+      if (!payload) throw HttpError_(404, 'This link is not valid');
+      return { status: 200, body: payload };
+    }
+    if ((m = path.match(/^\/api\/guest\/([A-Za-z0-9_-]+)\/feedback$/)) && method === 'POST') {
+      return { status: 200, body: Waiting.feedback(m[1], body) };
     }
     if (path === '/api/login' && method === 'POST') {
       const out = Auth.login(body.username, body.password);
@@ -85,7 +191,7 @@ const Api = (function () {
         lateWarnMinutes: Config.num('late_warn_minutes'), lateAlertMinutes: Config.num('late_alert_minutes'), hotelName: Config.get('hotel_name'),
       } };
     }
-    if (path === '/api/metrics' && method === 'GET') return { status: 200, body: Waiting.metrics() };
+    if (path === '/api/metrics' && method === 'GET') return { status: 200, body: Waiting.metrics(query.range) };
 
     if (path === '/api/search' && method === 'GET') { need(['reception']); return { status: 200, body: Waiting.search(query.q) }; }
     if (path === '/api/waiting-guests' && method === 'GET') return { status: 200, body: { active: Waiting.queue(), completed: Waiting.recentClosed(15) } };
@@ -121,6 +227,10 @@ const Api = (function () {
     if (path === '/api/import/arrivals' && method === 'POST') { need(['admin']); return { status: 200, body: Importer.commitArrivals(user, body) }; }
     if (path === '/api/import/rooms/preview' && method === 'POST') { need(['admin']); return { status: 200, body: Importer.previewRooms(body) }; }
     if (path === '/api/import/rooms' && method === 'POST') { need(['admin']); return { status: 200, body: Importer.commitRooms(user, body) }; }
+    if (path === '/api/admin/settings' && method === 'GET') { need(['admin']); return { status: 200, body: settingsView() }; }
+    if (path === '/api/admin/settings' && method === 'POST') { need(['admin']); return { status: 200, body: saveSettings(user, body.values) }; }
+    if (path === '/api/admin/guest-content' && method === 'GET') { need(['admin']); return { status: 200, body: contentView() }; }
+    if (path === '/api/admin/guest-content' && method === 'POST') { need(['admin']); return { status: 200, body: saveContent(user, body) }; }
     if (path === '/api/export/waiting-guests' && method === 'GET') { need(['admin']); return { status: 200, body: { csv: Waiting.exportCsv() } }; }
     if (path === '/api/admin/summary' && method === 'GET') {
       need(['admin']);
@@ -150,7 +260,7 @@ const Api = (function () {
     }
   }
 
-  return { handle: handle };
+  return { handle: handle, guestPayload: guestPayload };
 })();
 
 /** Render a URL as a self-contained SVG QR code (no external service, nothing leaves Google). */

@@ -19,7 +19,7 @@ test('the complete journey keeps one source of truth in sync', () => {
 
   // Rooms Controller sees it immediately
   assert.equal(t.ctl('GET', '/api/waiting-guests').body.active[0].wgNumber, wg.wgNumber);
-  assert.equal(t.guest(token).body.waitingGuest.phase, 'preparing');
+  assert.equal(t.guest(token).body.waitingGuest.phase, 'received');
 
   // rules and roles
   assert.equal(t.rec('POST', `/api/waiting-guests/${wg.id}/assign-room`, { roomNumber: '1001' }).status, 403);
@@ -32,7 +32,9 @@ test('the complete journey keeps one source of truth in sync', () => {
   assert.equal(rooms[0].matchesType, true);
   const assigned = t.ctl('POST', `/api/waiting-guests/${wg.id}/assign-room`, { roomNumber: room.roomNumber });
   assert.equal(assigned.body.waitingGuest.status, 'room_assigned');
+  assert.equal(t.guest(token).body.waitingGuest.phase, 'assigned', 'guest sees the room was assigned (never the number)');
   assert.equal(t.ctl('POST', `/api/waiting-guests/${wg.id}/status`, { status: 'preparing' }).body.waitingGuest.status, 'preparing');
+  assert.equal(t.guest(token).body.waitingGuest.phase, 'preparing');
   const ready = t.ctl('POST', `/api/waiting-guests/${wg.id}/status`, { status: 'ready' }).body.waitingGuest;
   assert.ok(ready.timestamps.roomReady && ready.timestamps.guestNotified);
   assert.equal(t.guest(token).body.waitingGuest.phase, 'ready', 'the same QR link now shows ready');
@@ -65,7 +67,7 @@ test('guest page exposes only guest-safe fields', () => {
   for (const secret of ['Layla', 'T-4471', 'High floor', 'Internal note', '+971', 'example.com', 'phone', 'email', 'associate', 'luggage', 'remarks', 'created_by', 'roomNumber']) {
     assert.ok(!body.includes(secret), 'guest response must not contain: ' + secret);
   }
-  assert.deepEqual(Object.keys(t.guest(token).body.waitingGuest).sort(), ['arrivalDate', 'arrivalTime', 'confirmationNo', 'departureDate', 'guestName', 'language', 'phase', 'readyAt', 'roomType', 'wgNumber'], 'exact whitelist of guest fields');
+  assert.deepEqual(Object.keys(t.guest(token).body.waitingGuest).sort(), ['arrivalDate', 'arrivalTime', 'canGiveFeedback', 'confirmationNo', 'departureDate', 'feedbackGiven', 'guestName', 'language', 'phase', 'readyAt', 'roomType', 'roomTypeName', 'wgNumber'], 'exact whitelist of guest fields');
   assert.equal(t.guest('x'.repeat(40)).status, 404);
   assert.equal(t.guest('short').status, 404);
   assert.equal(t.b.call('', 'GET', '/api/guest/' + '0'.repeat(64)).status, 404);
