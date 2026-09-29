@@ -46,7 +46,11 @@ function start(port = PORT, file = FILE) {
     }
     if (u.pathname === '/') {
       const t = u.searchParams.get('t') || '';
-      const boot = JSON.stringify({ mode: /^[A-Za-z0-9_-]{20,64}$/.test(t) ? 'guest' : 'staff', token: /^[A-Za-z0-9_-]{20,64}$/.test(t) ? t : '', platform: 'dev' }).replace(/</g, '\\u003c');
+      // Same as doGet in production: guest status embedded in the page for an instant first paint.
+      const ok = /^[A-Za-z0-9_-]{20,64}$/.test(t);
+      let data = null;
+      if (ok) { try { b.ev('Store').reset(); data = JSON.parse(JSON.stringify(b.ev('Api').guestPayload(t))); } catch (e) { data = null; } }
+      const boot = JSON.stringify({ mode: ok ? 'guest' : 'staff', token: ok ? t : '', platform: 'dev', data }).replace(/</g, '\\u003c');
       res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' });
       return res.end(buildIndex().replace('<?!= boot ?>', () => boot));
     }

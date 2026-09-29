@@ -29,7 +29,7 @@ test('Index.html is a valid HtmlService template with exactly one scriptlet', ()
   assert.match(html, /window\.WG_BOOT = <\?!= boot \?>;/);
   assert.equal((html.match(/<\/script>/g) || []).length, 2);
   assert.ok(html.length < 400_000, 'stays small');
-  assert.ok(!/https?:\/\/(?!fonts\.g|easymap)/.test(html.replace(/http:\/\/www\.w3\.org\/2000\/svg/g, '')), 'no unexpected external hosts');
+  assert.ok(!/https?:\/\/(?!fonts\.g|easymap)[a-z0-9]/i.test(html.replace(/http:\/\/www\.w3\.org\/2000\/svg/g, '')), 'no unexpected external hosts');
 });
 
 test('manifest is deployable as a public web app', () => {

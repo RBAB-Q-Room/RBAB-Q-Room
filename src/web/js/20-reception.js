@@ -11,7 +11,7 @@ WG.views.reception = function (root, user) {
       <div class="search-box" role="search">
         ${icon('search')}
         <label for="q" class="sr-only">Search</label>
-        <input id="q" type="search" placeholder="Confirmation number, guest name or WG number" autocomplete="off" inputmode="search" autofocus>
+        <input id="q" type="search" placeholder="Confirmation number, guest name, WG number, room or luggage tag" autocomplete="off" inputmode="search" autofocus>
         <kbd>/</kbd>
       </div>
       <div class="hint muted" id="hint">New arrival: type the <b>confirmation number</b>. Guest returning: search by name, confirmation or <b>WG number</b>. <button class="linkish" id="manualLink">Reservation not found? Enter it manually</button></div>
@@ -32,7 +32,7 @@ WG.views.reception = function (root, user) {
       : g.status === 'cancelled' ? `<span class="t">${fmtClock(g.timestamps.cancelled)}</span>`
       : g.status === 'ready' || g.status === 'returned' ? `<span class="t">ready ${fmtClock(g.timestamps.roomReady)}</span>`
       : `<span class="t num" data-since="${esc(g.timestamps.created)}">0:00</span>`;
-    return `<button class="row${sel ? ' sel' : ''}" data-wg="${g.id}"><div class="top"><span class="wg">${esc(g.wgNumber)}</span><span class="nm">${esc(g.guestName)}</span></div>
+    return `<button class="row${sel ? ' sel' : ''}" data-wg="${g.id}"><div class="top"><span class="nm">${esc(g.guestName)}</span><span class="wg">${esc(g.wgNumber)}</span>${g.timestamps.qrOpened && !['completed', 'cancelled'].includes(g.status) ? '<span class="seen-dot" title="Guest opened their page" aria-label="Guest opened their page"></span>' : ''}</div>
       <div class="sub">${esc(g.confirmationNo)} · ${esc(g.roomType)} · ${esc(g.associate || '')}</div>
       <div class="end">${statusPill(g.status)}${t}</div></button>`;
   }
@@ -47,6 +47,7 @@ WG.views.reception = function (root, user) {
       const d = await api('GET', '/api/waiting-guests');
       S.active = d.active; S.completed = d.completed;
       renderList();
+      refreshScanState();
       if (S.selectedId) refreshSelected();
     } catch (e) { if (!e.offline && !e.silent) toast(e.message, 'err'); }
   }
@@ -95,11 +96,23 @@ WG.views.reception = function (root, user) {
 
   /* ---------- shared operational fields ---------- */
   const rememberedAssociate = () => { try { return localStorage.getItem(ASSOCIATE_KEY) || ''; } catch (e) { return ''; } };
+  const recentAssociates = () => { try { return JSON.parse(localStorage.getItem('wg-associates') || '[]').slice(0, 8); } catch (e) { return []; } };
+  const rememberAssociate = (name) => {
+    try {
+      localStorage.setItem(ASSOCIATE_KEY, name);
+      localStorage.setItem('wg-associates', JSON.stringify([name].concat(recentAssociates().filter((n) => n !== name)).slice(0, 8)));
+    } catch (e) { /* storage unavailable: nothing to remember */ }
+  };
+  const tagChips = (selected = []) => `<div class="field full"><span>Quick tags <em class="opt">(optional, one tap)</em></span><div class="tagrow" role="group" aria-label="Quick tags">${Object.keys(TAG_LABEL).map((t) =>
+    `<button type="button" class="tagbtn" data-tag="${t}" aria-pressed="${selected.includes(t)}">${esc(TAG_LABEL[t])}</button>`).join('')}</div></div>`;
+  const readTags = (scope) => $$('.tagbtn[aria-pressed="true"]', scope).map((b) => b.dataset.tag);
+  document.addEventListener('click', (e) => { const b = e.target.closest('.tagbtn'); if (b) b.setAttribute('aria-pressed', b.getAttribute('aria-pressed') === 'true' ? 'false' : 'true'); });
   const opFields = (associate, lang = 'en') => `<div class="form-grid">
     <label class="field"><span>Luggage tag <em class="opt">(optional)</em></span><input class="in" id="fTag" maxlength="40" autocomplete="off"></label>
-    <label class="field"><span>Associate name</span><input class="in" id="fAssoc" maxlength="80" value="${esc(associate)}" autocomplete="off" required><span class="field-error" id="assocErr" hidden>Enter your name</span></label>
+    <label class="field"><span>Associate name</span><input class="in" id="fAssoc" maxlength="80" value="${esc(associate)}" autocomplete="off" list="assocList" required><datalist id="assocList">${recentAssociates().map((n) => `<option value="${esc(n)}"></option>`).join('')}</datalist><span class="field-error" id="assocErr" hidden>Enter your name</span></label>
     <label class="field full"><span>Guest language <em class="opt">(for their QR page)</em></span><select class="in" id="fLang">${langOptions(lang)}</select></label>
-    <label class="field full"><span>Guest preferences <em class="opt">(optional)</em></span><textarea class="in" id="fPref" maxlength="500" rows="2"></textarea></label>
+    ${tagChips()}
+    <label class="field full"><span>Guest preferences <em class="opt">(optional)</em></span><textarea class="in" id="fPref" maxlength="500" rows="2" placeholder="For the room team, e.g. high floor, twin beds"></textarea></label>
     <label class="field full"><span>Remarks <em class="opt">(optional)</em></span><textarea class="in" id="fRem" maxlength="500" rows="2"></textarea></label></div>`;
 
   /* ---------- reservation -> create ---------- */
@@ -129,6 +142,7 @@ WG.views.reception = function (root, user) {
         <div class="banner err" id="formErr" role="alert" hidden style="margin-top:14px"></div>
         <div class="actions"><button class="btn btn-primary" id="createBtn" type="submit">${icon('plus')} Create Waiting Guest</button><button class="btn btn-ghost" type="button" id="cancelBtn">Cancel</button></div>
       </form>`;
+      S.formOpenedAt = Date.now(); // measured: time from opening the reservation to pressing Create
       (associate ? $('#fTag') : $('#fAssoc')).focus();
       $('#cancelBtn').onclick = clearWork;
       $('#createForm').addEventListener('submit', (e) => { e.preventDefault(); submitCreate(r.confirmationNo, null); });
@@ -162,6 +176,7 @@ WG.views.reception = function (root, user) {
       <div class="banner err" id="formErr" role="alert" hidden style="margin-top:14px"></div>
       <div class="actions"><button class="btn btn-primary" id="createBtn" type="submit">${icon('plus')} Create Waiting Guest</button><button class="btn btn-ghost" type="button" id="cancelBtn">Cancel</button></div></form>`;
     $('#cancelBtn').onclick = clearWork;
+    S.formOpenedAt = Date.now();
     (/^[A-Za-z0-9\-\/]+$/.test(term) ? $('#mName') : $('#mConf')).focus();
     $('#manualForm').addEventListener('submit', (e) => {
       e.preventDefault();
@@ -181,9 +196,9 @@ WG.views.reception = function (root, user) {
     if (btn.classList.contains('loading')) return; // guard against double clicks
     btn.classList.add('loading'); $('#formErr').hidden = true;
     try {
-      try { localStorage.setItem(ASSOCIATE_KEY, assoc); } catch (e) { /* ignore */ }
+      rememberAssociate(assoc);
       const { waitingGuest: g } = await api('POST', '/api/waiting-guests', {
-        confirmationNo: no, associate: assoc, luggageTag: $('#fTag').value, preferences: $('#fPref').value, remarks: $('#fRem').value, language: $('#fLang').value, manual,
+        confirmationNo: no, associate: assoc, luggageTag: $('#fTag').value, preferences: $('#fPref').value, remarks: $('#fRem').value, language: $('#fLang').value, tags: readTags($('#work')), createSeconds: S.formOpenedAt ? Math.round((Date.now() - S.formOpenedAt) / 1000) : null, manual,
       });
       S.selectedId = null; // keep the success panel; live refresh must not replace it
       await showQr(g, true);
@@ -209,7 +224,8 @@ WG.views.reception = function (root, user) {
       <div><b>${esc(g.guestName)}</b> · ${esc(g.confirmationNo)}</div>
       <div class="muted" style="margin-top:6px">${fresh ? `Now in the Rooms Controller queue. Waiting timer started at ${fmtClock(g.timestamps.created)}.` : `Status: ${esc(STATUS_LABEL[g.status])}`}</div>
       <div class="qr" id="qrBox" aria-label="Guest QR code"><div class="skeleton" style="aspect-ratio:1"></div></div>
-      <div class="muted" style="font-size:12.5px">The guest scans this QR to follow their room status in <b>${esc(langInfo(g.language).name)}</b>. No login needed. They can switch language on the page.</div>
+      <div class="scan-state" id="scanState" data-wg="${g.id}">${engagementHtml(g)}</div>
+      <div class="muted" style="font-size:12.5px">The guest scans this QR to follow their room status in <b>${esc(langInfo(g.language).name)}</b>. No login or app needed.</div>
       <div class="link-row" id="qrActions"><button class="btn btn-primary btn-sm" id="nextBtn">${icon('plus')} New Waiting Guest</button></div></div>`;
     $('#nextBtn').onclick = () => { clearWork(); q.focus(); };
     try {
@@ -220,7 +236,15 @@ WG.views.reception = function (root, user) {
     } catch (e) { $('#qrBox').textContent = 'QR unavailable'; }
   }
 
-  function clearWork() { $('#work').innerHTML = ''; S.selectedId = null; renderList(); }
+  function clearWork() { $('#work').innerHTML = ''; S.selectedId = null; S.formOpenedAt = null; renderList(); }
+
+  /** Keep the "has the guest scanned it?" line on the QR panel live. */
+  function refreshScanState() {
+    const el = $('#scanState');
+    if (!el) return;
+    const g = S.active.concat(S.completed).find((x) => x.id === Number(el.dataset.wg));
+    if (g) { const html = engagementHtml(g); if (el.innerHTML !== html) el.innerHTML = html; }
+  }
 
   /* ---------- existing waiting guest: verify + complete ---------- */
   async function openWg(id) {
@@ -248,6 +272,7 @@ WG.views.reception = function (root, user) {
       <label class="field"><span>Luggage tag</span><input class="in" id="eTag" maxlength="40" value="${esc(g.luggageTag)}"></label>
       <label class="field"><span>Associate name</span><input class="in" id="eAssoc" maxlength="80" value="${esc(g.associate)}" required></label>
       <label class="field"><span>Guest language (QR page)</span><select class="in" id="eLang">${langOptions(g.language)}</select></label>
+      ${tagChips(g.tags || [])}
       <label class="field"><span>Guest preferences</span><textarea class="in" id="ePref" maxlength="500" rows="2">${esc(g.preferences)}</textarea></label>
       <label class="field"><span>Remarks</span><textarea class="in" id="eRem" maxlength="500" rows="2">${esc(g.remarks)}</textarea></label>
       <div class="banner err" id="edErr" hidden></div></div>
@@ -260,7 +285,7 @@ WG.views.reception = function (root, user) {
       e.preventDefault();
       const b = $('#edGo', ov); b.classList.add('loading');
       try {
-        await api('POST', `/api/waiting-guests/${g.id}/details`, { luggageTag: $('#eTag', ov).value, associate: $('#eAssoc', ov).value, language: $('#eLang', ov).value, preferences: $('#ePref', ov).value, remarks: $('#eRem', ov).value });
+        await api('POST', `/api/waiting-guests/${g.id}/details`, { luggageTag: $('#eTag', ov).value, associate: $('#eAssoc', ov).value, language: $('#eLang', ov).value, tags: readTags(ov), preferences: $('#ePref', ov).value, remarks: $('#eRem', ov).value });
         close(); toast('Details updated'); await loadList();
       } catch (ex) { b.classList.remove('loading'); $('#edErr', ov).textContent = ex.message; $('#edErr', ov).hidden = false; }
     });
@@ -274,27 +299,23 @@ WG.views.reception = function (root, user) {
       : g.status === 'cancelled' ? `<div class="banner err">Cancelled at ${fmtClock(g.timestamps.cancelled)}: ${esc(g.cancelReason)}</div>`
       : `<div class="banner info">${icon('clock')}<span>Room is not ready yet (${esc(STATUS_LABEL[g.status])}). It cannot be completed until the Rooms Controller marks it ready.</span></div>`;
     $('#work').innerHTML = `<div class="card panel">
-      <div class="panel-head"><div><div class="label">Waiting Guest</div><h2 class="serif">${esc(g.wgNumber)}</h2></div><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">${g.source === 'manual' ? '<span class="type-pill">Manual entry</span>' : ''}${statusPill(g.status)}</div></div>
+      <div class="panel-head"><div><div class="label">Waiting Guest · ${esc(g.wgNumber)}</div><h2 class="serif">${esc(g.guestName)}</h2></div><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">${g.source === 'manual' ? '<span class="type-pill">Manual entry</span>' : ''}${statusPill(g.status)}</div></div>
       ${note}
-      <div class="verify"><div class="label" style="margin-bottom:8px">Verify guest</div><div class="kv">
-        <div><span>Guest name</span><b>${esc(g.guestName)}</b></div><div><span>Confirmation</span><b>${esc(g.confirmationNo)}</b></div>
-        <div><span>WG number</span><b>${esc(g.wgNumber)}</b></div><div><span>Arrival → Departure</span><b>${fmtDate(g.arrivalDate)} → ${fmtDate(g.departureDate)}</b></div></div></div>
-      <div class="kv">
-        <div><span>Room type</span><b>${esc(g.roomType)} · ${esc(typeName(g.roomType))}</b></div><div><span>Guests</span><b>${pax(g)}</b></div>
-        <div><span>Luggage tag</span><b>${esc(g.luggageTag || '-')}</b></div><div><span>Associate</span><b>${esc(g.associate || '-')}</b></div>
-        <div><span>Guest language</span><b>${esc(langInfo(g.language).name)}</b></div>
-        ${g.roomNumber && ready ? `<div><span>Assigned room</span><b>${esc(g.roomNumber)}</b></div>` : ''}
-        ${g.preferences ? `<div style="grid-column:1/-1"><span>Preferences</span><b>${esc(g.preferences)}</b></div>` : ''}
-        ${g.remarks ? `<div style="grid-column:1/-1"><span>Remarks</span><b>${esc(g.remarks)}</b></div>` : ''}
-      </div>
-      <hr><div class="section-label">History</div>
-      <ul class="timeline">${history.map((h) => `<li><span>${esc(STATUS_LABEL[h.to] || h.to)}${h.note ? ` <span class="muted">(${esc(h.note)})</span>` : ''}<span class="muted"> · ${esc(h.by || '')}</span></span><span class="when">${fmtClock(h.at)}</span></li>`).join('')}</ul>
-      <div class="actions">
+      <div class="verify"><div class="label" style="margin-bottom:8px">Verify with the guest</div><div class="kv">
+        <div><span>Guest name</span><b>${esc(g.guestName)}</b></div><div><span>Confirmation</span><b class="num">${esc(g.confirmationNo)}</b></div>
+        <div><span>WG number</span><b class="num">${esc(g.wgNumber)}</b></div>${g.roomNumber && ready ? `<div><span>Room</span><b class="num">${esc(g.roomNumber)}</b></div>` : `<div><span>Stay</span><b>${fmtDate(g.arrivalDate)} → ${fmtDate(g.departureDate)}</b></div>`}</div></div>
+      <div class="actions top">
         ${!closed ? `<button class="btn btn-primary" id="completeBtn" ${ready ? '' : 'disabled'}>${icon('check')} Complete Waiting Guest</button>` : ''}
-        ${g.status === 'ready' ? `<button class="btn btn-ghost" id="returnedBtn">Guest returned</button>` : ''}
-        <button class="btn btn-ghost" id="qrBtn">${icon('link')} Show QR</button>
-        ${!closed ? `<button class="btn btn-ghost" id="editBtn">Edit details</button><button class="btn btn-ghost btn-danger" id="cancelWgBtn">Cancel</button>` : ''}
-      </div></div>`;
+        ${g.status === 'ready' ? `<button class="btn btn-ghost" id="returnedBtn">Guest is at the desk</button>` : ''}
+      </div>
+      <div class="actions sec">
+        <button class="btn btn-ghost btn-sm" id="qrBtn">${icon('link')} Show QR</button>
+        ${!closed ? `<button class="btn btn-ghost btn-sm" id="editBtn">Edit details</button><button class="btn btn-ghost btn-sm btn-danger" id="cancelWgBtn">Cancel record…</button>` : ''}
+      </div>
+      ${!closed ? `<div class="eng-line">${engagementHtml(g)}</div>` : ''}
+      <hr>${detailGroupsHtml(g, typeName)}
+      <hr><div class="section-label">Timeline</div>${timelineHtml(g, history)}
+    </div>`;
     const cb = $('#completeBtn');
     if (cb && ready) cb.onclick = async () => {
       const ok = await confirmDialog({ title: `Complete ${g.wgNumber}?`, body: `Confirm you have verified <b>${esc(g.guestName)}</b> (${esc(g.confirmationNo)}). This closes the Waiting Guest record.`, confirmLabel: 'Complete' });

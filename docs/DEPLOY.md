@@ -56,7 +56,11 @@ That URL is the staff sign-in page. Guest QR links are the same URL plus `?t=...
 
 Import the day's arrivals (Admin → Import arrivals). Re-importing updates existing reservations by confirmation number, so importing again later in the day is safe. If a reservation is missing, Reception uses **Enter it manually**.
 
-## Settings you can edit in the Sheet
+## Settings
+
+Since version 1.0, admins change everything below inside the app (**Settings** and **Guest page** tabs); you do not need to open the Sheet.
+
+### Stored in the Sheet
 
 * **Config**: `wg_prefix` (the "WG" in WG-0001), `hotel_website_url` (turns on the website button for guests), `hotel_map_url`, `late_warn_minutes` / `late_alert_minutes` (when a waiting timer turns amber/red), `guest_welcome`.
 * **GuestContent**: the cards guests see under "While you wait". Replace the placeholder text with the hotel's approved wording (pools, beach, restaurants, Wi-Fi, guest services). Set `placeholder` to blank once real. Set `active` to blank to hide a card. Columns `title`, `body`, `note` are English; `title_ar`, `body_ar`, `note_ar` (Arabic), `_ru` (Russian) and `_de` (German) hold the translations. A blank translation shows the English text.
@@ -68,10 +72,15 @@ Reception picks the **Guest language** (English, Arabic, Russian or German) when
 
 The translations were written for this build. **Please have a native speaker of each language review them before guests see them.** The interface text is in `src/web/js/45-i18n.js`, and the resort card text is in the GuestContent tab.
 
-## Updating an existing deployment
+## Updating an existing deployment (do this for version 1.0)
 
-After pasting new code: run **`setup`** again (safe, never deletes data). It adds any new columns, such as `language`. Existing GuestContent rows keep their text and show English until you fill in the translation columns.
-* **RoomTypes**: room type codes and names.
+1. In the Apps Script editor, replace **all three files** with the new ones from `dist/apps-script/`: `Code.gs`, `Index` and `appsscript.json`. Replace the whole of `Code.gs`: if you added a `makeDatabase` function by hand earlier, it must go (it was callable by anyone; `setup` now creates the database itself).
+2. Press **Ctrl+S**, choose **`setup`** and click **Run**. Google asks for permission again because the app now checks who is running editor-only functions (it needs to read your email address for that). Allow it. `setup` upgrades the sheet: new columns are added at the end and nothing is deleted.
+3. Run **`runSelfTest`**. It must end with `ALL CHECKS PASSED`.
+4. **Deploy → Manage deployments → pencil → Version: New version → Deploy.** Check that **Who has access** says **Anyone**, otherwise guests scanning the QR see a Google Drive error.
+5. Sign in as admin. Open **Settings** and **Guest page** to replace placeholder text and add the hotel website.
+
+If you forget step 2, the app upgrades the sheet by itself on the first request, but the permission prompt only appears when you run something in the editor.
 
 ## Keeping the sheet fast
 

@@ -35,7 +35,6 @@ const STATUS_LABEL = {
   waiting: 'Waiting', room_assigned: 'Room Assigned', preparing: 'Room Being Prepared', ready: 'Room Ready',
   returned: 'Guest Returned', completed: 'Completed', cancelled: 'Cancelled',
 };
-const STATUS_ORDER = ['waiting', 'room_assigned', 'preparing', 'ready', 'returned', 'completed'];
 const statusPill = (s) => `<span class="pill st-${s}">${STATUS_LABEL[s] || esc(s)}</span>`;
 
 /* ---------- transport: Apps Script (google.script.run) or dev server (fetch) ---------- */
@@ -91,18 +90,37 @@ function live(onChange, onState = () => {}, { baseMs = 4000 } = {}) {
 }
 
 /* ---------- time ---------- */
+/** Averages and delays: "45 s", "12 min", "1h 05m". */
 function fmtDuration(sec) {
   if (sec == null || isNaN(sec)) return '-';
-  sec = Math.max(0, Math.floor(sec));
-  const h = Math.floor(sec / 3600), m = Math.floor((sec % 3600) / 60), s = sec % 60;
-  return h ? `${h}h ${String(m).padStart(2, '0')}m` : `${m}:${String(s).padStart(2, '0')}`;
+  sec = Math.max(0, Math.round(sec));
+  if (sec < 60) return `${sec} s`;
+  const m = Math.floor(sec / 60);
+  return m < 60 ? `${m} min` : `${Math.floor(m / 60)}h ${String(m % 60).padStart(2, '0')}m`;
 }
-const fmtClock = (t) => (t ? new Date(t).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '-');
+/** Live waiting timers for staff: minutes, not ticking seconds ("<1 min", "12 min", "1h 05m"). */
+function fmtWait(sec) {
+  if (sec == null || isNaN(sec)) return '-';
+  const m = Math.floor(Math.max(0, sec) / 60);
+  return m < 1 ? '<1 min' : m < 60 ? `${m} min` : `${Math.floor(m / 60)}h ${String(m % 60).padStart(2, '0')}m`;
+}
+const fmtClock = (t) => (t ? new Date(t).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }) : '-'); // hotel operations run on the 24-hour clock
 const fmtDate = (d) => (d ? new Date(d + 'T00:00:00').toLocaleDateString([], { day: 'numeric', month: 'short', year: 'numeric' }) : '-');
 const pax = (g) => `${g.adults} adult${g.adults === 1 ? '' : 's'}${g.children ? `, ${g.children} child${g.children === 1 ? '' : 'ren'}` : ''}`;
 function tickTimers() {
   const now = nowMs();
-  for (const el of $$('[data-since]')) el.textContent = fmtDuration(((el.dataset.until ? Date.parse(el.dataset.until) : now) - Date.parse(el.dataset.since)) / 1000);
+  for (const el of $$('[data-since]')) {
+    const sec = ((el.dataset.until ? Date.parse(el.dataset.until) : now) - Date.parse(el.dataset.since)) / 1000;
+    const txt = fmtWait(sec);
+    if (el.textContent !== txt) el.textContent = txt;
+    // an element with data-levels="warn,alert" (minutes) gets its wait level as a class
+    if (el.dataset.levels) {
+      const [w, a] = el.dataset.levels.split(',').map(Number);
+      const lvl = sec / 60 >= a ? 'long' : sec / 60 >= w ? 'attention' : 'normal';
+      const host = el.closest('[data-waitbox]') || el;
+      if (host.dataset.wait !== lvl) host.dataset.wait = lvl;
+    }
+  }
 }
 setInterval(tickTimers, 1000);
 
@@ -168,7 +186,7 @@ function mountTopbar(user, tagline) {
       <div><div class="wordmark">Waiting Guest</div><div class="tagline">${esc(tagline)}</div></div></div>
     <div class="header-actions">
       <span class="live-dot" id="liveDot" title="Live connection">Live</span>
-      <span class="user-chip"><b>${esc(user.name)}</b> · ${ROLE_NAME[user.role] || ''}</span>
+      <span class="user-chip"><b>${esc(user.name)}</b></span>
       <button class="icon-btn" id="themeToggle" title="Toggle dark mode" aria-label="Toggle dark mode"></button>
       <button class="text-btn" id="pwBtn" title="Change my password">Password</button>
       <button class="text-btn" id="logoutBtn">${icon('out')} Sign out</button>
@@ -204,4 +222,91 @@ function changePasswordDialog() {
     try { await api('POST', '/api/me/password', { current: $('#pwCur', ov).value, next: $('#pwNew', ov).value }); toast('Password changed'); close(); }
     catch (ex) { b.classList.remove('loading'); $('#pwErr', ov).textContent = ex.message; $('#pwErr', ov).hidden = false; }
   });
+}
+
+/* ---------- shared staff building blocks ---------- */
+const TAG_LABEL = { occasion: 'Special occasion', accessibility: 'Accessibility' };
+const WAIT_LABEL = { normal: 'On track', attention: 'Attention', long: 'Long wait' };
+
+/**
+ * Transparent priority: every reason is shown to staff, nothing is a hidden score.
+ * High: marked priority by the Rooms Controller, or waiting past the long-wait threshold,
+ *       or past the attention threshold for a VIP or accessibility guest.
+ * Attention: past the attention threshold, or VIP / accessibility.
+ */
+function priorityOf(g, cfg) {
+  const waitingForRoom = ['waiting', 'room_assigned', 'preparing'].includes(g.status);
+  const min = (nowMs() - Date.parse(g.timestamps.created)) / 60000;
+  const wait = !waitingForRoom ? 'normal' : min >= cfg.alert ? 'long' : min >= cfg.warn ? 'attention' : 'normal';
+  const reasons = [];
+  if (g.priority) reasons.push({ k: 'manual', t: 'Marked priority', strong: true });
+  if (wait !== 'normal') reasons.push({ k: 'wait', t: `Waiting ${fmtWait(min * 60)}`, strong: wait === 'long' });
+  if (g.vipCode) reasons.push({ k: 'vip', t: `VIP ${g.vipCode.replace(/^VIP/i, '').trim()}`.trim() });
+  (g.tags || []).forEach((t) => reasons.push({ k: t, t: TAG_LABEL[t] || t }));
+  if (g.children) reasons.push({ k: 'family', t: `Family · ${g.children} ${g.children === 1 ? 'child' : 'children'}`, info: true });
+  const sensitive = !!g.vipCode || (g.tags || []).includes('accessibility');
+  const level = !waitingForRoom ? 'normal'
+    : g.priority || wait === 'long' || (wait === 'attention' && sensitive) ? 'high'
+    : wait === 'attention' || sensitive ? 'attention' : 'normal';
+  return { level, wait, reasons, waitingForRoom };
+}
+
+const reasonChips = (p, max = 9) => p.reasons.slice(0, max).map((r) => `<span class="why ${r.strong ? 'strong' : ''} ${r.info ? 'info' : ''} why-${r.k}">${esc(r.t)}</span>`).join('');
+
+/** Timeline: staff actions from the status history, plus real guest events (QR opened, saw "room ready"). */
+function timelineHtml(g, history) {
+  const ev = history.map((h) => {
+    let t = STATUS_LABEL[h.to] || h.to;
+    if (h.to === 'waiting' && !h.from) t = 'Waiting Guest created';
+    else if (h.from === h.to && /^Room changed from/.test(h.note || '')) t = `Room changed to ${h.roomNumber} (was ${h.note.replace('Room changed from ', '')})`;
+    else if (h.to === 'room_assigned' && h.from !== h.to) t = `Room ${h.roomNumber} assigned`;
+    else if (h.to === 'preparing') t = 'Room preparation started';
+    else if (h.to === 'ready') t = 'Room ready · guest page updated';
+    else if (h.from === h.to) t = h.note || 'Updated';
+    const note = h.from === h.to || h.to === 'room_assigned' ? '' : h.note;
+    return { at: h.at, t, note, by: h.by, kind: h.to };
+  });
+  if (g.timestamps.qrOpened) ev.push({ at: g.timestamps.qrOpened, t: 'Guest opened their room status page', by: 'Guest', kind: 'guest' });
+  if (g.timestamps.guestSawReady) {
+    const d = (Date.parse(g.timestamps.guestSawReady) - Date.parse(g.timestamps.roomReady)) / 1000;
+    ev.push({ at: g.timestamps.guestSawReady, t: `Guest saw "room ready" · ${fmtDuration(d)} after`, by: 'Guest', kind: 'guest' });
+  }
+  if (g.feedback) ev.push({ at: g.feedback.at, t: `Guest feedback · ${'★'.repeat(g.feedback.rating)}${g.feedback.helpful ? ` · status page helpful: ${g.feedback.helpful}` : ''}`, by: 'Guest', kind: 'guest' });
+  ev.sort((a, b) => Date.parse(a.at) - Date.parse(b.at));
+  return `<ol class="tl">${ev.map((e) => `<li class="tl-${e.kind === 'guest' ? 'guest' : 'staff'}"><time>${fmtClock(e.at)}</time><div><b>${esc(e.t)}</b>${e.note ? `<span class="muted"> · ${esc(e.note)}</span>` : ''}${e.by ? `<small>${esc(e.by)}</small>` : ''}</div></li>`).join('')}</ol>`;
+}
+
+/** Waiting Guest details, grouped the way staff think: guest, stay, operations. */
+function detailGroupsHtml(g, typeName) {
+  const row = (label, value, wide) => value ? `<div${wide ? ' class="wide"' : ''}><dt>${label}</dt><dd>${value}</dd></div>` : '';
+  return `<div class="groups">
+    <section><h3>Guest</h3><dl>
+      ${row('Name', esc(g.guestName), true)}
+      ${row('Confirmation', `<span class="num">${esc(g.confirmationNo)}</span>`)}
+      ${row('Guests', pax(g))}
+      ${row('Guest language', esc(langInfo(g.language).name))}
+      ${row('VIP', g.vipCode ? esc(g.vipCode) : '')}
+      ${row('Source', g.source === 'manual' ? 'Manual entry' : '')}
+    </dl></section>
+    <section><h3>Stay</h3><dl>
+      ${row('Arrival', `${fmtDate(g.arrivalDate)}${g.arrivalTime ? ' · ' + esc(g.arrivalTime) : ''}`)}
+      ${row('Departure', fmtDate(g.departureDate))}
+      ${row('Room type', `${esc(g.roomType)} · ${esc(typeName(g.roomType))}`, true)}
+    </dl></section>
+    <section><h3>Operational</h3><dl>
+      ${row('Luggage tag', esc(g.luggageTag || '-'))}
+      ${row('Associate', esc(g.associate || '-'))}
+      ${row('Tags', (g.tags || []).map((t) => esc(TAG_LABEL[t] || t)).join(', '))}
+      ${row('Preferences', g.preferences ? esc(g.preferences) : '', true)}
+      ${row('Remarks', g.remarks ? esc(g.remarks) : '', true)}
+    </dl></section>
+  </div>`;
+}
+
+/** Guest engagement as one short line for staff. */
+function engagementHtml(g) {
+  if (g.timestamps.guestSawReady) return `<span class="eng ok">Guest has seen "room ready"</span>`;
+  if (['ready', 'returned'].includes(g.status)) return g.timestamps.qrOpened ? `<span class="eng warn">Guest has not looked since the room became ready</span>` : `<span class="eng warn">Guest has not opened their page</span>`;
+  if (g.timestamps.qrOpened) return `<span class="eng ok">Guest is following their status</span>`;
+  return `<span class="eng">Guest has not opened their page yet</span>`;
 }

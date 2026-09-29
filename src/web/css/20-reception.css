@@ -44,12 +44,6 @@ html[data-theme="dark"] .seg button.on { color: #1b140c; }
 .qr svg { width: 100%; height: auto; display: block; }
 .link-row { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin-top: 12px; }
 
-.timeline { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 0; }
-.timeline li { display: grid; grid-template-columns: 14px 1fr auto; gap: 10px; padding: 6px 0; position: relative; font-size: 13px; }
-.timeline li::before { content: ""; width: 9px; height: 9px; border-radius: 50%; background: var(--bronze); margin-top: 5px; box-shadow: 0 0 0 3px var(--bronze-soft); }
-.timeline li::after { content: ""; position: absolute; left: 4px; top: 20px; bottom: -6px; width: 1px; background: var(--line); }
-.timeline li:last-child::after { display: none; }
-.timeline .when { color: var(--ink-soft); font-variant-numeric: tabular-nums; }
 .verify { background: var(--bronze-soft); border-radius: 12px; padding: 14px 16px; margin-bottom: 16px; }
 .verify .kv > div > b { font-size: 15px; }
 .ready-note { background: var(--s-ready-bg); color: var(--s-ready); padding: 10px 14px; border-radius: 10px; font-weight: 700; margin-bottom: 14px; display: flex; gap: 8px; align-items: center; }
@@ -60,3 +54,20 @@ html[data-theme="dark"] .seg button.on { color: #1b140c; }
   .topbar-inner { padding: 10px 16px; }
 }
 @media (max-width: 560px) { .form-grid { grid-template-columns: 1fr; } .big-wg { font-size: 42px; } }
+
+/* v1 additions */
+.tagrow { display: flex; gap: 8px; flex-wrap: wrap; }
+.tagbtn { border: 1px solid var(--line); background: var(--paper); color: var(--ink-soft); border-radius: 18px; padding: 0 14px; min-height: 38px; font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; transition: all .13s; }
+.tagbtn:hover { border-color: var(--bronze); }
+.tagbtn[aria-pressed="true"] { background: var(--bronze-soft); border-color: var(--bronze); color: var(--bronze-deep); }
+.tagbtn[aria-pressed="true"]::before { content: "✓ "; }
+.seen-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--s-ready); flex-shrink: 0; align-self: center; }
+.scan-state { margin: 4px 0 2px; }
+.actions.top { margin-top: 0; }
+.actions.top:empty { display: none; }
+.actions.sec { margin-top: -6px; }
+.eng-line { margin-top: -4px; }
+.row .top { gap: 8px; align-items: center; }
+.row .wg { font-size: 12px; font-weight: 700; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+.row .nm { font-weight: 700; }
+.panel .groups { margin: 4px 0; }

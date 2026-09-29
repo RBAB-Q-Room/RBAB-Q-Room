@@ -167,40 +167,158 @@ kbd { font: inherit; font-size: 10px; color: var(--ink-soft); border: 1px solid 
 .auth-card h1 { font-family: "Source Serif 4", Georgia, serif; font-weight: 600; font-size: 24px; margin-bottom: 4px; }
 .auth-sub { font-size: 12px; color: var(--ink-soft); margin-bottom: 22px; }
 .auth-card form { display: flex; flex-direction: column; gap: 14px; text-align: left; }
+@media (max-width: 900px) {
+  .topbar-inner { padding: 10px 16px; flex-wrap: nowrap; }
+  .user-chip, .brand .divider, .tagline { display: none; }
+  .header-actions { flex-wrap: nowrap; gap: 6px; }
+  #pwBtn { display: none; } /* still reachable on a wider screen; keeps the phone top bar on one line */
+}
 
-/* Admin + shared additions */
+/* ================= Shared staff pieces (Reception + Rooms Controller) ================= */
+/* priority reasons: plain words, never a mystery score */
+.why { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 6px; font-size: 11.5px; font-weight: 700; background: var(--bronze-soft); color: var(--bronze-deep); white-space: nowrap; }
+.why.strong { background: var(--danger-soft); color: var(--danger); }
+.why.info { background: var(--paper); color: var(--ink-soft); border: 1px solid var(--line); font-weight: 600; }
+.why-wait:not(.strong) { background: var(--s-waiting-bg); color: var(--s-waiting); }
+.flag { display: inline-flex; align-items: center; gap: 5px; font-size: 10.5px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: #fff; background: var(--danger); padding: 3px 8px; border-radius: 6px; white-space: nowrap; }
+.flag.soft { background: var(--s-waiting-bg); color: var(--s-waiting); }
+html[data-theme="dark"] .flag:not(.soft) { color: #1b140c; }
+
+/* grouped details */
+.groups { display: grid; gap: 14px; }
+.groups section { display: grid; gap: 8px; }
+.groups h3 { font-size: 11px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; color: var(--ink-soft); margin: 0; }
+.groups dl { margin: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 16px; }
+.groups dl div { min-width: 0; }
+.groups dl div.wide { grid-column: 1 / -1; }
+.groups dt { font-size: 11.5px; color: var(--ink-soft); }
+.groups dd { margin: 0; font-weight: 600; font-size: 13.5px; overflow-wrap: anywhere; }
+
+/* timeline */
+.tl { list-style: none; margin: 0; padding: 0; display: grid; }
+.tl li { display: grid; grid-template-columns: 52px 1fr; gap: 12px; padding: 6px 0; position: relative; font-size: 13px; }
+.tl li::before { content: ""; position: absolute; inset-inline-start: 58px; top: 12px; width: 8px; height: 8px; border-radius: 50%; background: var(--bronze); box-shadow: 0 0 0 3px var(--panel); z-index: 1; }
+.tl li::after { content: ""; position: absolute; inset-inline-start: 61.5px; top: 18px; bottom: -8px; width: 1px; background: var(--line); }
+.tl li:last-child::after { display: none; }
+.tl li.tl-guest::before { background: var(--s-ready); }
+.tl time { font-variant-numeric: tabular-nums; color: var(--ink-soft); font-size: 12.5px; padding-top: 1px; }
+.tl li > div { padding-inline-start: 18px; min-width: 0; display: grid; }
+.tl b { font-weight: 600; }
+.tl small { color: var(--ink-soft); font-size: 11.5px; }
+
+/* guest engagement line */
+.eng { font-size: 12.5px; font-weight: 600; color: var(--ink-soft); display: inline-flex; align-items: center; gap: 7px; }
+.eng::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--line); }
+.eng.ok { color: var(--s-ready); } .eng.ok::before { background: var(--s-ready); }
+.eng.warn { color: var(--s-waiting); } .eng.warn::before { background: var(--s-waiting); }
+
+.search-box.compact { padding: 2px 8px 2px 14px; box-shadow: none; border-radius: 22px; }
+.search-box.compact input { min-height: 40px; font-size: 14px; }
+.search-box.compact svg { opacity: .55; }
+
+/* ================= Shared form/table bits + Management ================= */
 .linkish { background: none; border: none; padding: 0; font: inherit; color: var(--bronze-deep); font-weight: 700; text-decoration: underline; cursor: pointer; }
 .btn-danger { color: var(--danger); }
 .btn-danger:hover:not(:disabled) { border-color: var(--danger) !important; color: var(--danger) !important; }
 .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12.5px; }
 code { background: var(--bronze-soft); padding: 1px 6px; border-radius: 5px; font-size: 12px; word-break: break-all; }
-.ad-wrap { max-width: 1100px; margin: 0 auto; padding: 18px 24px 48px; }
-.ad-tabs { display: flex; gap: 6px; margin-bottom: 18px; overflow-x: auto; scrollbar-width: none; padding-bottom: 2px; }
-.ad-tabs button { border: 1px solid var(--line); background: var(--panel); color: var(--ink-soft); padding: 9px 16px; border-radius: 18px; font-size: 13px; font-weight: 600; cursor: pointer; white-space: nowrap; transition: all .13s; }
+.panel { padding: 22px; animation: rise .25s var(--ease); display: grid; gap: 14px; }
+.panel > h2, .panel-head h2 { font-size: 24px; font-weight: 600; }
+.panel hr { border: none; border-top: 1px solid var(--line); margin: 4px 0; width: 100%; }
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.form-grid .full { grid-column: 1 / -1; }
+.actions { display: flex; gap: 10px; flex-wrap: wrap; }
+.small { font-size: 12.5px; margin: 0; }
+.tbl { width: 100%; border-collapse: collapse; font-size: 13px; }
+.tbl th { text-align: start; font-size: 10.5px; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-soft); padding: 9px 12px; border-bottom: 1px solid var(--line); white-space: nowrap; font-weight: 700; }
+.tbl td { padding: 9px 12px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+.tbl tr:last-child td, .tbl tr:last-child th { border-bottom: none; }
+.tbl .num, .num { font-variant-numeric: tabular-nums; }
+.table-wrap { overflow-x: auto; }
+.drop { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+details.map summary { cursor: pointer; font-size: 13px; }
+.pw-box { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 22px; font-weight: 700; letter-spacing: .04em; background: var(--bronze-soft); color: var(--bronze-deep); padding: 14px; border-radius: 10px; text-align: center; margin-top: 10px; user-select: all; word-break: break-all; }
+.seg { display: inline-flex; background: var(--paper); border: 1px solid var(--line); border-radius: 20px; padding: 3px; gap: 2px; flex-wrap: wrap; }
+.seg button { border: none; background: transparent; padding: 7px 14px; min-height: 34px; border-radius: 16px; font-size: 12.5px; font-weight: 600; color: var(--ink-soft); cursor: pointer; }
+.seg button.on { background: var(--bronze); color: #fff; }
+html[data-theme="dark"] .seg button.on { color: #1b140c; }
+
+.ad-wrap { max-width: 1120px; margin: 0 auto; padding-inline: 24px; padding-block: 18px 56px; display: grid; gap: 16px; }
+#adBody { display: grid; gap: 14px; min-width: 0; }
+.ad-tabs { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; padding-bottom: 2px; }
+.ad-tabs button { border: 1px solid var(--line); background: var(--panel); color: var(--ink-soft); padding: 0 16px; min-height: 40px; border-radius: 20px; font-size: 13px; font-weight: 600; cursor: pointer; white-space: nowrap; transition: all .13s; }
 .ad-tabs button:hover { border-color: var(--bronze); }
 .ad-tabs button.on { background: var(--bronze); border-color: var(--bronze); color: #fff; }
 html[data-theme="dark"] .ad-tabs button.on { color: #1b140c; }
-.ad-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
-.ad-h { font-size: 19px; font-weight: 600; margin: 26px 0 10px; }
-.panel { padding: 22px; animation: rise .3s var(--ease); }
-.panel h2 { font-size: 24px; font-weight: 600; margin-bottom: 6px; }
-.panel hr { border: none; border-top: 1px solid var(--line); margin: 18px 0; }
-.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
-.form-grid .full { grid-column: 1 / -1; }
-.actions { display: flex; gap: 10px; margin-top: 18px; flex-wrap: wrap; }
-@media (max-width: 560px) { .form-grid { grid-template-columns: 1fr; } .ad-wrap { padding: 14px 16px 40px; } }
-.tbl { width: 100%; border-collapse: collapse; font-size: 13px; }
-.tbl th { text-align: left; font-size: 10.5px; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-soft); padding: 10px 12px; border-bottom: 1px solid var(--line); white-space: nowrap; }
-.tbl td { padding: 10px 12px; border-bottom: 1px solid var(--line); vertical-align: middle; }
-.tbl tr:last-child td { border-bottom: none; }
-.drop { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin: 14px 0 10px; }
-details.map summary { cursor: pointer; font-size: 13px; }
-.pw-box { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 22px; font-weight: 700; letter-spacing: .04em; background: var(--bronze-soft); color: var(--bronze-deep); padding: 14px; border-radius: 10px; text-align: center; margin-top: 10px; user-select: all; word-break: break-all; }
-.metrics-note { font-size: 12px; }
-.metric { flex: 1 0 140px; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 10px 14px; box-shadow: var(--shadow-sm); }
+.ad-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-top: 8px; }
+.ad-h { font-size: 20px; font-weight: 600; margin: 0; display: flex; align-items: center; gap: 10px; }
+.measured { font-family: "Plus Jakarta Sans", sans-serif; font-size: 10.5px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; color: var(--s-ready); background: var(--s-ready-bg); padding: 3px 8px; border-radius: 6px; }
+.illustrative { font-size: 10.5px; font-weight: 800; letter-spacing: .07em; text-transform: uppercase; color: var(--s-waiting); background: var(--s-waiting-bg); padding: 4px 9px; border-radius: 6px; }
+.ad-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; }
+.ad-cards .metric small, .metric small { display: block; font-size: 11.5px; color: var(--ink-soft); margin-top: 2px; line-height: 1.35; }
+.metric { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; min-width: 0; }
 .metric span { display: block; font-size: 10.5px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-soft); }
-.metric b { font-family: "Source Serif 4", Georgia, serif; font-size: 26px; font-weight: 600; line-height: 1.2; }
+.metric b { font-family: "Source Serif 4", Georgia, serif; font-size: 26px; font-weight: 600; line-height: 1.25; font-variant-numeric: tabular-nums; }
 .metric.hot b { color: var(--danger); } .metric.good b { color: var(--s-ready); }
+
+/* chart */
+:root { --chart: #A5652A; --chart-hl: #7E4B1C; }
+html[data-theme="dark"] { --chart: #B87A30; --chart-hl: #D69A4E; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --chart: #B87A30; --chart-hl: #D69A4E; } }
+.chart-card { padding: 16px 18px 12px; display: grid; gap: 6px; }
+.chart-card h3 { font-size: 14px; font-weight: 700; margin: 0; }
+.chart-card h3 small { font-weight: 500; color: var(--ink-soft); font-size: 12px; margin-inline-start: 6px; }
+.chart { position: relative; }
+.chart { overflow-x: auto; }
+.chart svg { max-width: none; height: 190px; display: block; overflow: visible; }
+.chart .grid { stroke: var(--line); stroke-width: 1; vector-effect: non-scaling-stroke; }
+.chart .yl, .chart .xl { fill: var(--ink-soft); font-size: 11px; font-family: "Plus Jakarta Sans", sans-serif; }
+.chart .peak { fill: var(--ink); font-size: 11.5px; font-weight: 700; font-family: "Plus Jakarta Sans", sans-serif; }
+.chart .bar { fill: var(--chart); transition: fill .12s; }
+.chart .hit { fill: transparent; }
+.chart .bar-g.hl .bar { fill: var(--chart-hl); }
+.chart .tip { position: absolute; pointer-events: none; background: var(--ink); color: var(--paper); font-size: 12px; font-weight: 600; padding: 5px 9px; border-radius: 7px; white-space: nowrap; }
+.chart-empty { margin: 0; font-size: 12.5px; }
+.as-table summary { font-size: 12px; color: var(--ink-soft); cursor: pointer; }
+
+/* business case */
+.bc { padding: 20px 22px; display: grid; gap: 12px; }
+.bc-head { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; justify-content: space-between; }
+.bc-head h2 { font-size: 22px; font-weight: 600; }
+.bc > .muted { margin: 0; font-size: 13px; max-width: 80ch; }
+.bc-grid { display: grid; grid-template-columns: minmax(0, 360px) minmax(0, 1fr); gap: 22px; align-items: start; }
+.bc-in { display: grid; gap: 10px; }
+.unit-in { display: flex; align-items: center; gap: 8px; }
+.unit-in input { max-width: 140px; }
+.unit-in i { font-style: normal; font-size: 12.5px; color: var(--ink-soft); font-weight: 600; }
+.bc-res { min-width: 0; overflow-x: auto; }
+.bc-out th[scope="row"] { text-transform: none; letter-spacing: 0; font-size: 13px; color: var(--ink); font-weight: 600; white-space: normal; }
+.bc-out td { font-family: "Source Serif 4", Georgia, serif; font-size: 17px; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.bc-out .need { font-family: "Plus Jakarta Sans", sans-serif; font-size: 12.5px; font-weight: 500; color: var(--ink-soft); font-style: italic; white-space: normal; }
+.bc-basis, .bc-note { font-size: 12px; color: var(--ink-soft); margin: 6px 0 0; }
+
+/* guest page editor */
+.gp { display: grid; grid-template-columns: 280px minmax(0, 1fr); gap: 16px; align-items: start; }
+.gp-list { padding: 18px; display: grid; gap: 8px; }
+.gp-list h2 { font-size: 19px; font-weight: 600; }
+.gp-list p { margin: 0; font-size: 12.5px; }
+.gp-list ul { list-style: none; margin: 6px 0 0; padding: 0; display: grid; gap: 4px; }
+.gp-list button { width: 100%; display: flex; justify-content: space-between; align-items: center; gap: 8px; border: 1px solid transparent; background: transparent; border-radius: 10px; padding: 10px 12px; min-height: 44px; font: inherit; font-weight: 600; color: var(--ink); cursor: pointer; text-align: start; }
+.gp-list button:hover { background: var(--paper); }
+.gp-list button.on { background: var(--bronze-soft); border-color: color-mix(in srgb, var(--bronze) 30%, transparent); }
+.st { font-style: normal; font-size: 10.5px; font-weight: 700; padding: 2px 7px; border-radius: 6px; white-space: nowrap; }
+.st.ok { background: var(--s-ready-bg); color: var(--s-ready); }
+.st.ph { background: var(--s-waiting-bg); color: var(--s-waiting); }
+.st.off { background: var(--s-completed-bg); color: var(--s-completed); }
+.gp-toggles { display: flex; gap: 8px 22px; flex-wrap: wrap; }
+.st-group { border: none; padding: 0; margin: 0; display: grid; gap: 10px; }
+.st-group legend { font-size: 11px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; color: var(--ink-soft); padding: 0; margin-bottom: 8px; }
+.st-group + .st-group { border-top: 1px solid var(--line); padding-top: 16px; }
+.toggle.full { grid-column: 1 / -1; }
+.data-seg { justify-self: start; }
+
+@media (max-width: 900px) { .bc-grid, .gp { grid-template-columns: 1fr; } }
+@media (max-width: 560px) { .form-grid { grid-template-columns: 1fr; } .ad-wrap { padding-inline: 14px; } .ad-cards { grid-template-columns: 1fr 1fr; } }
 
 .rc-wrap { display: grid; grid-template-columns: minmax(0, 1fr) 380px; gap: 24px; max-width: 1240px; margin: 0 auto; padding: 24px; align-items: start; }
 .rc-main { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
@@ -248,12 +366,6 @@ html[data-theme="dark"] .seg button.on { color: #1b140c; }
 .qr svg { width: 100%; height: auto; display: block; }
 .link-row { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin-top: 12px; }
 
-.timeline { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 0; }
-.timeline li { display: grid; grid-template-columns: 14px 1fr auto; gap: 10px; padding: 6px 0; position: relative; font-size: 13px; }
-.timeline li::before { content: ""; width: 9px; height: 9px; border-radius: 50%; background: var(--bronze); margin-top: 5px; box-shadow: 0 0 0 3px var(--bronze-soft); }
-.timeline li::after { content: ""; position: absolute; left: 4px; top: 20px; bottom: -6px; width: 1px; background: var(--line); }
-.timeline li:last-child::after { display: none; }
-.timeline .when { color: var(--ink-soft); font-variant-numeric: tabular-nums; }
 .verify { background: var(--bronze-soft); border-radius: 12px; padding: 14px 16px; margin-bottom: 16px; }
 .verify .kv > div > b { font-size: 15px; }
 .ready-note { background: var(--s-ready-bg); color: var(--s-ready); padding: 10px 14px; border-radius: 10px; font-weight: 700; margin-bottom: 14px; display: flex; gap: 8px; align-items: center; }
@@ -265,170 +377,291 @@ html[data-theme="dark"] .seg button.on { color: #1b140c; }
 }
 @media (max-width: 560px) { .form-grid { grid-template-columns: 1fr; } .big-wg { font-size: 42px; } }
 
-.metrics { display: flex; gap: 10px; padding: 14px 24px 0; overflow-x: auto; scrollbar-width: none; max-width: 1500px; margin: 0 auto; }
-.metrics::-webkit-scrollbar { display: none; }
-.filters { display: flex; gap: 8px; padding: 12px 24px; flex-wrap: wrap; max-width: 1500px; margin: 0 auto; }
-.chip { border: 1px solid var(--line); background: var(--panel); color: var(--ink-soft); padding: 6px 13px; border-radius: 16px; font-size: 12px; font-weight: 600; cursor: pointer; transition: all .13s; display: inline-flex; gap: 6px; align-items: center; }
-.chip:hover { border-color: var(--bronze); }
+/* v1 additions */
+.tagrow { display: flex; gap: 8px; flex-wrap: wrap; }
+.tagbtn { border: 1px solid var(--line); background: var(--paper); color: var(--ink-soft); border-radius: 18px; padding: 0 14px; min-height: 38px; font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; transition: all .13s; }
+.tagbtn:hover { border-color: var(--bronze); }
+.tagbtn[aria-pressed="true"] { background: var(--bronze-soft); border-color: var(--bronze); color: var(--bronze-deep); }
+.tagbtn[aria-pressed="true"]::before { content: "✓ "; }
+.seen-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--s-ready); flex-shrink: 0; align-self: center; }
+.scan-state { margin: 4px 0 2px; }
+.actions.top { margin-top: 0; }
+.actions.top:empty { display: none; }
+.actions.sec { margin-top: -6px; }
+.eng-line { margin-top: -4px; }
+.row .top { gap: 8px; align-items: center; }
+.row .wg { font-size: 12px; font-weight: 700; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+.row .nm { font-weight: 700; }
+.panel .groups { margin: 4px 0; }
+
+/* ================= Rooms Controller ================= */
+.rc-shell { max-width: 1500px; margin: 0 auto; padding-inline: 24px; padding-block: 14px 40px; display: grid; gap: 12px; }
+.metrics { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; }
+.metric { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 10px 14px; min-width: 0; }
+.metric span { display: block; font-size: 10.5px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-soft); }
+.metric b { font-family: "Source Serif 4", Georgia, serif; font-size: 26px; font-weight: 600; line-height: 1.2; font-variant-numeric: tabular-nums; }
+.metric.hot b { color: var(--danger); } .metric.good b { color: var(--s-ready); }
+
+.toolbar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.toolbar .search-box { flex: 1 1 260px; max-width: 380px; }
+.chips { display: flex; gap: 6px; flex-wrap: wrap; flex: 1 1 auto; }
+.chip { border: 1px solid var(--line); background: var(--panel); color: var(--ink-soft); padding: 0 13px; min-height: 36px; border-radius: 18px; font-size: 12.5px; font-weight: 600; cursor: pointer; transition: all .13s; display: inline-flex; gap: 7px; align-items: center; }
+.chip:hover { border-color: var(--bronze); color: var(--ink); }
 .chip.on { background: var(--bronze); border-color: var(--bronze); color: #fff; }
+.chip.warn:not(.on) { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 40%, var(--line)); }
 html[data-theme="dark"] .chip.on { color: #1b140c; }
-.chip i { font-style: normal; opacity: .75; font-variant-numeric: tabular-nums; }
+.chip i { font-style: normal; opacity: .8; font-variant-numeric: tabular-nums; }
+.sortsel select { min-height: 38px; padding: 6px 10px; font-size: 13px; width: auto; }
 
-.rc-body { display: grid; grid-template-columns: minmax(0, 1fr) 420px; gap: 20px; max-width: 1500px; margin: 0 auto; padding: 0 24px 40px; align-items: start; }
-#queue { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.rc-body { display: grid; grid-template-columns: minmax(0, 1fr) 440px; gap: 20px; align-items: start; }
+#queue { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.qhead { font-size: 11.5px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; color: var(--ink-soft); margin: 8px 4px 2px; display: flex; gap: 8px; align-items: center; }
+.qhead:first-child { margin-top: 0; }
+.qhead span { background: var(--line); color: var(--ink); border-radius: 10px; padding: 1px 8px; font-size: 11px; }
 
-/* queue card: dense, timer-first */
-.q { --c: var(--s-waiting); display: grid; grid-template-columns: 5px 118px minmax(0, 1fr) auto; align-items: stretch; background: var(--panel); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; cursor: pointer; text-align: left; width: 100%; color: inherit; font: inherit; padding: 0; box-shadow: var(--shadow-sm); transition: border-color .15s, box-shadow .15s, transform .15s; animation: rise .3s var(--ease); }
-.q:hover { border-color: var(--bronze); box-shadow: var(--shadow); }
-.q.sel { border-color: var(--bronze); box-shadow: 0 0 0 2px color-mix(in srgb, var(--bronze) 30%, transparent), var(--shadow); }
+/* queue card: timer first, then who, then why */
+.q { --c: var(--s-waiting); display: grid; grid-template-columns: 4px 96px minmax(0, 1fr) auto; align-items: stretch; background: var(--panel); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; cursor: pointer; text-align: start; width: 100%; color: inherit; font: inherit; padding: 0; transition: border-color .15s, box-shadow .15s; }
+.q:hover { border-color: var(--bronze); box-shadow: var(--shadow-sm); }
+.q.sel { border-color: var(--bronze); box-shadow: 0 0 0 2px color-mix(in srgb, var(--bronze) 35%, transparent); }
 .q.s-waiting { --c: var(--s-waiting); } .q.s-room_assigned { --c: var(--s-assigned); } .q.s-preparing { --c: var(--s-preparing); }
-.q.s-ready { --c: var(--s-ready); } .q.s-returned { --c: var(--s-returned); }
+.q.s-ready, .q.s-returned { --c: var(--s-ready); }
 .q .bar { background: var(--c); }
-.q.pri .bar { background: repeating-linear-gradient(45deg, var(--danger) 0 6px, var(--c) 6px 12px); }
-.q .timer { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 10px 6px; border-right: 1px solid var(--line); background: color-mix(in srgb, var(--c) 7%, var(--panel)); }
-.q .timer b { font-family: "Source Serif 4", Georgia, serif; font-size: 30px; line-height: 1; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--ink); }
-.q .timer small { font-size: 9.5px; letter-spacing: .08em; text-transform: uppercase; font-weight: 700; color: var(--ink-soft); margin-top: 5px; }
-.q.late1 .timer b { color: var(--s-waiting); } .q.late2 .timer b { color: var(--danger); }
+.q.lvl-high { border-color: color-mix(in srgb, var(--danger) 45%, var(--line)); }
+.q.lvl-high .bar { background: var(--danger); }
+.q .timer { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 10px 6px; border-inline-end: 1px solid var(--line); background: color-mix(in srgb, var(--c) 6%, var(--panel)); }
+.q .timer b { font-family: "Source Serif 4", Georgia, serif; font-size: 22px; line-height: 1.05; font-weight: 600; color: var(--ink); text-align: center; white-space: nowrap; }
+.q .timer small { font-size: 10px; letter-spacing: .08em; text-transform: uppercase; font-weight: 700; color: var(--ink-soft); margin-top: 4px; }
+.q[data-wait="attention"] .timer b { color: var(--s-waiting); }
+.q[data-wait="long"] .timer { background: color-mix(in srgb, var(--danger) 9%, var(--panel)); }
+.q[data-wait="long"] .timer b { color: var(--danger); }
 .q.s-ready .timer b, .q.s-returned .timer b { color: var(--s-ready); }
-.q .main { padding: 10px 14px; min-width: 0; display: flex; flex-direction: column; gap: 5px; }
-.q .l1 { display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; }
-.q .wg { font-weight: 800; font-size: 15px; letter-spacing: .01em; }
-.q .nm { font-weight: 700; font-size: 15px; }
-.q .l2 { display: flex; gap: 6px 14px; flex-wrap: wrap; font-size: 12px; color: var(--ink-soft); align-items: center; }
-.q .l2 span { display: inline-flex; gap: 5px; align-items: center; white-space: nowrap; }
+.q .main { padding: 10px 14px; min-width: 0; display: flex; flex-direction: column; gap: 5px; justify-content: center; }
+.q .l1 { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; min-width: 0; }
+.q .nm { font-weight: 700; font-size: 15px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
+.q .wg { font-size: 12px; font-weight: 700; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+.q .l2 { display: flex; gap: 4px 12px; flex-wrap: wrap; font-size: 12.5px; color: var(--ink-soft); align-items: center; }
+.q .l2 span { display: inline-flex; gap: 4px; align-items: center; white-space: nowrap; }
 .q .l2 svg { width: 13px; height: 13px; }
-.q .l3 { font-size: 12.5px; display: flex; gap: 6px; flex-wrap: wrap; }
-.q .note { background: var(--bronze-soft); color: var(--bronze-deep); padding: 2px 8px; border-radius: 6px; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.q .note.rem { background: var(--s-waiting-bg); color: var(--s-waiting); }
-.q .side { display: flex; flex-direction: column; align-items: flex-end; justify-content: center; gap: 8px; padding: 10px 14px; }
-.q .room { font-family: "Source Serif 4", Georgia, serif; font-weight: 600; font-size: 20px; }
+.q .l3 { display: flex; gap: 5px; flex-wrap: wrap; align-items: center; min-width: 0; }
+.q .note { font-size: 12px; color: var(--ink-soft); max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-style: italic; }
+.q .side { display: flex; flex-direction: column; align-items: flex-end; justify-content: center; gap: 6px; padding: 10px 14px; }
+.q .room { font-family: "Source Serif 4", Georgia, serif; font-weight: 600; font-size: 20px; font-variant-numeric: tabular-nums; }
 .q .room.none { font-family: inherit; font-size: 12px; color: var(--ink-soft); font-weight: 500; }
-.q .flag { color: var(--danger); font-weight: 800; font-size: 10.5px; letter-spacing: .08em; }
-.q-new { animation: newrow 1.6s var(--ease); }
-@keyframes newrow { 0% { background: var(--bronze-soft); transform: translateY(-6px); } }
+.q-new { animation: newrow 1.4s var(--ease); }
+@keyframes newrow { 0% { background: var(--bronze-soft); transform: translateY(-4px); } }
 
-/* detail column (mirrors Room Guide's right-hand detail panel) */
-.detail { position: sticky; top: 84px; max-height: calc(100vh - 100px); overflow-y: auto; }
-.d-card { padding: 20px; animation: rise .25s var(--ease); }
-.d-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 4px; }
-.d-head h2 { font-family: "Source Serif 4", Georgia, serif; font-size: 26px; font-weight: 600; }
-.d-sub { color: var(--ink-soft); font-size: 13px; margin-bottom: 14px; }
-.d-sec { margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--line); }
-.d-time { text-align: center; padding: 14px; border-radius: 12px; background: var(--bronze-soft); margin-bottom: 4px; }
-.d-time b { font-family: "Source Serif 4", Georgia, serif; font-size: 38px; font-weight: 600; font-variant-numeric: tabular-nums; line-height: 1; }
-.d-time span { display: block; font-size: 10.5px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-soft); margin-top: 4px; }
-.pref-box { background: var(--bronze-soft); border-radius: 10px; padding: 10px 12px; font-size: 13px; margin-bottom: 8px; }
+/* detail panel */
+.detail { position: sticky; top: 84px; max-height: calc(100vh - 100px); overflow-y: auto; border-radius: 16px; }
+.d-card { padding: 20px; display: grid; gap: 14px; animation: rise .2s var(--ease); }
+.d-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+.d-head h2 { font-family: "Source Serif 4", Georgia, serif; font-size: 24px; font-weight: 600; line-height: 1.2; overflow-wrap: anywhere; }
+.d-head-r { display: flex; gap: 8px; align-items: center; flex-shrink: 0; }
+.d-time { display: grid; grid-template-columns: 1fr auto; gap: 12px; align-items: center; padding: 12px 16px; border-radius: 12px; background: var(--bronze-soft); }
+.d-time b { font-family: "Source Serif 4", Georgia, serif; font-size: 32px; font-weight: 600; line-height: 1; display: block; }
+.d-time span { font-size: 10.5px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-soft); }
+.d-card[data-wait="attention"] .d-time { background: var(--s-waiting-bg); }
+.d-card[data-wait="attention"] .d-time b { color: var(--s-waiting); }
+.d-card[data-wait="long"] .d-time { background: var(--danger-soft); }
+.d-card[data-wait="long"] .d-time b { color: var(--danger); }
+.d-room { text-align: end; }
+.d-room b { font-size: 26px; }
+.d-why { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+.d-next { display: flex; gap: 8px; align-items: flex-start; font-size: 13px; color: var(--ink-soft); }
+.d-next b { color: var(--ink); }
+.d-next svg { margin-top: 2px; }
+.d-notes { display: grid; gap: 8px; }
+.pref-box { background: var(--bronze-soft); border-radius: 10px; padding: 10px 12px; font-size: 13.5px; overflow-wrap: anywhere; }
 .pref-box.rem { background: var(--s-waiting-bg); }
-.pref-box span { display: block; font-size: 10.5px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-soft); }
-.steps { display: flex; flex-direction: column; gap: 4px; margin-bottom: 12px; }
-.step { display: grid; grid-template-columns: 20px 1fr auto; gap: 10px; align-items: center; font-size: 13px; color: var(--ink-soft); padding: 3px 0; }
-.step .dot { width: 12px; height: 12px; border-radius: 50%; border: 2px solid var(--line); margin-left: 4px; }
-.step.done { color: var(--ink); } .step.done .dot { background: var(--s-ready); border-color: var(--s-ready); }
-.step.now { color: var(--ink); font-weight: 700; } .step.now .dot { border-color: var(--bronze); background: var(--bronze-soft); box-shadow: 0 0 0 3px color-mix(in srgb, var(--bronze) 20%, transparent); }
-.step .ts { font-size: 12px; font-variant-numeric: tabular-nums; }
-.act { display: flex; flex-direction: column; gap: 8px; }
-.room-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(78px, 1fr)); gap: 6px; max-height: 240px; overflow-y: auto; padding: 2px; }
-.rm { border: 1px solid var(--line); background: var(--paper); border-radius: 10px; padding: 8px 6px; cursor: pointer; text-align: center; font: inherit; color: inherit; transition: border-color .15s, background .15s; min-height: 44px; }
+.pref-box span { display: block; font-size: 10.5px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-soft); margin-bottom: 2px; }
+.d-sec { padding-top: 14px; border-top: 1px solid var(--line); }
+.d-sec.act { display: grid; gap: 8px; border-top: none; padding-top: 0; }
+.d-sec.act:empty { display: none; }
+.d-foot { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
+.rm-head, .rm-other summary { font-size: 12px; font-weight: 700; color: var(--ink-soft); margin: 2px 0 8px; display: flex; gap: 6px; align-items: center; }
+.rm-head span, .rm-other summary span { background: var(--line); color: var(--ink); border-radius: 10px; padding: 0 7px; font-size: 11px; }
+.rm-other { margin-top: 10px; }
+.rm-other summary { cursor: pointer; }
+.room-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(76px, 1fr)); gap: 6px; }
+.rm { border: 1px solid var(--line); background: var(--paper); border-radius: 10px; padding: 7px 4px; cursor: pointer; text-align: center; font: inherit; color: inherit; transition: border-color .15s, background .15s; min-height: 48px; }
 .rm:hover { border-color: var(--bronze); }
 .rm.on { background: var(--bronze); border-color: var(--bronze); color: #fff; }
 html[data-theme="dark"] .rm.on { color: #1b140c; }
-.rm b { display: block; font-size: 15px; }
+.rm b { display: block; font-size: 15px; font-variant-numeric: tabular-nums; }
 .rm small { display: block; font-size: 10px; opacity: .8; }
-.rm.other { opacity: .75; }
-.hk-dirty small { color: var(--danger); } .rm.on small { color: inherit; }
-.legend-note { font-size: 11.5px; color: var(--ink-soft); margin: 6px 0 0; }
-.toggle { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; cursor: pointer; }
+.hk-dirty small { color: var(--danger); opacity: 1; } .rm.on small { color: inherit; }
+.pick-hint { margin: 0; font-size: 12.5px; color: var(--ink-soft); text-align: center; padding: 10px; border: 1px dashed var(--line); border-radius: 10px; }
+.legend-note { font-size: 11.5px; color: var(--ink-soft); margin: 8px 0 10px; }
+.toggle { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; cursor: pointer; min-height: 36px; }
+.toggle input { width: 18px; height: 18px; accent-color: var(--bronze); }
 .detail-empty { padding: 36px 20px; }
-
-@media (max-width: 1100px) {
-  .rc-body { grid-template-columns: 1fr; padding: 0 16px 40px; }
-  .detail { position: fixed; inset: auto 0 0 0; max-height: 86vh; z-index: 60; border-radius: 18px 18px 0 0; box-shadow: 0 -12px 40px rgba(0,0,0,.25); background: var(--panel); transform: translateY(105%); transition: transform .3s var(--ease); }
-  .detail.open { transform: none; }
-  .detail-close { display: inline-flex !important; }
-  .metrics, .filters { padding-left: 16px; padding-right: 16px; }
-}
-@media (max-width: 640px) {
-  .q { grid-template-columns: 5px 84px minmax(0, 1fr); }
-  .q .side { grid-column: 3; flex-direction: row; justify-content: space-between; align-items: center; padding-top: 0; }
-  .q .timer b { font-size: 24px; }
-}
 .detail-close { display: none; }
+.eng-line { padding: 4px 2px; }
 
-body { background: var(--paper); }
-.g-shell { max-width: 520px; margin: 0 auto; padding: 0 16px calc(28px + env(safe-area-inset-bottom)); min-height: 100vh; display: flex; flex-direction: column; }
-.g-top { display: flex; justify-content: center; padding: calc(18px + env(safe-area-inset-top)) 0 16px; }
-.g-foot { text-align: center; color: var(--ink-soft); font-size: 12px; letter-spacing: .06em; text-transform: uppercase; margin-top: auto; padding-top: 28px; }
+@media (max-width: 1180px) {
+  .rc-body { grid-template-columns: 1fr; }
+  .detail { position: fixed; inset: auto 0 0 0; max-height: 88vh; z-index: 60; border-radius: 18px 18px 0 0; box-shadow: 0 -12px 40px rgba(0,0,0,.25); background: var(--panel); transform: translateY(105%); transition: transform .28s var(--ease); padding-bottom: env(safe-area-inset-bottom); }
+  .detail.open { transform: none; }
+  .detail .d-card { border: none; box-shadow: none; }
+  .detail-close { display: inline-flex; }
+  .metrics { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
+}
+@media (max-width: 700px) {
+  .rc-shell { padding-inline: 12px; }
+  .metrics { display: flex; overflow-x: auto; scrollbar-width: none; }
+  .metrics .metric { flex: 0 0 150px; }
+  .toolbar .search-box { max-width: none; }
+  .chips { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+  .q { grid-template-columns: 4px 76px minmax(0, 1fr); }
+  .q .side { grid-column: 3; flex-direction: row; justify-content: space-between; align-items: center; padding-top: 0; }
+  .q .timer b { font-size: 18px; }
+  .groups dl { grid-template-columns: 1fr; }
+}
 
-.hero { border-radius: 24px; padding: 30px 22px 26px; text-align: center; color: #fff; background: linear-gradient(155deg, #6B4E33 0%, #4F3A26 100%); box-shadow: var(--shadow); position: relative; overflow: hidden; transition: background .6s var(--ease); animation: rise .5s var(--ease); }
-.hero::before { content: ""; position: absolute; inset: -40% -20% auto auto; width: 320px; height: 320px; border-radius: 50%; background: radial-gradient(circle, rgba(201,162,75,.35), transparent 65%); pointer-events: none; }
-.hero.ready { background: linear-gradient(155deg, #2F7F5A 0%, #1F5B40 100%); }
-.hero.ready::before { background: radial-gradient(circle, rgba(255,255,255,.28), transparent 65%); }
-.hero.done { background: linear-gradient(155deg, #5c5f66, #43464c); }
-.hero > * { position: relative; }
-.eyebrow { font-size: 11.5px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; opacity: .85; }
-.hero h1 { font-family: "Source Serif 4", Georgia, serif; font-weight: 600; font-size: clamp(30px, 9vw, 40px); line-height: 1.12; margin: 12px 0 10px; letter-spacing: .005em; text-transform: none; }
-.hero p { margin: 0 auto; max-width: 34ch; font-size: 15px; line-height: 1.5; opacity: .95; }
-.badge { width: 68px; height: 68px; border-radius: 50%; margin: 0 auto 4px; display: flex; align-items: center; justify-content: center; background: rgba(255,255,255,.14); border: 1px solid rgba(255,255,255,.3); }
-.badge svg { width: 30px; height: 30px; stroke-width: 2.2; }
-.hero.ready .badge { animation: pop .7s var(--ease); background: rgba(255,255,255,.2); }
-.hero:not(.ready):not(.done) .badge svg { animation: sway 3.2s ease-in-out infinite; }
-@keyframes sway { 50% { transform: rotate(12deg) scale(1.06); } }
-@keyframes pop { from { transform: scale(.3); opacity: 0; } 60% { transform: scale(1.12); } }
-.ref { margin-top: 20px; display: inline-flex; flex-direction: column; gap: 2px; background: rgba(255,255,255,.12); border: 1px solid rgba(255,255,255,.25); border-radius: 14px; padding: 10px 22px; }
-.ref span { font-size: 10.5px; letter-spacing: .12em; text-transform: uppercase; opacity: .8; font-weight: 700; }
-.ref b { font-family: "Source Serif 4", Georgia, serif; font-size: 30px; letter-spacing: .04em; font-weight: 600; }
+/* ================= Guest page =================
+   One calm column. The status is the only loud thing on the page; everything else
+   is quiet paper and hairlines. Logical properties throughout so Arabic mirrors cleanly. */
+:root {
+  --hero-wait-a: #6B4E33; --hero-wait-b: #3F2E1F;
+  --hero-ready-a: #2F7F5A; --hero-ready-b: #1B5139;
+  --hero-quiet-a: #5D5A55; --hero-quiet-b: #3F3C38;
+  --hero-ink: #FFFFFF;
+  --gold: #D8B26A;
+}
+html[data-theme="dark"] { --hero-wait-a: #5A4129; --hero-wait-b: #2E2217; --hero-ready-a: #256B4B; --hero-ready-b: #143D2B; --gold: #E3BE78; }
 
-.g-card { padding: 18px 18px 8px; margin-top: 14px; }
-.g-card .kv { grid-template-columns: 1fr 1fr; padding-bottom: 12px; }
-.g-card h2, .sec-title { font-family: "Source Serif 4", Georgia, serif; font-size: 22px; font-weight: 600; }
+.g-shell { max-width: 520px; margin: 0 auto; padding-inline: 16px; padding-block: calc(8px + env(safe-area-inset-top)) calc(24px + env(safe-area-inset-bottom)); min-height: 100vh; display: flex; flex-direction: column; gap: 14px; }
+#gApp { display: grid; gap: 14px; }
+.g-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-block: 8px 2px; }
+.g-top .logo-chip img { height: 24px; }
 
-.progress { display: flex; align-items: center; margin: 16px 4px 4px; }
-.progress .p { display: flex; flex-direction: column; align-items: center; gap: 6px; flex: 0 0 auto; width: 76px; font-size: 11px; font-weight: 600; color: var(--ink-soft); text-align: center; }
-.progress .p i { width: 14px; height: 14px; border-radius: 50%; border: 2px solid var(--line); background: var(--panel); transition: all .4s var(--ease); }
-.progress .p.on { color: var(--ink); } .progress .p.on i { background: var(--s-ready); border-color: var(--s-ready); }
-.progress .p.cur i { border-color: var(--bronze); background: var(--bronze-soft); box-shadow: 0 0 0 4px color-mix(in srgb, var(--bronze) 22%, transparent); animation: pulse2 2s infinite; }
-.progress .ln { flex: 1; height: 2px; background: var(--line); margin-bottom: 22px; }
-.progress .ln.on { background: var(--s-ready); }
-@keyframes pulse2 { 50% { box-shadow: 0 0 0 7px transparent; } }
+/* language menu */
+.lang { position: relative; }
+.lang summary { list-style: none; display: inline-flex; align-items: center; gap: 6px; min-height: 40px; padding: 0 14px; border-radius: 20px; border: 1px solid var(--line); background: var(--panel); color: var(--ink); font-size: 13px; font-weight: 600; cursor: pointer; }
+.lang summary::-webkit-details-marker { display: none; }
+.lang summary svg { width: 16px; height: 16px; color: var(--bronze); }
+.lang[open] summary { border-color: var(--bronze); }
+.lang-list { position: absolute; inset-inline-end: 0; top: calc(100% + 6px); z-index: 30; background: var(--panel); border: 1px solid var(--line); border-radius: 14px; box-shadow: var(--shadow); padding: 6px; display: grid; min-width: 160px; animation: rise .18s var(--ease); }
+.lang-list button { border: none; background: transparent; color: var(--ink); text-align: start; padding: 11px 12px; min-height: 44px; border-radius: 9px; font-size: 15px; font-weight: 500; cursor: pointer; }
+.lang-list button:hover { background: var(--paper); }
+.lang-list button[aria-current="true"] { font-weight: 700; color: var(--bronze-deep); background: var(--bronze-soft); }
 
-.wait-title { margin: 30px 4px 4px; }
-.wait-sub { margin: 0 4px 14px; color: var(--ink-soft); font-size: 14px; }
-.links { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px; }
-.link-btn { display: flex; flex-direction: column; gap: 6px; padding: 16px 14px; border-radius: 16px; text-decoration: none; color: var(--ink); background: var(--panel); border: 1px solid var(--line); box-shadow: var(--shadow-sm); font-weight: 700; min-height: 88px; transition: transform .15s, border-color .15s; }
-.link-btn:hover { border-color: var(--bronze); transform: translateY(-1px); }
-.link-btn svg { width: 22px; height: 22px; color: var(--bronze); }
-.link-btn small { font-weight: 500; color: var(--ink-soft); font-size: 12px; }
-.link-btn.off { opacity: .6; pointer-events: none; }
-.cards { display: flex; flex-direction: column; gap: 10px; }
-.tile { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; box-shadow: var(--shadow-sm); overflow: hidden; }
-.tile summary { list-style: none; cursor: pointer; display: flex; align-items: center; gap: 14px; padding: 16px; min-height: 60px; }
-.tile summary::-webkit-details-marker { display: none; }
-.tile .ic { width: 42px; height: 42px; border-radius: 12px; background: var(--bronze-soft); color: var(--bronze-deep); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-.tile .ic svg { width: 22px; height: 22px; }
-.tile .tt { font-weight: 700; font-size: 15.5px; flex: 1; }
-.tile .chev { transition: transform .25s var(--ease); color: var(--ink-soft); }
-.tile[open] .chev { transform: rotate(180deg); }
-.tile .body { padding: 0 16px 16px 16px; padding-inline-start: 72px; padding-inline-end: 16px; color: var(--ink-soft); font-size: 14px; line-height: 1.55; animation: fade .3s; }
-.tile .soon { display: inline-block; margin-top: 8px; font-size: 10.5px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--bronze-deep); background: var(--bronze-soft); padding: 2px 8px; border-radius: 6px; }
-.notice { margin: 24px 4px 0; font-size: 12px; color: var(--ink-soft); text-align: center; }
-.err-view { text-align: center; padding: 60px 20px; }
-.err-view h1 { font-family: "Source Serif 4", Georgia, serif; font-size: 26px; margin-bottom: 8px; }
-.conn { position: fixed; left: 50%; transform: translateX(-50%); bottom: 14px; background: var(--ink); color: var(--paper); padding: 8px 14px; border-radius: 18px; font-size: 12.5px; font-weight: 600; z-index: 20; }
-@media (max-width: 360px) { .links { grid-template-columns: 1fr; } .progress .p { width: 64px; } }
+/* hero */
+.hero { position: relative; overflow: hidden; border-radius: 26px; padding: 34px 22px 24px; text-align: center; color: var(--hero-ink); background: radial-gradient(120% 90% at 50% 0%, var(--hero-wait-a) 0%, var(--hero-wait-b) 100%); box-shadow: 0 18px 40px rgba(43, 33, 24, .18); display: grid; gap: 10px; justify-items: center; transition: background .8s var(--ease); animation: rise .5s var(--ease); }
+.hero.ready { background: radial-gradient(120% 90% at 50% 0%, var(--hero-ready-a) 0%, var(--hero-ready-b) 100%); }
+.hero.done, .hero.quiet { background: radial-gradient(120% 90% at 50% 0%, var(--hero-quiet-a) 0%, var(--hero-quiet-b) 100%); }
+.hero.quiet { padding-block: 40px 34px; }
+.hero h1 { font-family: "Source Serif 4", Georgia, serif; font-weight: 600; font-size: clamp(30px, 8.6vw, 40px); line-height: 1.1; letter-spacing: .003em; text-wrap: balance; margin: 4px 0 0; }
+.hero .lead { margin: 0; max-width: 32ch; font-size: 16px; line-height: 1.5; opacity: .92; text-wrap: pretty; }
+.hero .note { margin: 0; font-size: 13.5px; opacity: .78; max-width: 34ch; min-height: 2.8em; }
+.hero .small { margin: 0; font-size: 12.5px; opacity: .75; max-width: 32ch; }
+.eyebrow { font-size: 12px; font-weight: 700; letter-spacing: .16em; text-transform: uppercase; color: var(--gold); }
 
-/* language switcher */
-.lang { display: flex; gap: 6px; justify-content: center; flex-wrap: wrap; margin: 0 0 14px; }
-.lang button { border: 1px solid var(--line); background: var(--panel); color: var(--ink-soft); padding: 7px 13px; min-height: 36px; border-radius: 18px; font-size: 13px; font-weight: 600; cursor: pointer; transition: all .13s; }
-.lang button:hover { border-color: var(--bronze); }
-.lang button.on { background: var(--bronze); border-color: var(--bronze); color: #fff; }
-html[data-theme="dark"] .lang button.on { color: #1b140c; }
+/* the mark: a slow breathing ring while waiting, a key when ready */
+.mark { width: 64px; height: 64px; border-radius: 50%; display: grid; place-items: center; background: rgba(255,255,255,.1); border: 1px solid rgba(255,255,255,.22); position: relative; }
+.mark svg { width: 28px; height: 28px; }
+.mark.breathing span { width: 16px; height: 16px; border-radius: 50%; background: var(--gold); box-shadow: 0 0 0 0 rgba(216,178,106,.55); animation: breathe 3.2s ease-in-out infinite; }
+@keyframes breathe { 0% { transform: scale(.85); box-shadow: 0 0 0 0 rgba(216,178,106,.5); } 60% { transform: scale(1); box-shadow: 0 0 0 16px rgba(216,178,106,0); } 100% { transform: scale(.85); box-shadow: 0 0 0 0 rgba(216,178,106,0); } }
 
-/* right-to-left (Arabic): joined letters must not be letter-spaced or upper-cased */
-html[lang="ar"] .g-shell, html[lang="ar"] .g-shell * { letter-spacing: 0 !important; text-transform: none !important; font-family: "Noto Sans Arabic", "Plus Jakarta Sans", system-ui, sans-serif; }
-html[lang="ar"] .hero h1, html[lang="ar"] .sec-title { line-height: 1.35; }
-html[lang="ru"] .g-shell .hero h1 { font-size: clamp(28px, 8vw, 36px); }
-html[dir="rtl"] .tile .chev { margin-inline-start: auto; }
-html[dir="rtl"] .g-shell .kv > div { text-align: start; }
+/* the room-ready moment */
+.hero.arrive .mark { animation: keyIn .9s var(--ease) both; }
+.hero.arrive .mark::after { content: ""; position: absolute; inset: -2px; border-radius: 50%; border: 2px solid rgba(255,255,255,.7); animation: ripple 1.4s .25s ease-out both; }
+.hero.arrive h1 { animation: rise .6s .15s var(--ease) both; }
+.hero.arrive .lead { animation: rise .6s .3s var(--ease) both; }
+@keyframes keyIn { 0% { transform: scale(.3) rotate(-30deg); opacity: 0; } 60% { transform: scale(1.12) rotate(6deg); opacity: 1; } 100% { transform: none; } }
+@keyframes ripple { from { transform: scale(1); opacity: .9; } to { transform: scale(2.6); opacity: 0; } }
+.hero.step-change .note { animation: fade .6s var(--ease); }
+
+/* progress */
+.steps { list-style: none; margin: 10px 0 2px; padding: 0; width: 100%; display: grid; grid-template-columns: repeat(4, 1fr); position: relative; }
+.steps::before { content: ""; position: absolute; top: 7px; inset-inline: 12.5%; height: 2px; background: rgba(255,255,255,.18); }
+.steps li { position: relative; display: grid; justify-items: center; gap: 8px; font-size: 11.5px; font-weight: 600; opacity: .62; line-height: 1.25; padding-inline: 2px; }
+.steps li i { width: 16px; height: 16px; border-radius: 50%; background: var(--hero-wait-b); border: 2px solid rgba(255,255,255,.35); position: relative; z-index: 1; transition: all .5s var(--ease); }
+.hero.ready .steps li i { background: var(--hero-ready-b); }
+.steps li.done { opacity: .95; }
+.steps li.done i { background: var(--gold); border-color: var(--gold); }
+.hero.ready .steps li.done i { background: #fff; border-color: #fff; }
+.steps li.now { opacity: 1; }
+.steps li.now i { border-color: var(--gold); box-shadow: 0 0 0 5px rgba(216,178,106,.25); }
+.steps li.done + li::before, .steps li.done::after { content: none; }
+
+/* reference: present, not shouting */
+.ref { display: inline-flex; align-items: baseline; gap: 8px; margin-top: 6px; padding: 7px 14px; border-radius: 999px; background: rgba(255,255,255,.1); border: 1px solid rgba(255,255,255,.18); font-size: 12px; }
+.ref span { opacity: .75; letter-spacing: .08em; text-transform: uppercase; font-weight: 600; font-size: 10.5px; }
+.ref b { font-size: 15px; letter-spacing: .04em; font-weight: 700; font-variant-numeric: tabular-nums; }
+
+/* stay details */
+.stay dl { margin: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 14px 18px; padding: 18px 18px; background: var(--panel); border: 1px solid var(--line); border-radius: 18px; }
+.stay dl div { min-width: 0; }
+.stay dt { font-size: 10.5px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; color: var(--ink-soft); margin-bottom: 3px; }
+.stay dd { margin: 0; font-weight: 600; font-size: 14.5px; overflow-wrap: anywhere; }
+
+/* feedback */
+.fb { background: var(--panel); border: 1px solid var(--line); border-radius: 18px; padding: 18px; display: grid; gap: 12px; text-align: center; animation: rise .4s var(--ease); }
+.fb h2 { font-family: "Source Serif 4", Georgia, serif; font-size: 20px; font-weight: 600; margin: 0; }
+.stars { display: flex; justify-content: center; gap: 4px; direction: ltr; }
+.stars button { width: 48px; height: 48px; border: none; background: transparent; color: var(--line); cursor: pointer; border-radius: 12px; display: grid; place-items: center; transition: transform .15s var(--ease), color .15s; }
+.stars button svg { width: 32px; height: 32px; fill: currentColor; stroke: none; }
+.stars button.on { color: var(--gold); }
+.stars button:active { transform: scale(.9); }
+.helpful { display: grid; gap: 10px; justify-items: center; }
+.helpful p { margin: 0; font-size: 14px; color: var(--ink-soft); }
+.yn { display: flex; gap: 8px; }
+.yn button { min-width: 88px; min-height: 44px; border-radius: 22px; border: 1px solid var(--line); background: var(--paper); color: var(--ink); font-weight: 600; font-size: 14px; cursor: pointer; }
+.yn button[aria-pressed="true"] { background: var(--bronze); border-color: var(--bronze); color: #fff; }
+.send { min-height: 48px; padding: 0 22px; border-radius: 24px; border: none; background: var(--bronze); color: #fff; font-weight: 700; font-size: 15px; cursor: pointer; }
+.send:disabled { opacity: .6; }
+html[data-theme="dark"] .send, html[data-theme="dark"] .yn button[aria-pressed="true"] { color: #1b140c; }
+.fb.done { display: flex; align-items: center; justify-content: center; gap: 10px; }
+.fb.done svg { width: 22px; height: 22px; color: var(--bronze); }
+.fb.done p { margin: 0; font-weight: 600; }
+.fb-err { margin: 0; color: var(--danger); font-size: 13px; }
+
+/* discover */
+.discover { display: grid; gap: 12px; margin-top: 12px; }
+.discover h2 { font-family: "Source Serif 4", Georgia, serif; font-size: 24px; font-weight: 600; margin: 0; padding-inline: 4px; }
+.dsub { margin: -6px 0 0; padding-inline: 4px; color: var(--ink-soft); font-size: 14.5px; }
+.today { background: var(--bronze-soft); border-radius: 16px; padding: 14px 16px; display: grid; gap: 8px; }
+.today .label { color: var(--bronze-deep); }
+.today ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.today li { display: flex; gap: 10px; align-items: flex-start; font-size: 14.5px; font-weight: 600; color: var(--ink); }
+.today li svg { width: 18px; height: 18px; flex-shrink: 0; color: var(--bronze); margin-top: 2px; }
+.qlinks { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.qlink { display: flex; align-items: center; gap: 12px; padding: 14px; min-height: 64px; border-radius: 16px; background: var(--panel); border: 1px solid var(--line); color: var(--ink); text-decoration: none; transition: border-color .15s, transform .15s; min-width: 0; }
+.qlink:hover { border-color: var(--bronze); }
+.qlink:active { transform: scale(.98); }
+.qlink > svg:first-child { width: 22px; height: 22px; color: var(--bronze); flex-shrink: 0; }
+.qlink span { display: grid; min-width: 0; flex: 1; }
+.qlink b { font-size: 14.5px; }
+.qlink small { font-size: 12px; color: var(--ink-soft); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.qlink .out { width: 16px; height: 16px; color: var(--ink-soft); flex-shrink: 0; }
+html[dir="rtl"] .qlink .out { transform: scaleX(-1); }
+.qlinks .qlink:only-child { grid-column: 1 / -1; }
+.xlist { background: var(--panel); border: 1px solid var(--line); border-radius: 18px; overflow: hidden; }
+.x-item + .x-item { border-top: 1px solid var(--line); }
+.x-item summary { list-style: none; display: flex; align-items: center; gap: 14px; padding: 14px 16px; min-height: 60px; cursor: pointer; }
+.x-item summary::-webkit-details-marker { display: none; }
+.x-item .ic { width: 40px; height: 40px; border-radius: 12px; background: var(--bronze-soft); color: var(--bronze-deep); display: grid; place-items: center; flex-shrink: 0; }
+.x-item .ic svg { width: 21px; height: 21px; }
+.x-item .tt { font-weight: 700; font-size: 15.5px; flex: 1; }
+.x-item .chev { width: 18px; height: 18px; color: var(--ink-soft); transition: transform .25s var(--ease); }
+.x-item[open] .chev { transform: rotate(180deg); }
+.x-item .body { padding-block: 0 16px; padding-inline: 70px 18px; color: var(--ink-soft); font-size: 14.5px; line-height: 1.55; animation: fade .25s; display: grid; gap: 8px; justify-items: start; }
+.x-item .body p { margin: 0; }
+.x-item .note2 { font-size: 13px; }
+.soon { font-size: 10.5px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--bronze-deep); background: var(--bronze-soft); padding: 3px 9px; border-radius: 6px; }
+
+.g-foot { margin-top: auto; padding-top: 20px; display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; color: var(--ink-soft); font-size: 12px; }
+.live-note { display: inline-flex; align-items: center; gap: 7px; }
+.live-note i { width: 7px; height: 7px; border-radius: 50%; background: var(--s-ready); }
+.conn { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(14px + env(safe-area-inset-bottom)); background: var(--ink); color: var(--paper); padding: 9px 16px; border-radius: 18px; font-size: 13px; font-weight: 600; z-index: 40; }
+
+/* Arabic: joined letters must not be letter-spaced or upper-cased; give lines more room */
+html[lang="ar"] .g-shell, html[lang="ar"] .g-shell * { letter-spacing: 0 !important; text-transform: none !important; }
+html[lang="ar"] .g-shell { font-family: "Noto Sans Arabic", "Plus Jakarta Sans", system-ui, sans-serif; }
+html[lang="ar"] .hero h1, html[lang="ar"] .discover h2, html[lang="ar"] .fb h2 { font-family: "Noto Sans Arabic", system-ui, sans-serif; font-weight: 700; line-height: 1.35; }
+html[lang="ru"] .hero h1, html[lang="de"] .hero h1 { font-size: clamp(27px, 7.6vw, 36px); }
+@media (max-width: 360px) { .qlinks { grid-template-columns: 1fr; } .steps li { font-size: 10.5px; } .stay dl { grid-template-columns: 1fr; } }
+@media (prefers-reduced-motion: reduce) { .mark.breathing span { animation: none; } }
 
 </style>
 </head>
@@ -475,7 +708,6 @@ const STATUS_LABEL = {
   waiting: 'Waiting', room_assigned: 'Room Assigned', preparing: 'Room Being Prepared', ready: 'Room Ready',
   returned: 'Guest Returned', completed: 'Completed', cancelled: 'Cancelled',
 };
-const STATUS_ORDER = ['waiting', 'room_assigned', 'preparing', 'ready', 'returned', 'completed'];
 const statusPill = (s) => `<span class="pill st-${s}">${STATUS_LABEL[s] || esc(s)}</span>`;
 
 /* ---------- transport: Apps Script (google.script.run) or dev server (fetch) ---------- */
@@ -531,18 +763,37 @@ function live(onChange, onState = () => {}, { baseMs = 4000 } = {}) {
 }
 
 /* ---------- time ---------- */
+/** Averages and delays: "45 s", "12 min", "1h 05m". */
 function fmtDuration(sec) {
   if (sec == null || isNaN(sec)) return '-';
-  sec = Math.max(0, Math.floor(sec));
-  const h = Math.floor(sec / 3600), m = Math.floor((sec % 3600) / 60), s = sec % 60;
-  return h ? `${h}h ${String(m).padStart(2, '0')}m` : `${m}:${String(s).padStart(2, '0')}`;
+  sec = Math.max(0, Math.round(sec));
+  if (sec < 60) return `${sec} s`;
+  const m = Math.floor(sec / 60);
+  return m < 60 ? `${m} min` : `${Math.floor(m / 60)}h ${String(m % 60).padStart(2, '0')}m`;
 }
-const fmtClock = (t) => (t ? new Date(t).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '-');
+/** Live waiting timers for staff: minutes, not ticking seconds ("<1 min", "12 min", "1h 05m"). */
+function fmtWait(sec) {
+  if (sec == null || isNaN(sec)) return '-';
+  const m = Math.floor(Math.max(0, sec) / 60);
+  return m < 1 ? '<1 min' : m < 60 ? `${m} min` : `${Math.floor(m / 60)}h ${String(m % 60).padStart(2, '0')}m`;
+}
+const fmtClock = (t) => (t ? new Date(t).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }) : '-'); // hotel operations run on the 24-hour clock
 const fmtDate = (d) => (d ? new Date(d + 'T00:00:00').toLocaleDateString([], { day: 'numeric', month: 'short', year: 'numeric' }) : '-');
 const pax = (g) => `${g.adults} adult${g.adults === 1 ? '' : 's'}${g.children ? `, ${g.children} child${g.children === 1 ? '' : 'ren'}` : ''}`;
 function tickTimers() {
   const now = nowMs();
-  for (const el of $$('[data-since]')) el.textContent = fmtDuration(((el.dataset.until ? Date.parse(el.dataset.until) : now) - Date.parse(el.dataset.since)) / 1000);
+  for (const el of $$('[data-since]')) {
+    const sec = ((el.dataset.until ? Date.parse(el.dataset.until) : now) - Date.parse(el.dataset.since)) / 1000;
+    const txt = fmtWait(sec);
+    if (el.textContent !== txt) el.textContent = txt;
+    // an element with data-levels="warn,alert" (minutes) gets its wait level as a class
+    if (el.dataset.levels) {
+      const [w, a] = el.dataset.levels.split(',').map(Number);
+      const lvl = sec / 60 >= a ? 'long' : sec / 60 >= w ? 'attention' : 'normal';
+      const host = el.closest('[data-waitbox]') || el;
+      if (host.dataset.wait !== lvl) host.dataset.wait = lvl;
+    }
+  }
 }
 setInterval(tickTimers, 1000);
 
@@ -608,7 +859,7 @@ function mountTopbar(user, tagline) {
       <div><div class="wordmark">Waiting Guest</div><div class="tagline">${esc(tagline)}</div></div></div>
     <div class="header-actions">
       <span class="live-dot" id="liveDot" title="Live connection">Live</span>
-      <span class="user-chip"><b>${esc(user.name)}</b> · ${ROLE_NAME[user.role] || ''}</span>
+      <span class="user-chip"><b>${esc(user.name)}</b></span>
       <button class="icon-btn" id="themeToggle" title="Toggle dark mode" aria-label="Toggle dark mode"></button>
       <button class="text-btn" id="pwBtn" title="Change my password">Password</button>
       <button class="text-btn" id="logoutBtn">${icon('out')} Sign out</button>
@@ -644,6 +895,93 @@ function changePasswordDialog() {
     try { await api('POST', '/api/me/password', { current: $('#pwCur', ov).value, next: $('#pwNew', ov).value }); toast('Password changed'); close(); }
     catch (ex) { b.classList.remove('loading'); $('#pwErr', ov).textContent = ex.message; $('#pwErr', ov).hidden = false; }
   });
+}
+
+/* ---------- shared staff building blocks ---------- */
+const TAG_LABEL = { occasion: 'Special occasion', accessibility: 'Accessibility' };
+const WAIT_LABEL = { normal: 'On track', attention: 'Attention', long: 'Long wait' };
+
+/**
+ * Transparent priority: every reason is shown to staff, nothing is a hidden score.
+ * High: marked priority by the Rooms Controller, or waiting past the long-wait threshold,
+ *       or past the attention threshold for a VIP or accessibility guest.
+ * Attention: past the attention threshold, or VIP / accessibility.
+ */
+function priorityOf(g, cfg) {
+  const waitingForRoom = ['waiting', 'room_assigned', 'preparing'].includes(g.status);
+  const min = (nowMs() - Date.parse(g.timestamps.created)) / 60000;
+  const wait = !waitingForRoom ? 'normal' : min >= cfg.alert ? 'long' : min >= cfg.warn ? 'attention' : 'normal';
+  const reasons = [];
+  if (g.priority) reasons.push({ k: 'manual', t: 'Marked priority', strong: true });
+  if (wait !== 'normal') reasons.push({ k: 'wait', t: `Waiting ${fmtWait(min * 60)}`, strong: wait === 'long' });
+  if (g.vipCode) reasons.push({ k: 'vip', t: `VIP ${g.vipCode.replace(/^VIP/i, '').trim()}`.trim() });
+  (g.tags || []).forEach((t) => reasons.push({ k: t, t: TAG_LABEL[t] || t }));
+  if (g.children) reasons.push({ k: 'family', t: `Family · ${g.children} ${g.children === 1 ? 'child' : 'children'}`, info: true });
+  const sensitive = !!g.vipCode || (g.tags || []).includes('accessibility');
+  const level = !waitingForRoom ? 'normal'
+    : g.priority || wait === 'long' || (wait === 'attention' && sensitive) ? 'high'
+    : wait === 'attention' || sensitive ? 'attention' : 'normal';
+  return { level, wait, reasons, waitingForRoom };
+}
+
+const reasonChips = (p, max = 9) => p.reasons.slice(0, max).map((r) => `<span class="why ${r.strong ? 'strong' : ''} ${r.info ? 'info' : ''} why-${r.k}">${esc(r.t)}</span>`).join('');
+
+/** Timeline: staff actions from the status history, plus real guest events (QR opened, saw "room ready"). */
+function timelineHtml(g, history) {
+  const ev = history.map((h) => {
+    let t = STATUS_LABEL[h.to] || h.to;
+    if (h.to === 'waiting' && !h.from) t = 'Waiting Guest created';
+    else if (h.from === h.to && /^Room changed from/.test(h.note || '')) t = `Room changed to ${h.roomNumber} (was ${h.note.replace('Room changed from ', '')})`;
+    else if (h.to === 'room_assigned' && h.from !== h.to) t = `Room ${h.roomNumber} assigned`;
+    else if (h.to === 'preparing') t = 'Room preparation started';
+    else if (h.to === 'ready') t = 'Room ready · guest page updated';
+    else if (h.from === h.to) t = h.note || 'Updated';
+    const note = h.from === h.to || h.to === 'room_assigned' ? '' : h.note;
+    return { at: h.at, t, note, by: h.by, kind: h.to };
+  });
+  if (g.timestamps.qrOpened) ev.push({ at: g.timestamps.qrOpened, t: 'Guest opened their room status page', by: 'Guest', kind: 'guest' });
+  if (g.timestamps.guestSawReady) {
+    const d = (Date.parse(g.timestamps.guestSawReady) - Date.parse(g.timestamps.roomReady)) / 1000;
+    ev.push({ at: g.timestamps.guestSawReady, t: `Guest saw "room ready" · ${fmtDuration(d)} after`, by: 'Guest', kind: 'guest' });
+  }
+  if (g.feedback) ev.push({ at: g.feedback.at, t: `Guest feedback · ${'★'.repeat(g.feedback.rating)}${g.feedback.helpful ? ` · status page helpful: ${g.feedback.helpful}` : ''}`, by: 'Guest', kind: 'guest' });
+  ev.sort((a, b) => Date.parse(a.at) - Date.parse(b.at));
+  return `<ol class="tl">${ev.map((e) => `<li class="tl-${e.kind === 'guest' ? 'guest' : 'staff'}"><time>${fmtClock(e.at)}</time><div><b>${esc(e.t)}</b>${e.note ? `<span class="muted"> · ${esc(e.note)}</span>` : ''}${e.by ? `<small>${esc(e.by)}</small>` : ''}</div></li>`).join('')}</ol>`;
+}
+
+/** Waiting Guest details, grouped the way staff think: guest, stay, operations. */
+function detailGroupsHtml(g, typeName) {
+  const row = (label, value, wide) => value ? `<div${wide ? ' class="wide"' : ''}><dt>${label}</dt><dd>${value}</dd></div>` : '';
+  return `<div class="groups">
+    <section><h3>Guest</h3><dl>
+      ${row('Name', esc(g.guestName), true)}
+      ${row('Confirmation', `<span class="num">${esc(g.confirmationNo)}</span>`)}
+      ${row('Guests', pax(g))}
+      ${row('Guest language', esc(langInfo(g.language).name))}
+      ${row('VIP', g.vipCode ? esc(g.vipCode) : '')}
+      ${row('Source', g.source === 'manual' ? 'Manual entry' : '')}
+    </dl></section>
+    <section><h3>Stay</h3><dl>
+      ${row('Arrival', `${fmtDate(g.arrivalDate)}${g.arrivalTime ? ' · ' + esc(g.arrivalTime) : ''}`)}
+      ${row('Departure', fmtDate(g.departureDate))}
+      ${row('Room type', `${esc(g.roomType)} · ${esc(typeName(g.roomType))}`, true)}
+    </dl></section>
+    <section><h3>Operational</h3><dl>
+      ${row('Luggage tag', esc(g.luggageTag || '-'))}
+      ${row('Associate', esc(g.associate || '-'))}
+      ${row('Tags', (g.tags || []).map((t) => esc(TAG_LABEL[t] || t)).join(', '))}
+      ${row('Preferences', g.preferences ? esc(g.preferences) : '', true)}
+      ${row('Remarks', g.remarks ? esc(g.remarks) : '', true)}
+    </dl></section>
+  </div>`;
+}
+
+/** Guest engagement as one short line for staff. */
+function engagementHtml(g) {
+  if (g.timestamps.guestSawReady) return `<span class="eng ok">Guest has seen "room ready"</span>`;
+  if (['ready', 'returned'].includes(g.status)) return g.timestamps.qrOpened ? `<span class="eng warn">Guest has not looked since the room became ready</span>` : `<span class="eng warn">Guest has not opened their page</span>`;
+  if (g.timestamps.qrOpened) return `<span class="eng ok">Guest is following their status</span>`;
+  return `<span class="eng">Guest has not opened their page yet</span>`;
 }
 
 /* ---- 10-login.js ---- */
@@ -692,7 +1030,7 @@ WG.views.reception = function (root, user) {
       <div class="search-box" role="search">
         ${icon('search')}
         <label for="q" class="sr-only">Search</label>
-        <input id="q" type="search" placeholder="Confirmation number, guest name or WG number" autocomplete="off" inputmode="search" autofocus>
+        <input id="q" type="search" placeholder="Confirmation number, guest name, WG number, room or luggage tag" autocomplete="off" inputmode="search" autofocus>
         <kbd>/</kbd>
       </div>
       <div class="hint muted" id="hint">New arrival: type the <b>confirmation number</b>. Guest returning: search by name, confirmation or <b>WG number</b>. <button class="linkish" id="manualLink">Reservation not found? Enter it manually</button></div>
@@ -713,7 +1051,7 @@ WG.views.reception = function (root, user) {
       : g.status === 'cancelled' ? `<span class="t">${fmtClock(g.timestamps.cancelled)}</span>`
       : g.status === 'ready' || g.status === 'returned' ? `<span class="t">ready ${fmtClock(g.timestamps.roomReady)}</span>`
       : `<span class="t num" data-since="${esc(g.timestamps.created)}">0:00</span>`;
-    return `<button class="row${sel ? ' sel' : ''}" data-wg="${g.id}"><div class="top"><span class="wg">${esc(g.wgNumber)}</span><span class="nm">${esc(g.guestName)}</span></div>
+    return `<button class="row${sel ? ' sel' : ''}" data-wg="${g.id}"><div class="top"><span class="nm">${esc(g.guestName)}</span><span class="wg">${esc(g.wgNumber)}</span>${g.timestamps.qrOpened && !['completed', 'cancelled'].includes(g.status) ? '<span class="seen-dot" title="Guest opened their page" aria-label="Guest opened their page"></span>' : ''}</div>
       <div class="sub">${esc(g.confirmationNo)} · ${esc(g.roomType)} · ${esc(g.associate || '')}</div>
       <div class="end">${statusPill(g.status)}${t}</div></button>`;
   }
@@ -728,6 +1066,7 @@ WG.views.reception = function (root, user) {
       const d = await api('GET', '/api/waiting-guests');
       S.active = d.active; S.completed = d.completed;
       renderList();
+      refreshScanState();
       if (S.selectedId) refreshSelected();
     } catch (e) { if (!e.offline && !e.silent) toast(e.message, 'err'); }
   }
@@ -776,11 +1115,23 @@ WG.views.reception = function (root, user) {
 
   /* ---------- shared operational fields ---------- */
   const rememberedAssociate = () => { try { return localStorage.getItem(ASSOCIATE_KEY) || ''; } catch (e) { return ''; } };
+  const recentAssociates = () => { try { return JSON.parse(localStorage.getItem('wg-associates') || '[]').slice(0, 8); } catch (e) { return []; } };
+  const rememberAssociate = (name) => {
+    try {
+      localStorage.setItem(ASSOCIATE_KEY, name);
+      localStorage.setItem('wg-associates', JSON.stringify([name].concat(recentAssociates().filter((n) => n !== name)).slice(0, 8)));
+    } catch (e) { /* storage unavailable: nothing to remember */ }
+  };
+  const tagChips = (selected = []) => `<div class="field full"><span>Quick tags <em class="opt">(optional, one tap)</em></span><div class="tagrow" role="group" aria-label="Quick tags">${Object.keys(TAG_LABEL).map((t) =>
+    `<button type="button" class="tagbtn" data-tag="${t}" aria-pressed="${selected.includes(t)}">${esc(TAG_LABEL[t])}</button>`).join('')}</div></div>`;
+  const readTags = (scope) => $$('.tagbtn[aria-pressed="true"]', scope).map((b) => b.dataset.tag);
+  document.addEventListener('click', (e) => { const b = e.target.closest('.tagbtn'); if (b) b.setAttribute('aria-pressed', b.getAttribute('aria-pressed') === 'true' ? 'false' : 'true'); });
   const opFields = (associate, lang = 'en') => `<div class="form-grid">
     <label class="field"><span>Luggage tag <em class="opt">(optional)</em></span><input class="in" id="fTag" maxlength="40" autocomplete="off"></label>
-    <label class="field"><span>Associate name</span><input class="in" id="fAssoc" maxlength="80" value="${esc(associate)}" autocomplete="off" required><span class="field-error" id="assocErr" hidden>Enter your name</span></label>
+    <label class="field"><span>Associate name</span><input class="in" id="fAssoc" maxlength="80" value="${esc(associate)}" autocomplete="off" list="assocList" required><datalist id="assocList">${recentAssociates().map((n) => `<option value="${esc(n)}"></option>`).join('')}</datalist><span class="field-error" id="assocErr" hidden>Enter your name</span></label>
     <label class="field full"><span>Guest language <em class="opt">(for their QR page)</em></span><select class="in" id="fLang">${langOptions(lang)}</select></label>
-    <label class="field full"><span>Guest preferences <em class="opt">(optional)</em></span><textarea class="in" id="fPref" maxlength="500" rows="2"></textarea></label>
+    ${tagChips()}
+    <label class="field full"><span>Guest preferences <em class="opt">(optional)</em></span><textarea class="in" id="fPref" maxlength="500" rows="2" placeholder="For the room team, e.g. high floor, twin beds"></textarea></label>
     <label class="field full"><span>Remarks <em class="opt">(optional)</em></span><textarea class="in" id="fRem" maxlength="500" rows="2"></textarea></label></div>`;
 
   /* ---------- reservation -> create ---------- */
@@ -810,6 +1161,7 @@ WG.views.reception = function (root, user) {
         <div class="banner err" id="formErr" role="alert" hidden style="margin-top:14px"></div>
         <div class="actions"><button class="btn btn-primary" id="createBtn" type="submit">${icon('plus')} Create Waiting Guest</button><button class="btn btn-ghost" type="button" id="cancelBtn">Cancel</button></div>
       </form>`;
+      S.formOpenedAt = Date.now(); // measured: time from opening the reservation to pressing Create
       (associate ? $('#fTag') : $('#fAssoc')).focus();
       $('#cancelBtn').onclick = clearWork;
       $('#createForm').addEventListener('submit', (e) => { e.preventDefault(); submitCreate(r.confirmationNo, null); });
@@ -843,6 +1195,7 @@ WG.views.reception = function (root, user) {
       <div class="banner err" id="formErr" role="alert" hidden style="margin-top:14px"></div>
       <div class="actions"><button class="btn btn-primary" id="createBtn" type="submit">${icon('plus')} Create Waiting Guest</button><button class="btn btn-ghost" type="button" id="cancelBtn">Cancel</button></div></form>`;
     $('#cancelBtn').onclick = clearWork;
+    S.formOpenedAt = Date.now();
     (/^[A-Za-z0-9\-\/]+$/.test(term) ? $('#mName') : $('#mConf')).focus();
     $('#manualForm').addEventListener('submit', (e) => {
       e.preventDefault();
@@ -862,9 +1215,9 @@ WG.views.reception = function (root, user) {
     if (btn.classList.contains('loading')) return; // guard against double clicks
     btn.classList.add('loading'); $('#formErr').hidden = true;
     try {
-      try { localStorage.setItem(ASSOCIATE_KEY, assoc); } catch (e) { /* ignore */ }
+      rememberAssociate(assoc);
       const { waitingGuest: g } = await api('POST', '/api/waiting-guests', {
-        confirmationNo: no, associate: assoc, luggageTag: $('#fTag').value, preferences: $('#fPref').value, remarks: $('#fRem').value, language: $('#fLang').value, manual,
+        confirmationNo: no, associate: assoc, luggageTag: $('#fTag').value, preferences: $('#fPref').value, remarks: $('#fRem').value, language: $('#fLang').value, tags: readTags($('#work')), createSeconds: S.formOpenedAt ? Math.round((Date.now() - S.formOpenedAt) / 1000) : null, manual,
       });
       S.selectedId = null; // keep the success panel; live refresh must not replace it
       await showQr(g, true);
@@ -890,7 +1243,8 @@ WG.views.reception = function (root, user) {
       <div><b>${esc(g.guestName)}</b> · ${esc(g.confirmationNo)}</div>
       <div class="muted" style="margin-top:6px">${fresh ? `Now in the Rooms Controller queue. Waiting timer started at ${fmtClock(g.timestamps.created)}.` : `Status: ${esc(STATUS_LABEL[g.status])}`}</div>
       <div class="qr" id="qrBox" aria-label="Guest QR code"><div class="skeleton" style="aspect-ratio:1"></div></div>
-      <div class="muted" style="font-size:12.5px">The guest scans this QR to follow their room status in <b>${esc(langInfo(g.language).name)}</b>. No login needed. They can switch language on the page.</div>
+      <div class="scan-state" id="scanState" data-wg="${g.id}">${engagementHtml(g)}</div>
+      <div class="muted" style="font-size:12.5px">The guest scans this QR to follow their room status in <b>${esc(langInfo(g.language).name)}</b>. No login or app needed.</div>
       <div class="link-row" id="qrActions"><button class="btn btn-primary btn-sm" id="nextBtn">${icon('plus')} New Waiting Guest</button></div></div>`;
     $('#nextBtn').onclick = () => { clearWork(); q.focus(); };
     try {
@@ -901,7 +1255,15 @@ WG.views.reception = function (root, user) {
     } catch (e) { $('#qrBox').textContent = 'QR unavailable'; }
   }
 
-  function clearWork() { $('#work').innerHTML = ''; S.selectedId = null; renderList(); }
+  function clearWork() { $('#work').innerHTML = ''; S.selectedId = null; S.formOpenedAt = null; renderList(); }
+
+  /** Keep the "has the guest scanned it?" line on the QR panel live. */
+  function refreshScanState() {
+    const el = $('#scanState');
+    if (!el) return;
+    const g = S.active.concat(S.completed).find((x) => x.id === Number(el.dataset.wg));
+    if (g) { const html = engagementHtml(g); if (el.innerHTML !== html) el.innerHTML = html; }
+  }
 
   /* ---------- existing waiting guest: verify + complete ---------- */
   async function openWg(id) {
@@ -929,6 +1291,7 @@ WG.views.reception = function (root, user) {
       <label class="field"><span>Luggage tag</span><input class="in" id="eTag" maxlength="40" value="${esc(g.luggageTag)}"></label>
       <label class="field"><span>Associate name</span><input class="in" id="eAssoc" maxlength="80" value="${esc(g.associate)}" required></label>
       <label class="field"><span>Guest language (QR page)</span><select class="in" id="eLang">${langOptions(g.language)}</select></label>
+      ${tagChips(g.tags || [])}
       <label class="field"><span>Guest preferences</span><textarea class="in" id="ePref" maxlength="500" rows="2">${esc(g.preferences)}</textarea></label>
       <label class="field"><span>Remarks</span><textarea class="in" id="eRem" maxlength="500" rows="2">${esc(g.remarks)}</textarea></label>
       <div class="banner err" id="edErr" hidden></div></div>
@@ -941,7 +1304,7 @@ WG.views.reception = function (root, user) {
       e.preventDefault();
       const b = $('#edGo', ov); b.classList.add('loading');
       try {
-        await api('POST', `/api/waiting-guests/${g.id}/details`, { luggageTag: $('#eTag', ov).value, associate: $('#eAssoc', ov).value, language: $('#eLang', ov).value, preferences: $('#ePref', ov).value, remarks: $('#eRem', ov).value });
+        await api('POST', `/api/waiting-guests/${g.id}/details`, { luggageTag: $('#eTag', ov).value, associate: $('#eAssoc', ov).value, language: $('#eLang', ov).value, tags: readTags(ov), preferences: $('#ePref', ov).value, remarks: $('#eRem', ov).value });
         close(); toast('Details updated'); await loadList();
       } catch (ex) { b.classList.remove('loading'); $('#edErr', ov).textContent = ex.message; $('#edErr', ov).hidden = false; }
     });
@@ -955,27 +1318,23 @@ WG.views.reception = function (root, user) {
       : g.status === 'cancelled' ? `<div class="banner err">Cancelled at ${fmtClock(g.timestamps.cancelled)}: ${esc(g.cancelReason)}</div>`
       : `<div class="banner info">${icon('clock')}<span>Room is not ready yet (${esc(STATUS_LABEL[g.status])}). It cannot be completed until the Rooms Controller marks it ready.</span></div>`;
     $('#work').innerHTML = `<div class="card panel">
-      <div class="panel-head"><div><div class="label">Waiting Guest</div><h2 class="serif">${esc(g.wgNumber)}</h2></div><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">${g.source === 'manual' ? '<span class="type-pill">Manual entry</span>' : ''}${statusPill(g.status)}</div></div>
+      <div class="panel-head"><div><div class="label">Waiting Guest · ${esc(g.wgNumber)}</div><h2 class="serif">${esc(g.guestName)}</h2></div><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">${g.source === 'manual' ? '<span class="type-pill">Manual entry</span>' : ''}${statusPill(g.status)}</div></div>
       ${note}
-      <div class="verify"><div class="label" style="margin-bottom:8px">Verify guest</div><div class="kv">
-        <div><span>Guest name</span><b>${esc(g.guestName)}</b></div><div><span>Confirmation</span><b>${esc(g.confirmationNo)}</b></div>
-        <div><span>WG number</span><b>${esc(g.wgNumber)}</b></div><div><span>Arrival → Departure</span><b>${fmtDate(g.arrivalDate)} → ${fmtDate(g.departureDate)}</b></div></div></div>
-      <div class="kv">
-        <div><span>Room type</span><b>${esc(g.roomType)} · ${esc(typeName(g.roomType))}</b></div><div><span>Guests</span><b>${pax(g)}</b></div>
-        <div><span>Luggage tag</span><b>${esc(g.luggageTag || '-')}</b></div><div><span>Associate</span><b>${esc(g.associate || '-')}</b></div>
-        <div><span>Guest language</span><b>${esc(langInfo(g.language).name)}</b></div>
-        ${g.roomNumber && ready ? `<div><span>Assigned room</span><b>${esc(g.roomNumber)}</b></div>` : ''}
-        ${g.preferences ? `<div style="grid-column:1/-1"><span>Preferences</span><b>${esc(g.preferences)}</b></div>` : ''}
-        ${g.remarks ? `<div style="grid-column:1/-1"><span>Remarks</span><b>${esc(g.remarks)}</b></div>` : ''}
-      </div>
-      <hr><div class="section-label">History</div>
-      <ul class="timeline">${history.map((h) => `<li><span>${esc(STATUS_LABEL[h.to] || h.to)}${h.note ? ` <span class="muted">(${esc(h.note)})</span>` : ''}<span class="muted"> · ${esc(h.by || '')}</span></span><span class="when">${fmtClock(h.at)}</span></li>`).join('')}</ul>
-      <div class="actions">
+      <div class="verify"><div class="label" style="margin-bottom:8px">Verify with the guest</div><div class="kv">
+        <div><span>Guest name</span><b>${esc(g.guestName)}</b></div><div><span>Confirmation</span><b class="num">${esc(g.confirmationNo)}</b></div>
+        <div><span>WG number</span><b class="num">${esc(g.wgNumber)}</b></div>${g.roomNumber && ready ? `<div><span>Room</span><b class="num">${esc(g.roomNumber)}</b></div>` : `<div><span>Stay</span><b>${fmtDate(g.arrivalDate)} → ${fmtDate(g.departureDate)}</b></div>`}</div></div>
+      <div class="actions top">
         ${!closed ? `<button class="btn btn-primary" id="completeBtn" ${ready ? '' : 'disabled'}>${icon('check')} Complete Waiting Guest</button>` : ''}
-        ${g.status === 'ready' ? `<button class="btn btn-ghost" id="returnedBtn">Guest returned</button>` : ''}
-        <button class="btn btn-ghost" id="qrBtn">${icon('link')} Show QR</button>
-        ${!closed ? `<button class="btn btn-ghost" id="editBtn">Edit details</button><button class="btn btn-ghost btn-danger" id="cancelWgBtn">Cancel</button>` : ''}
-      </div></div>`;
+        ${g.status === 'ready' ? `<button class="btn btn-ghost" id="returnedBtn">Guest is at the desk</button>` : ''}
+      </div>
+      <div class="actions sec">
+        <button class="btn btn-ghost btn-sm" id="qrBtn">${icon('link')} Show QR</button>
+        ${!closed ? `<button class="btn btn-ghost btn-sm" id="editBtn">Edit details</button><button class="btn btn-ghost btn-sm btn-danger" id="cancelWgBtn">Cancel record…</button>` : ''}
+      </div>
+      ${!closed ? `<div class="eng-line">${engagementHtml(g)}</div>` : ''}
+      <hr>${detailGroupsHtml(g, typeName)}
+      <hr><div class="section-label">Timeline</div>${timelineHtml(g, history)}
+    </div>`;
     const cb = $('#completeBtn');
     if (cb && ready) cb.onclick = async () => {
       const ok = await confirmDialog({ title: `Complete ${g.wgNumber}?`, body: `Confirm you have verified <b>${esc(g.guestName)}</b> (${esc(g.confirmationNo)}). This closes the Waiting Guest record.`, confirmLabel: 'Complete' });
@@ -1009,185 +1368,225 @@ WG.views.reception = function (root, user) {
 
 /* ---- 30-controller.js ---- */
 'use strict';
-/* Rooms Controller: dense live queue, timer first, one-click operational actions. */
+/* Rooms Controller: who is waiting, for how long, which room, and who needs attention.
+   The queue is sorted by transparent priority; every reason is shown on the card. */
 WG.views.controller = function (root, user) {
-  const S = { roomTypes: {}, queue: [], filter: 'all', selectedId: null, seen: new Set(), first: true, late1: 30, late2: 60, pendingRoom: null };
+  const S = { roomTypes: {}, queue: [], filter: 'all', sort: 'priority', q: '', selectedId: null, seen: new Set(), first: true, cfg: { warn: 30, alert: 60 }, pendingRoom: null, detail: null };
   const typeName = (c) => S.roomTypes[c] || c;
-  const FILTERS = [['all', 'All active'], ['waiting', 'Waiting'], ['room_assigned', 'Room Assigned'], ['preparing', 'Being Prepared'], ['ready', 'Ready (awaiting guest)']];
-  const inFilter = (g) => S.filter === 'all' || g.status === S.filter || (S.filter === 'ready' && g.status === 'returned');
+  const LEVEL_RANK = { high: 0, attention: 1, normal: 2 };
+  const FILTERS = [['all', 'All active'], ['attention', 'Needs attention'], ['waiting', 'Waiting'], ['room_assigned', 'Room assigned'], ['preparing', 'Being prepared'], ['ready', 'Ready, guest not back']];
 
   root.innerHTML = `<div id="topbar"></div>
-    <div class="metrics" id="metrics" aria-label="Live figures"></div>
-    <div class="filters" id="filters" role="toolbar" aria-label="Filter queue"></div>
-    <div class="rc-body"><main id="queue" aria-live="polite"></main><aside class="detail" id="detail" aria-label="Guest details"></aside></div>`;
+    <div class="rc-shell">
+      <div class="metrics" id="metrics" aria-label="Live figures"></div>
+      <div class="toolbar">
+        <div class="search-box compact" role="search">${icon('search')}<label for="cq" class="sr-only">Filter the queue</label>
+          <input id="cq" type="search" placeholder="Name, WG number, confirmation, room, tag" autocomplete="off"><kbd>/</kbd></div>
+        <div class="chips" id="filters" role="toolbar" aria-label="Filter queue"></div>
+        <label class="sortsel"><span class="sr-only">Sort</span><select id="sortSel" class="in"><option value="priority">Priority first</option><option value="wait">Longest wait</option><option value="arrival">Arrival time</option></select></label>
+      </div>
+      <div class="rc-body"><main id="queue" aria-live="polite" aria-label="Waiting guest queue"></main><aside class="detail" id="detail" aria-label="Guest details"></aside></div>
+    </div>`;
   mountTopbar(user, 'Rooms Controller');
 
+  /* ---------- live figures ---------- */
   async function loadMetrics() {
     try {
-      const m = await api('GET', '/api/metrics');
+      const m = await api('GET', '/api/metrics?range=today');
+      const att = S.queue.filter((g) => priorityOf(g, S.cfg).level !== 'normal').length;
       $('#metrics').innerHTML = `
-        <div class="metric"><span>Active</span><b>${m.active}</b></div>
-        <div class="metric"><span>Still waiting for a room</span><b>${m.stillWaitingForRoom}</b></div>
+        <div class="metric"><span>Waiting for a room</span><b>${m.stillWaitingForRoom}</b></div>
+        <div class="metric ${att ? 'hot' : ''}"><span>Need attention</span><b>${att}</b></div>
+        <div class="metric"><span>Longest wait now</span><b>${m.stillWaitingForRoom ? fmtWait(m.longestActiveWaitSec) : '-'}</b></div>
         <div class="metric good"><span>Ready, guest not back</span><b>${m.readyAwaitingGuest}</b></div>
-        <div class="metric"><span>Completed</span><b>${m.completed}</b></div>
-        <div class="metric"><span>Avg. wait to ready</span><b>${m.avgWaitToReadySec == null ? '-' : fmtDuration(m.avgWaitToReadySec)}</b></div>`;
-    } catch (e) { /* metrics are non-critical */ }
+        <div class="metric"><span>Avg. wait to ready today</span><b>${m.avgWaitToReadySec == null ? '-' : fmtDuration(m.avgWaitToReadySec)}</b></div>`;
+    } catch (e) { /* figures are secondary; the queue still works */ }
   }
 
-  function cls(g) {
-    const c = ['q', `s-${g.status}`];
-    if (g.priority) c.push('pri');
-    if (!['ready', 'returned'].includes(g.status)) {
-      const min = (nowMs() - Date.parse(g.timestamps.created)) / 60000;
-      if (min >= S.late2) c.push('late2'); else if (min >= S.late1) c.push('late1');
-    }
-    if (g.id === S.selectedId) c.push('sel');
-    return c.join(' ');
-  }
-  const timerHtml = (g) => ['ready', 'returned'].includes(g.status)
-    ? `<div class="timer"><b class="num" data-since="${esc(g.timestamps.roomReady)}">0:00</b><small>Ready for</small></div>`
-    : `<div class="timer"><b class="num" data-since="${esc(g.timestamps.created)}">0:00</b><small>Waiting</small></div>`;
+  /* ---------- queue ---------- */
+  const matches = (g) => {
+    if (!S.q) return true;
+    const hay = [g.guestName, g.wgNumber, g.confirmationNo, g.roomNumber, g.luggageTag, g.associate, g.roomType].join(' ').toLowerCase();
+    return S.q.toLowerCase().split(/\s+/).every((w) => hay.includes(w));
+  };
+  const inFilter = (g) => {
+    if (S.filter === 'all') return true;
+    if (S.filter === 'attention') return priorityOf(g, S.cfg).level !== 'normal';
+    if (S.filter === 'ready') return g.status === 'ready' || g.status === 'returned';
+    return g.status === S.filter;
+  };
 
   function cardHtml(g, isNew) {
-    return `<button class="${cls(g)}${isNew ? ' q-new' : ''}" data-id="${g.id}" aria-label="${esc(g.wgNumber)} ${esc(g.guestName)}">
-      <span class="bar"></span>${timerHtml(g)}
+    const p = priorityOf(g, S.cfg);
+    const ready = ['ready', 'returned'].includes(g.status);
+    const since = ready ? g.timestamps.roomReady : g.timestamps.created;
+    return `<button class="q s-${g.status} lvl-${p.level}${g.id === S.selectedId ? ' sel' : ''}${isNew ? ' q-new' : ''}" data-id="${g.id}" data-waitbox aria-label="${esc(g.wgNumber)}, ${esc(g.guestName)}, ${esc(STATUS_LABEL[g.status])}${p.level === 'high' ? ', high priority' : ''}">
+      <span class="bar"></span>
+      <div class="timer"><b class="num" data-since="${esc(since)}" ${ready ? '' : `data-levels="${S.cfg.warn},${S.cfg.alert}"`}>${fmtWait((nowMs() - Date.parse(since)) / 1000)}</b><small>${ready ? 'ready for' : 'waiting'}</small></div>
       <div class="main">
-        <div class="l1"><span class="wg">${esc(g.wgNumber)}</span><span class="nm">${esc(g.guestName)}</span>${g.priority ? '<span class="flag">PRIORITY</span>' : ''}${g.source === 'manual' ? '<span class="type-pill">Manual</span>' : ''}${g.language && g.language !== 'en' ? `<span class="type-pill" title="Guest language">${esc(langInfo(g.language).name)}</span>` : ''}</div>
-        <div class="l2"><span>${icon('key')}${esc(g.confirmationNo)}</span><span class="type-pill">${esc(g.roomType)}</span><span>${icon('user')}${g.adults}A${g.children ? ` ${g.children}C` : ''}</span>
-          <span>${icon('clock')}Arr ${esc(g.arrivalTime || fmtClock(g.timestamps.guestArrival))}</span>${g.luggageTag ? `<span>${icon('bag')}${esc(g.luggageTag)}</span>` : ''}<span>${esc(g.associate || '')}</span></div>
-        ${g.preferences || g.remarks ? `<div class="l3">${g.preferences ? `<span class="note" title="${esc(g.preferences)}">Pref: ${esc(g.preferences)}</span>` : ''}${g.remarks ? `<span class="note rem" title="${esc(g.remarks)}">Rem: ${esc(g.remarks)}</span>` : ''}</div>` : ''}
+        <div class="l1">${p.level === 'high' ? '<span class="flag">High priority</span>' : ''}<span class="nm">${esc(g.guestName)}</span><span class="wg">${esc(g.wgNumber)}</span></div>
+        <div class="l2"><span class="type-pill">${esc(g.roomType)}</span><span>${pax(g)}</span>${g.luggageTag ? `<span>${icon('bag')}${esc(g.luggageTag)}</span>` : ''}<span class="muted">Arr ${esc(g.arrivalTime || fmtClock(g.timestamps.guestArrival))}</span></div>
+        ${p.reasons.length || g.preferences ? `<div class="l3">${reasonChips(p)}${g.preferences ? `<span class="note" title="${esc(g.preferences)}">${esc(g.preferences)}</span>` : ''}</div>` : ''}
       </div>
-      <div class="side">${statusPill(g.status)}${g.roomNumber ? `<div class="room">${esc(g.roomNumber)}</div>` : '<div class="room none">No room yet</div>'}</div>
+      <div class="side">${statusPill(g.status)}${g.roomNumber ? `<div class="room">${esc(g.roomNumber)}</div>` : '<div class="room none">No room</div>'}</div>
     </button>`;
   }
+
+  function sortRows(rows) {
+    const age = (g) => Date.parse(g.timestamps.created);
+    return rows.sort((a, b) => {
+      const ra = ['ready', 'returned'].includes(a.status), rb = ['ready', 'returned'].includes(b.status);
+      if (ra !== rb) return ra ? 1 : -1; // guests still waiting for a room always come first
+      if (S.sort === 'arrival') return String(a.arrivalTime || '99').localeCompare(String(b.arrivalTime || '99')) || age(a) - age(b);
+      if (S.sort === 'priority') { const d = LEVEL_RANK[priorityOf(a, S.cfg).level] - LEVEL_RANK[priorityOf(b, S.cfg).level]; if (d) return d; }
+      return age(a) - age(b);
+    });
+  }
+
   function renderFilters() {
     $('#filters').innerHTML = FILTERS.map(([k, l]) => {
-      const n = S.queue.filter((g) => (k === 'all' ? true : k === 'ready' ? ['ready', 'returned'].includes(g.status) : g.status === k)).length;
-      return `<button class="chip${S.filter === k ? ' on' : ''}" data-f="${k}">${l}<i>${n}</i></button>`;
+      const n = S.queue.filter((g) => { const f = S.filter; S.filter = k; const r = inFilter(g); S.filter = f; return r; }).length;
+      return `<button class="chip${S.filter === k ? ' on' : ''}${k === 'attention' && n ? ' warn' : ''}" data-f="${k}" aria-pressed="${S.filter === k}">${l}<i>${n}</i></button>`;
     }).join('');
   }
+
   function renderQueue() {
     renderFilters();
-    const rows = S.queue.filter(inFilter);
+    const rows = sortRows(S.queue.filter((g) => inFilter(g) && matches(g)));
     const box = $('#queue');
     if (!rows.length) {
-      box.innerHTML = `<div class="card empty">${icon('door')}<b>${S.queue.length ? 'Nothing in this filter' : 'No waiting guests'}</b>${S.queue.length ? 'Try another status filter.' : 'When Reception creates a Waiting Guest it appears here within seconds.'}</div>`;
+      const why = S.q ? ['No match', `Nothing in the active queue matches "${esc(S.q)}".`] : S.queue.length ? ['Nothing here', 'Try another filter.'] : ['No waiting guests', 'When Reception creates a Waiting Guest, it appears here within seconds.'];
+      box.innerHTML = `<div class="card empty">${icon('door')}<b>${why[0]}</b>${why[1]}</div>`;
       return;
     }
-    const rank = { waiting: 0, room_assigned: 1, preparing: 2, ready: 3, returned: 4 };
-    rows.sort((a, b) => Number(b.priority) - Number(a.priority) || rank[a.status] - rank[b.status] || Date.parse(a.timestamps.created) - Date.parse(b.timestamps.created));
-    box.innerHTML = rows.map((g) => cardHtml(g, !S.first && !S.seen.has(g.id))).join('');
+    const waiting = rows.filter((g) => !['ready', 'returned'].includes(g.status));
+    const ready = rows.filter((g) => ['ready', 'returned'].includes(g.status));
+    box.innerHTML = (waiting.length ? `<h2 class="qhead">Waiting for a room <span>${waiting.length}</span></h2>${waiting.map((g) => cardHtml(g, !S.first && !S.seen.has(g.id))).join('')}` : '')
+      + (ready.length ? `<h2 class="qhead">Room ready, guest not back yet <span>${ready.length}</span></h2>${ready.map((g) => cardHtml(g, !S.first && !S.seen.has(g.id))).join('')}` : '');
     tickTimers();
   }
+
   async function loadQueue() {
     try {
       const d = await api('GET', '/api/waiting-guests');
       const prev = new Set(S.queue.map((g) => g.id));
       S.queue = d.active;
       renderQueue();
-      if (!S.first) for (const g of S.queue) if (!prev.has(g.id)) toast(`New waiting guest ${g.wgNumber}: ${g.guestName}`);
+      if (!S.first) for (const g of S.queue) if (!prev.has(g.id)) toast(`New waiting guest: ${g.guestName} (${g.wgNumber})`);
       for (const g of S.queue) S.seen.add(g.id);
       S.first = false;
       loadMetrics();
       if (S.selectedId) { if (S.queue.some((g) => g.id === S.selectedId)) loadDetail(S.selectedId, true); else closeDetail(); }
     } catch (e) { if (!e.offline && !e.silent) toast(e.message, 'err'); }
   }
+  // re-sort every minute: waiting times cross thresholds even when nothing else changes
+  setInterval(() => { if (!document.querySelector('.modal-overlay')) { renderQueue(); } }, 60000);
+
   $('#queue').addEventListener('click', (e) => { const c = e.target.closest('[data-id]'); if (c) selectGuest(Number(c.dataset.id)); });
   $('#filters').addEventListener('click', (e) => { const c = e.target.closest('[data-f]'); if (c) { S.filter = c.dataset.f; renderQueue(); } });
+  $('#sortSel').addEventListener('change', (e) => { S.sort = e.target.value; renderQueue(); });
+  $('#cq').addEventListener('input', (e) => { S.q = e.target.value.trim(); renderQueue(); });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === '/' && !/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)) { e.preventDefault(); $('#cq').focus(); }
+    if (e.key === 'Escape' && !document.querySelector('.modal-overlay')) { if (document.activeElement === $('#cq') && S.q) { $('#cq').value = ''; S.q = ''; renderQueue(); } else closeDetail(); }
+  });
 
   /* ---------- detail ---------- */
   function selectGuest(id) { S.selectedId = id; S.pendingRoom = null; $$('#queue .q').forEach((c) => c.classList.toggle('sel', Number(c.dataset.id) === id)); loadDetail(id); }
   function closeDetail() { S.selectedId = null; $('#detail').classList.remove('open'); renderDetailEmpty(); $$('#queue .q.sel').forEach((c) => c.classList.remove('sel')); }
-  const renderDetailEmpty = () => { $('#detail').innerHTML = `<div class="card detail-empty empty">${icon('queue')}<b>Select a waiting guest</b>See preferences, assign a room and update status.</div>`; };
+  const renderDetailEmpty = () => { $('#detail').innerHTML = `<div class="card detail-empty empty">${icon('queue')}<b>Select a guest</b>Assign a room, update the status and see the full timeline.</div>`; };
   async function loadDetail(id, quiet) {
     const el = $('#detail');
     if (!quiet) { el.classList.add('open'); el.innerHTML = `<div class="card d-card"><div class="skeleton" style="height:30px;width:50%"></div><div class="skeleton" style="height:120px;margin-top:16px"></div></div>`; }
     try {
       const d = await api('GET', `/api/waiting-guests/${id}`);
-      if (id !== S.selectedId) return;
-      if (document.querySelector('.modal-overlay')) return;
+      if (id !== S.selectedId || document.querySelector('.modal-overlay')) return;
+      S.detail = d;
       renderDetail(d);
     } catch (e) { if (!e.silent) el.innerHTML = `<div class="banner err">${esc(e.message)}</div>`; }
   }
 
-  function stepsHtml(g) {
-    const t = g.timestamps;
-    const items = [['waiting', 'Waiting Guest created', t.created], ['room_assigned', 'Room assigned', t.roomAssigned], ['preparing', 'Room being prepared', t.preparationStarted],
-      ['ready', 'Room ready (guest notified via QR)', t.roomReady], ['returned', 'Guest returned', t.guestReturned], ['completed', 'Completed', t.completed]];
-    const idx = STATUS_ORDER.indexOf(g.status);
-    return `<div class="steps">${items.map(([k, l, ts], i) => `<div class="step ${ts ? 'done' : ''}${i === idx ? ' now' : ''}"><span class="dot"></span><span>${l}</span><span class="ts">${ts ? fmtClock(ts) : ''}</span></div>`).join('')}</div>`;
+  function roomPicker(d, pending) {
+    const g = d.waitingGuest;
+    if (!d.rooms.length) return `<div class="banner info">${icon('alert')}<span>No rooms are available to assign. An admin can import rooms, or another guest's room must be released.</span></div>`;
+    const btn = (r) => `<button class="rm hk-${r.hkStatus}${pending === r.roomNumber ? ' on' : ''}" data-room="${esc(r.roomNumber)}" aria-pressed="${pending === r.roomNumber}" title="${esc(r.roomType)} · ${esc(typeName(r.roomType))}${r.building ? ' · ' + esc(r.building) : ''}"><b>${esc(r.roomNumber)}</b><small>${r.matchesType ? '' : esc(r.roomType) + ' · '}${r.hkStatus === 'inspected' ? 'inspected' : esc(r.hkStatus)}</small></button>`;
+    const same = d.rooms.filter((r) => r.matchesType), other = d.rooms.filter((r) => !r.matchesType);
+    return `${same.length ? `<div class="rm-head">${esc(g.roomType)} rooms <span>${same.length}</span></div><div class="room-grid">${same.map(btn).join('')}</div>` : `<div class="muted" style="font-size:12.5px">No free ${esc(g.roomType)} rooms.</div>`}
+      ${other.length ? `<details class="rm-other" ${same.length ? '' : 'open'}><summary>Other room types <span>${other.length}</span></summary><div class="room-grid">${other.map(btn).join('')}</div></details>` : ''}
+      <p class="legend-note">Housekeeping status comes from the last rooms import, not live from Opera.</p>
+      ${pending && pending !== g.roomNumber ? `<button class="btn btn-primary" id="assignBtn" style="width:100%">${g.roomNumber ? 'Change to' : 'Assign'} room ${esc(pending)}</button>` : `<p class="pick-hint">${g.roomNumber ? 'Tap another room to change it.' : 'Tap a room to assign it.'}</p>`}`;
   }
 
   function renderDetail(d) {
     const g = d.waitingGuest, ready = ['ready', 'returned'].includes(g.status), done = ['completed', 'cancelled'].includes(g.status);
+    const p = priorityOf(g, S.cfg);
     const el = $('#detail');
     const pending = S.pendingRoom && S.pendingRoom.id === g.id ? S.pendingRoom.room : (g.roomNumber || null);
     const canPick = ['waiting', 'room_assigned', 'preparing'].includes(g.status);
     const scroll = el.scrollTop;
+    const next = g.status === 'waiting' ? 'Assign a room'
+      : g.status === 'room_assigned' ? 'Start preparation, or mark ready if the room is already clean'
+      : g.status === 'preparing' ? 'Mark the room ready when it is inspected'
+      : ready ? 'Waiting for the guest to return to Reception' : '';
     el.classList.add('open');
-    el.innerHTML = `<div class="card d-card">
-      <div class="d-head"><div><div class="label">Waiting Guest</div><h2>${esc(g.wgNumber)}</h2></div><div style="display:flex;gap:8px;align-items:center">${statusPill(g.status)}<button class="icon-btn detail-close" id="dClose" aria-label="Close">✕</button></div></div>
-      <div class="d-sub"><b style="color:var(--ink)">${esc(g.guestName)}</b> · ${esc(g.confirmationNo)}</div>
-      ${done ? '' : `<div class="d-time"><b class="num" data-since="${esc(ready ? g.timestamps.roomReady : g.timestamps.created)}">0:00</b><span>${ready ? 'Room ready for' : 'Waiting'}</span></div>`}
-      <div class="d-sec"><div class="kv">
-        <div><span>Room type</span><b>${esc(g.roomType)} · ${esc(typeName(g.roomType))}</b></div><div><span>Guests</span><b>${pax(g)}</b></div>
-        <div><span>Arrival</span><b>${fmtDate(g.arrivalDate)} ${esc(g.arrivalTime || '')}</b></div><div><span>Departure</span><b>${fmtDate(g.departureDate)}</b></div>
-        <div><span>Luggage tag</span><b>${esc(g.luggageTag || '-')}</b></div><div><span>Associate</span><b>${esc(g.associate || '-')}</b></div>
-        <div><span>Guest language</span><b>${esc(langInfo(g.language).name)}</b></div></div></div>
-      ${g.preferences || g.remarks ? `<div class="d-sec">${g.preferences ? `<div class="pref-box"><span>Guest preferences</span>${esc(g.preferences)}</div>` : ''}${g.remarks ? `<div class="pref-box rem"><span>Remarks</span>${esc(g.remarks)}</div>` : ''}</div>` : ''}
-      <div class="d-sec"><div class="section-label">Room</div>
-        ${g.roomNumber ? `<div style="margin-bottom:10px"><span class="muted">Assigned:</span> <b class="serif" style="font-size:22px">${esc(g.roomNumber)}</b></div>` : ''}
-        ${canPick ? (d.rooms.length ? `<div class="room-grid" id="roomGrid">${d.rooms.map((r) => `<button class="rm hk-${r.hkStatus}${r.matchesType ? '' : ' other'}${pending === r.roomNumber ? ' on' : ''}" data-room="${esc(r.roomNumber)}" title="${esc(r.roomType)} · ${esc(typeName(r.roomType))}"><b>${esc(r.roomNumber)}</b><small>${esc(r.roomType)} · ${r.hkStatus === 'inspected' ? 'insp.' : esc(r.hkStatus)}</small></button>`).join('')}</div>
-          <p class="legend-note">Rooms of the guest's type (${esc(g.roomType)}) are listed first; faded rooms are a different type.</p>
-          <button class="btn btn-primary" id="assignBtn" style="margin-top:10px;width:100%" ${pending && pending !== g.roomNumber ? '' : 'disabled'}>${g.roomNumber ? 'Change room' : 'Assign room'}${pending && pending !== g.roomNumber ? ' ' + esc(pending) : ''}</button>`
-          : `<div class="banner info">${icon('alert')}<span>No rooms are available. An admin needs to import rooms, or a room must be released.</span></div>`) : ''}
+    el.innerHTML = `<div class="card d-card lvl-${p.level}" data-waitbox>
+      <div class="d-head"><div><div class="label">${esc(g.wgNumber)}</div><h2>${esc(g.guestName)}</h2></div>
+        <div class="d-head-r">${statusPill(g.status)}<button class="icon-btn detail-close" id="dClose" aria-label="Close details">✕</button></div></div>
+      ${done ? '' : `<div class="d-time"><div><b class="num" data-since="${esc(ready ? g.timestamps.roomReady : g.timestamps.created)}" ${ready ? '' : `data-levels="${S.cfg.warn},${S.cfg.alert}"`}>-</b><span>${ready ? 'room ready for' : 'waiting'}</span></div>
+        <div class="d-room"><span>Room</span><b>${esc(g.roomNumber || '-')}</b></div></div>`}
+      ${p.reasons.length ? `<div class="d-why">${p.level === 'high' ? '<span class="flag">High priority</span>' : p.level === 'attention' ? '<span class="flag soft">Attention</span>' : ''}${reasonChips(p)}</div>` : ''}
+      ${next ? `<div class="d-next">${icon('clock')}<span><b>Next:</b> ${next}</span></div>` : ''}
+      ${g.preferences || g.remarks ? `<div class="d-notes">${g.preferences ? `<div class="pref-box"><span>Guest preferences</span>${esc(g.preferences)}</div>` : ''}${g.remarks ? `<div class="pref-box rem"><span>Remarks</span>${esc(g.remarks)}</div>` : ''}</div>` : ''}
+      <div class="d-sec act">
+        ${g.status === 'room_assigned' ? `<button class="btn btn-ghost" data-status="preparing">Start room preparation</button>` : ''}
+        ${['room_assigned', 'preparing'].includes(g.status) ? `<button class="btn btn-ready" data-status="ready">${icon('key')} Mark room ${esc(g.roomNumber)} ready</button>` : ''}
+        ${ready ? `<div class="eng-line">${engagementHtml(g)}</div>` : ''}
       </div>
-      <div class="d-sec"><div class="section-label">Status</div>${stepsHtml(g)}
-        <div class="act">
-          ${g.status === 'room_assigned' ? `<button class="btn btn-ghost" data-status="preparing">Room being prepared</button>` : ''}
-          ${['room_assigned', 'preparing'].includes(g.status) ? `<button class="btn btn-ready" data-status="ready">${icon('key')} Mark room ready</button>` : ''}
-          ${g.status === 'waiting' ? `<div class="muted" style="font-size:12.5px">Assign a room to continue.</div>` : ''}
-          ${ready ? `<div class="muted" style="font-size:12.5px">Guest has been notified on their QR page. Reception completes the record when the guest returns.</div>` : ''}
-          ${!done ? `<label class="toggle"><input type="checkbox" id="priTgl" ${g.priority ? 'checked' : ''}> Operational priority</label><button class="btn btn-ghost btn-sm btn-danger" id="cancelWgBtn" style="align-self:flex-start">Cancel this Waiting Guest</button>` : ''}
-        </div></div>
-      <div class="d-sec"><div class="section-label">History</div><div class="kv" style="grid-template-columns:1fr">${d.history.map((h) => `<div style="display:flex;justify-content:space-between;gap:10px"><b style="font-weight:600">${esc(STATUS_LABEL[h.to] || h.to)}${h.roomNumber ? ' · ' + esc(h.roomNumber) : ''}${h.note ? ` <span class="muted" style="font-weight:400">(${esc(h.note)})</span>` : ''}</b><span class="muted num">${fmtClock(h.at)} · ${esc(h.by || '')}</span></div>`).join('')}</div></div>
+      ${canPick ? `<div class="d-sec"><div class="section-label">${g.roomNumber ? 'Change room' : 'Assign a room'}</div>${roomPicker(d, pending)}</div>` : ''}
+      <div class="d-sec">${detailGroupsHtml(g, typeName)}</div>
+      <div class="d-sec"><div class="section-label">Timeline</div>${timelineHtml(g, d.history)}</div>
+      ${!done ? `<div class="d-sec d-foot"><label class="toggle"><input type="checkbox" id="priTgl" ${g.priority ? 'checked' : ''}> Mark as priority</label><button class="btn btn-ghost btn-sm btn-danger" id="cancelWgBtn">Cancel record…</button></div>` : ''}
     </div>`;
     el.scrollTop = scroll;
     tickTimers();
     $('#dClose').onclick = closeDetail;
-    $$('#roomGrid .rm').forEach((b) => b.onclick = () => { S.pendingRoom = { id: g.id, room: b.dataset.room }; renderDetail(d); });
+    $$('#detail .rm').forEach((b) => b.onclick = () => { S.pendingRoom = { id: g.id, room: b.dataset.room }; renderDetail(d); const again = $(`#detail .rm[data-room="${b.dataset.room}"]`); if (again) again.focus(); });
     const ab = $('#assignBtn');
-    if (ab) ab.onclick = () => act(ab, () => api('POST', `/api/waiting-guests/${g.id}/assign-room`, { roomNumber: pending }), `Room ${pending} assigned to ${g.wgNumber}`, () => { S.pendingRoom = null; });
+    if (ab) ab.onclick = () => act(ab, () => api('POST', `/api/waiting-guests/${g.id}/assign-room`, { roomNumber: pending }), `Room ${pending} assigned to ${g.guestName}`, () => { S.pendingRoom = null; });
     $$('[data-status]').forEach((b) => b.onclick = async () => {
       const to = b.dataset.status;
       if (to === 'ready') {
-        const ok = await confirmDialog({ title: `Mark room ${g.roomNumber} ready?`, body: `${esc(g.guestName)} will see <b>Your room is ready</b> on their QR page within seconds.`, confirmLabel: 'Mark ready' });
+        const ok = await confirmDialog({ title: `Room ${g.roomNumber} is ready?`, body: `${esc(g.guestName)}'s page will change to <b>Your room is ready</b> within a few seconds, asking them to return to Reception.`, confirmLabel: 'Yes, mark ready' });
         if (!ok) return;
       }
-      act(b, () => api('POST', `/api/waiting-guests/${g.id}/status`, { status: to }), to === 'ready' ? `${g.wgNumber} is ready. Guest notified.` : `${g.wgNumber} updated`);
+      act(b, () => api('POST', `/api/waiting-guests/${g.id}/status`, { status: to }), to === 'ready' ? `Room ${g.roomNumber} ready. ${g.guestName} is being notified on their page.` : 'Room preparation started');
     });
-    const p = $('#priTgl');
-    if (p) p.onchange = () => act(p, () => api('POST', `/api/waiting-guests/${g.id}/priority`, { priority: p.checked }), p.checked ? 'Priority on' : 'Priority off');
+    const pt = $('#priTgl');
+    if (pt) pt.onchange = () => act(pt, () => api('POST', `/api/waiting-guests/${g.id}/priority`, { priority: pt.checked }), pt.checked ? 'Marked as priority' : 'Priority removed');
     const xb = $('#cancelWgBtn');
     if (xb) xb.onclick = async () => {
-      const reason = await dialog({ title: `Cancel ${g.wgNumber}?`, body: 'Use this when the record was created by mistake or the guest no longer waits. Any assigned room is released.', confirmLabel: 'Cancel Waiting Guest', cancelLabel: 'Keep', input: { label: 'Reason (required)', min: 3, error: 'Please give a short reason' } });
+      const reason = await dialog({ title: `Cancel ${g.wgNumber}?`, body: 'Use this only for a record created by mistake or a guest who no longer waits. Any assigned room is released.', confirmLabel: 'Cancel record', cancelLabel: 'Keep', input: { label: 'Reason (required)', min: 3, error: 'Please give a short reason' } });
       if (!reason) return;
       act(xb, () => api('POST', `/api/waiting-guests/${g.id}/cancel`, { reason }), `${g.wgNumber} cancelled`);
     };
   }
+
   async function act(btn, fn, okMsg, after) {
+    if (btn.classList.contains('loading')) return;
     btn.classList.add('loading'); btn.disabled = true;
     try { await fn(); if (after) after(); toast(okMsg); await loadQueue(); }
-    catch (e) { if (!e.silent) toast(e.message, 'err'); btn.classList.remove('loading'); btn.disabled = false; await loadQueue(); }
+    catch (e) {
+      if (!e.silent) toast(e.status === 409 ? `${e.message}` : e.message, 'err');
+      btn.classList.remove('loading'); btn.disabled = false; await loadQueue();
+    }
   }
-  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !document.querySelector('.modal-overlay')) closeDetail(); });
 
   (async function init() {
     try {
       const meta = await api('GET', '/api/meta');
-      S.roomTypes = meta.roomTypes; S.late1 = meta.lateWarnMinutes || 30; S.late2 = meta.lateAlertMinutes || 60;
+      S.roomTypes = meta.roomTypes; S.cfg = { warn: meta.lateWarnMinutes || 30, alert: meta.lateAlertMinutes || 60 };
       renderDetailEmpty();
-      $('#queue').innerHTML = '<div class="skeleton" style="height:84px"></div><div class="skeleton" style="height:84px"></div><div class="skeleton" style="height:84px"></div>';
+      $('#queue').innerHTML = '<div class="skeleton" style="height:84px"></div><div class="skeleton" style="height:84px;margin-top:10px"></div><div class="skeleton" style="height:84px;margin-top:10px"></div>';
       await loadQueue();
       WG.stopLive = live(loadQueue, setLive);
     } catch (e) { if (!e.silent) toast(e.message, 'err'); }
@@ -1196,59 +1595,268 @@ WG.views.controller = function (root, user) {
 
 /* ---- 40-admin.js ---- */
 'use strict';
-/* Admin: overview, arrivals/rooms import, users, export. */
+/* Management: measured analytics, an illustrative business case, the guest page content,
+   settings, data imports and staff users. Measured figures and assumptions are never mixed. */
 WG.views.admin = function (root, user) {
-  const S = { tab: 'overview', users: [], metrics: null, summary: null, roomTypes: {}, imp: null };
+  const S = { tab: 'analytics', range: 'today', users: [], roomTypes: {}, imp: null, settings: null, content: null, editId: null, editLang: 'en' };
+  const TABS = [['analytics', 'Analytics'], ['guest', 'Guest page'], ['settings', 'Settings'], ['data', 'Data'], ['users', 'Users']];
 
   root.innerHTML = `<div id="topbar"></div>
-    <div class="ad-wrap"><nav class="ad-tabs" role="tablist" id="adTabs">
-      <button role="tab" data-tab="overview">Overview</button><button role="tab" data-tab="arrivals">Import arrivals</button>
-      <button role="tab" data-tab="rooms">Import rooms</button><button role="tab" data-tab="users">Users</button><button role="tab" data-tab="export">Export</button></nav>
+    <div class="ad-wrap"><nav class="ad-tabs" role="tablist" id="adTabs">${TABS.map(([k, l]) => `<button role="tab" data-tab="${k}" aria-selected="false">${l}</button>`).join('')}</nav>
     <main id="adBody" aria-live="polite"></main></div>`;
-  mountTopbar(user, 'Admin');
+  mountTopbar(user, 'Management');
 
-  const tabs = $('#adTabs');
-  tabs.addEventListener('click', (e) => { const b = e.target.closest('[data-tab]'); if (b) go(b.dataset.tab); });
+  $('#adTabs').addEventListener('click', (e) => { const b = e.target.closest('[data-tab]'); if (b) go(b.dataset.tab); });
   function go(tab) {
     S.tab = tab; S.imp = null;
-    $$('#adTabs button').forEach((b) => b.classList.toggle('on', b.dataset.tab === tab));
-    ({ overview, arrivals: () => importer('arrivals'), rooms: () => importer('rooms'), users, export: exportView })[tab]();
+    $$('#adTabs button').forEach((b) => { b.classList.toggle('on', b.dataset.tab === tab); b.setAttribute('aria-selected', b.dataset.tab === tab); });
+    ({ analytics, guest: guestPage, settings, data: dataTab, users })[tab]();
   }
   const body = () => $('#adBody');
   const err = (e) => { if (!e.silent) toast(e.message, 'err'); };
+  const pct = (a, b) => (b ? Math.round((a / b) * 100) + '%' : '-');
+  const tile = (label, value, sub, cls = '') => `<div class="metric ${cls}"><span>${label}</span><b>${value}</b>${sub ? `<small>${sub}</small>` : ''}</div>`;
 
-  /* ---------- overview ---------- */
-  async function overview(quiet) {
-    if (!quiet) body().innerHTML = '<div class="skeleton" style="height:120px"></div>';
+  /* ---------- analytics (measured) ---------- */
+  async function analytics(quiet) {
+    if (!quiet) body().innerHTML = '<div class="skeleton" style="height:120px"></div><div class="skeleton" style="height:240px;margin-top:14px"></div>';
     try {
-      const [sum, m] = await Promise.all([api('GET', '/api/admin/summary'), api('GET', '/api/metrics')]);
-      S.summary = sum; S.metrics = m;
+      const [m, st, sum] = await Promise.all([api('GET', `/api/metrics?range=${S.range}`), api('GET', '/api/admin/settings'), api('GET', '/api/admin/summary')]);
+      S.settings = st.values;
+      const rangeName = { today: 'Today', '7d': 'Last 7 days', '30d': 'Last 30 days' }[S.range];
       const warn = [];
-      if (!sum.rooms) warn.push('No rooms yet. Import rooms so the Rooms Controller can assign them.');
-      if (!sum.arrivalsToday) warn.push(`No reservations arriving today (${fmtDate(sum.today)}). Import today's arrivals so Reception can look guests up.`);
-      body().innerHTML = `${warn.map((w) => `<div class="banner info" style="margin-bottom:10px">${icon('alert')}<span>${esc(w)}</span></div>`).join('')}
+      if (!sum.rooms) warn.push('No rooms yet. Import rooms (Data tab) so the Rooms Controller can assign them.');
+      if (!sum.arrivalsToday) warn.push(`No reservations arriving today (${fmtDate(sum.today)}). Import today's arrivals (Data tab) so Reception can look guests up.`);
+      if (st.placeholders && S.settings.guest_show_placeholders !== '0') warn.push(`${st.placeholders} resort sections on the guest page still show placeholder text. Edit them in the Guest page tab.`);
+      body().innerHTML = `${warn.map((w) => `<div class="banner info">${icon('alert')}<span>${esc(w)}</span></div>`).join('')}
+        <div class="ad-row"><h2 class="serif ad-h">Right now</h2></div>
         <div class="ad-cards">
-          <div class="metric"><span>Reservations loaded</span><b>${sum.reservations}</b></div>
-          <div class="metric"><span>Arriving today</span><b>${sum.arrivalsToday}</b></div>
-          <div class="metric"><span>Rooms</span><b>${sum.rooms}</b></div>
-          <div class="metric"><span>Staff users</span><b>${sum.users}</b></div></div>
-        <h3 class="serif ad-h">Live figures <span class="muted" style="font-family:inherit;font-size:12px;font-weight:500">(computed from real records only)</span></h3>
+          ${tile('Waiting for a room', m.stillWaitingForRoom)}
+          ${tile('Longest wait now', m.stillWaitingForRoom ? fmtWait(m.longestActiveWaitSec) : '-', '', m.longestActiveWaitSec / 60 >= Number(S.settings.late_alert_minutes) ? 'hot' : '')}
+          ${tile('Ready, guest not back', m.readyAwaitingGuest, '', 'good')}
+          ${tile('Active records', m.active)}
+        </div>
+        <div class="ad-row"><h2 class="serif ad-h">${rangeName} <span class="measured">Measured</span></h2>
+          <div class="seg" role="tablist" aria-label="Period">${[['today', 'Today'], ['7d', '7 days'], ['30d', '30 days']].map(([k, l]) => `<button role="tab" data-range="${k}" class="${S.range === k ? 'on' : ''}" aria-selected="${S.range === k}">${l}</button>`).join('')}</div></div>
         <div class="ad-cards">
-          <div class="metric"><span>Active</span><b>${m.active}</b></div><div class="metric"><span>Completed</span><b>${m.completed}</b></div><div class="metric"><span>Cancelled</span><b>${m.cancelled}</b></div>
-          <div class="metric"><span>Avg. wait to ready</span><b>${m.avgWaitToReadySec == null ? '-' : fmtDuration(m.avgWaitToReadySec)}</b></div>
-          <div class="metric"><span>Avg. ready to return</span><b>${m.avgReadyToReturnSec == null ? '-' : fmtDuration(m.avgReadyToReturnSec)}</b></div>
-          <div class="metric"><span>Avg. total time</span><b>${m.avgTotalSec == null ? '-' : fmtDuration(m.avgTotalSec)}</b></div></div>
-        <h3 class="serif ad-h">Active Waiting Guests (read only)</h3>
-        <div class="card" style="overflow:auto"><table class="tbl"><thead><tr><th>WG</th><th>Guest</th><th>Status</th><th>Room</th><th>Waiting</th></tr></thead><tbody>
-          ${sum.active.length ? sum.active.map((g) => `<tr><td><b>${esc(g.wgNumber)}</b></td><td>${esc(g.guestName)}</td><td>${statusPill(g.status)}</td><td>${esc(g.roomNumber || '-')}</td><td class="num" data-since="${esc(g.timestamps.created)}"${['ready', 'returned'].includes(g.status) ? ` data-until="${esc(g.timestamps.roomReady)}"` : ''}>0:00</td></tr>`).join('') : '<tr><td colspan="5" class="muted" style="text-align:center;padding:24px">No active Waiting Guests</td></tr>'}
-        </tbody></table></div>
-        <p class="muted" style="font-size:12.5px;margin-top:14px">Guest links open at: <code>${esc(sum.guestBase || 'unknown (deploy the web app first)')}</code></p>`;
-      tickTimers();
+          ${tile('Waiting guests', m.created, m.cancelled ? `${m.cancelled} cancelled, not counted` : '')}
+          ${tile('Completed', m.completed)}
+          ${tile('Avg. wait until room ready', fmtDuration(m.avgWaitToReadySec))}
+          ${tile('Avg. room ready → guest back', fmtDuration(m.avgReadyToReturnSec))}
+          ${tile('Guest saw "room ready"', m.readyCount ? `${fmtDuration(m.avgAwarenessSec)}` : '-', m.readyCount ? `avg. after ready · ${m.awareCount} of ${m.readyCount} guests looked` : 'no rooms ready yet')}
+          ${tile('Guests who opened their QR page', pct(m.qrOpened, m.created), m.created ? `${m.qrOpened} of ${m.created}` : '')}
+          ${tile('Avg. time to create a Waiting Guest', fmtDuration(m.avgCreateSec), 'Reception, from reservation to QR')}
+          ${tile('Guest rating', m.feedbackCount ? `${m.avgRating} / 5` : '-', m.feedbackCount ? `${m.feedbackCount} response${m.feedbackCount === 1 ? '' : 's'} · status page helpful ${pct(m.helpfulYes, m.helpfulAnswered)}` : 'no feedback yet')}
+        </div>
+        <section class="card chart-card"><h3>Waiting guests by hour of arrival <small>${rangeName}, hotel time</small></h3>${barChart(m.hourly.map((v, h) => ({ label: String(h).padStart(2, '0') + ':00', short: h % 3 === 0 ? String(h).padStart(2, '0') : '', value: v })), 'hour')}</section>
+        ${S.range !== 'today' ? `<section class="card chart-card"><h3>Waiting guests per day <small>${rangeName}</small></h3>${barChart(m.daily.map((d, i) => ({ label: fmtDate(d.date), short: (m.daily.length <= 7 || i % 5 === 0) ? new Date(d.date + 'T00:00:00').toLocaleDateString([], { day: 'numeric', month: 'short' }) : '', value: d.count })), 'day')}</section>` : ''}
+        ${businessCase(m)}`;
+      $$('[data-range]').forEach((b) => b.onclick = () => { S.range = b.dataset.range; analytics(); });
+      wireCharts();
+      wireBusinessCase(m);
     } catch (e) { err(e); }
   }
 
+  /** Single-series column chart: thin bars from one baseline, peak labelled, hover tooltip, table view. */
+  function barChart(points, unit) {
+    // drawn at the real container width so bars and labels are never stretched
+    const W = Math.max(300, Math.min(1080, (body().clientWidth || 720) - 40)), H = 190, padL = 30, padB = 24, padT = 16;
+    const max = Math.max(1, ...points.map((p) => p.value));
+    const step = max <= 5 ? 1 : max <= 10 ? 2 : max <= 25 ? 5 : max <= 50 ? 10 : Math.ceil(max / 5 / 10) * 10;
+    const top = Math.ceil(max / step) * step;
+    const y = (v) => padT + (H - padT - padB) * (1 - v / top);
+    const slot = (W - padL) / points.length;
+    const bw = Math.max(4, Math.min(24, slot - 2));
+    const peak = points.reduce((a, p, i) => (p.value > points[a].value ? i : a), 0);
+    const ticks = []; for (let v = 0; v <= top; v += step) ticks.push(v);
+    const bars = points.map((p, i) => {
+      const x = padL + slot * i + (slot - bw) / 2, h = y(0) - y(p.value), r = Math.min(4, h / 2);
+      const path = p.value ? `M${x},${y(0)} V${y(p.value) + r} Q${x},${y(p.value)} ${x + r},${y(p.value)} H${x + bw - r} Q${x + bw},${y(p.value)} ${x + bw},${y(p.value) + r} V${y(0)} Z` : '';
+      return `<g class="bar-g" data-tip="${esc(p.label)}: ${p.value} waiting guest${p.value === 1 ? '' : 's'}">
+        <rect class="hit" x="${padL + slot * i}" y="${padT}" width="${slot}" height="${H - padT - padB}"></rect>
+        ${path ? `<path class="bar" d="${path}"></path>` : ''}
+        ${i === peak && p.value ? `<text class="peak" x="${x + bw / 2}" y="${y(p.value) - 5}" text-anchor="middle">${p.value}</text>` : ''}
+        ${p.short ? `<text class="xl" x="${x + bw / 2}" y="${H - 6}" text-anchor="middle">${esc(p.short)}</text>` : ''}</g>`;
+    }).join('');
+    const total = points.reduce((a, p) => a + p.value, 0);
+    return `<div class="chart" role="img" aria-label="${total} waiting guests, peak ${points[peak].value} at ${esc(points[peak].label)}">
+      <svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}">${ticks.map((v) => `<line class="grid" x1="${padL}" x2="${W}" y1="${y(v)}" y2="${y(v)}"></line><text class="yl" x="${padL - 6}" y="${y(v) + 4}" text-anchor="end">${v}</text>`).join('')}${bars}</svg>
+      <div class="tip" hidden></div></div>
+      ${total ? '' : '<p class="muted chart-empty">No waiting guests in this period yet.</p>'}
+      <details class="as-table"><summary>Show as table</summary><div class="table-wrap"><table class="tbl"><thead><tr><th>${unit === 'hour' ? 'Hour' : 'Day'}</th><th>Waiting guests</th></tr></thead><tbody>${points.map((p) => `<tr><td>${esc(p.label)}</td><td class="num">${p.value}</td></tr>`).join('')}</tbody></table></div></details>`;
+  }
+  function wireCharts() {
+    $$('.chart').forEach((c) => {
+      const tip = $('.tip', c);
+      c.addEventListener('pointermove', (e) => {
+        const g = e.target.closest('.bar-g');
+        if (!g) { tip.hidden = true; return; }
+        $$('.bar-g.hl', c).forEach((x) => x !== g && x.classList.remove('hl')); g.classList.add('hl');
+        const r = c.getBoundingClientRect();
+        tip.textContent = g.dataset.tip; tip.hidden = false;
+        tip.style.left = Math.min(r.width - tip.offsetWidth - 4, Math.max(4, e.clientX - r.left - tip.offsetWidth / 2)) + 'px';
+        tip.style.top = Math.max(0, e.clientY - r.top - 40) + 'px';
+      });
+      c.addEventListener('pointerleave', () => { tip.hidden = true; $$('.bar-g.hl', c).forEach((x) => x.classList.remove('hl')); });
+    });
+  }
+
+  /* ---------- business case (illustrative, from editable assumptions) ---------- */
+  const BC = [
+    ['bc_daily_checkins', 'Check-ins per day', ''],
+    ['bc_waiting_pct', 'Share of check-ins that wait', '%'],
+    ['bc_manual_minutes', 'Reception minutes per paper Waiting Card', 'min'],
+    ['bc_digital_minutes', 'Reception minutes per digital Waiting Guest', 'min', 'blank = measured'],
+    ['bc_print_pieces', 'Printed pieces per paper Waiting Card', ''],
+    ['bc_print_cost', 'Cost per printed piece', 'AED'],
+    ['bc_comm_minutes', 'Minutes of manual follow-up per waiting guest', 'min'],
+    ['bc_qr_adoption_pct', 'Guests who follow the QR page', '%', 'blank = measured'],
+  ];
+  function bcCalc(v, m) {
+    const n = (k) => (v[k] === '' || v[k] == null ? null : Number(v[k]));
+    const measuredDigital = m.avgCreateSec != null ? m.avgCreateSec / 60 : null;
+    const measuredAdoption = m.created ? (m.qrOpened / m.created) * 100 : null;
+    const perDay = n('bc_daily_checkins') != null && n('bc_waiting_pct') != null ? n('bc_daily_checkins') * n('bc_waiting_pct') / 100 : null;
+    const digital = n('bc_digital_minutes') != null ? n('bc_digital_minutes') : measuredDigital;
+    const adoption = n('bc_qr_adoption_pct') != null ? n('bc_qr_adoption_pct') : measuredAdoption;
+    const out = { perDay, digital, digitalMeasured: n('bc_digital_minutes') == null && measuredDigital != null, adoption, adoptionMeasured: n('bc_qr_adoption_pct') == null && measuredAdoption != null };
+    out.deskMin = perDay != null && n('bc_manual_minutes') != null && digital != null ? perDay * Math.max(0, n('bc_manual_minutes') - digital) : null;
+    out.printAed = perDay != null && n('bc_print_pieces') != null && n('bc_print_cost') != null ? perDay * n('bc_print_pieces') * n('bc_print_cost') : null;
+    out.printPieces = perDay != null && n('bc_print_pieces') != null ? perDay * n('bc_print_pieces') : null;
+    out.commMin = perDay != null && n('bc_comm_minutes') != null && adoption != null ? perDay * n('bc_comm_minutes') * adoption / 100 : null;
+    return out;
+  }
+  const hrs = (min) => (min == null ? null : min >= 60 ? `${(min / 60).toFixed(min >= 600 ? 0 : 1)} h` : `${Math.round(min)} min`);
+  const aed = (x) => (x == null ? null : 'AED ' + Math.round(x).toLocaleString());
+  function bcOutputs(c) {
+    const need = (what) => `<span class="need">Enter ${what}</span>`;
+    const row = (label, day, fmt, needWhat) => `<tr><th scope="row">${label}</th>${day == null ? `<td colspan="3">${need(needWhat)}</td>` : `<td>${fmt(day)}</td><td>${fmt(day * 30)}</td><td>${fmt(day * 365)}</td>`}</tr>`;
+    return `<table class="tbl bc-out"><thead><tr><th></th><th>Per day</th><th>Per month</th><th>Per year</th></tr></thead><tbody>
+      ${row('Waiting guests (potential)', c.perDay, (x) => Math.round(x).toLocaleString(), 'check-ins and waiting share')}
+      ${row('Reception time recovered', c.deskMin, hrs, 'minutes per paper card' + (c.digital == null ? ' and per digital record' : ''))}
+      ${row('Follow-up time avoided', c.commMin, hrs, 'follow-up minutes' + (c.adoption == null ? ' and QR adoption' : ''))}
+      ${row('Printed pieces avoided', c.printPieces, (x) => Math.round(x).toLocaleString(), 'printed pieces per card')}
+      ${row('Printing cost avoided', c.printAed, aed, 'pieces per card and cost per piece')}
+    </tbody></table>
+    <p class="bc-basis">${c.digitalMeasured ? `Digital time uses the measured average (${c.digital.toFixed(1)} min). ` : ''}${c.adoptionMeasured ? `QR adoption uses the measured rate (${Math.round(c.adoption)}%). ` : ''}Months are 30 days.</p>`;
+  }
+  function businessCase(m) {
+    const v = S.settings;
+    return `<section class="card bc" id="bc"><div class="bc-head"><h2 class="serif">Business case</h2><span class="illustrative">Illustrative · based on current assumptions</span></div>
+      <p class="muted">These figures are estimates from the assumptions below, not measured hotel results. Replace each assumption with the hotel's own numbers. Measured figures are shown above and never mixed in, except where an assumption is left blank and says "measured".</p>
+      <div class="bc-grid">
+        <form id="bcForm" class="bc-in">${BC.map(([k, label, unit, hint]) => `<label class="field"><span>${label}${hint ? ` <em class="opt">(${hint})</em>` : ''}</span><div class="unit-in"><input class="in num" id="${k}" name="${k}" inputmode="decimal" value="${esc(v[k])}" placeholder="${hint ? 'measured' : 'not set'}">${unit ? `<i>${unit}</i>` : ''}</div></label>`).join('')}
+          <div class="actions"><button class="btn btn-primary" id="bcSave" type="submit">Save assumptions</button></div></form>
+        <div class="bc-res" id="bcRes">${bcOutputs(bcCalc(v, m))}</div>
+      </div>
+      <p class="bc-note">No physical Waiting Card is printed in the new process. The printing figures show what the hotel no longer spends, once the real cost per piece is entered.</p></section>`;
+  }
+  function wireBusinessCase(m) {
+    const form = $('#bcForm'); if (!form) return;
+    const read = () => { const v = Object.assign({}, S.settings); BC.forEach(([k]) => { v[k] = $('#' + k).value.trim(); }); return v; };
+    form.addEventListener('input', () => { $('#bcRes').innerHTML = bcOutputs(bcCalc(read(), m)); });
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const b = $('#bcSave'); b.classList.add('loading');
+      const values = {}; BC.forEach(([k]) => { values[k] = $('#' + k).value.trim(); });
+      try { S.settings = (await api('POST', '/api/admin/settings', { values })).values; toast('Assumptions saved'); }
+      catch (ex) { err(ex); if (ex.data && ex.data.field && $('#' + ex.data.field)) $('#' + ex.data.field).focus(); }
+      finally { b.classList.remove('loading'); }
+    });
+  }
+
+  /* ---------- guest page content ---------- */
+  const LANG_TABS = [['en', 'English'], ['ar', 'العربية'], ['ru', 'Русский'], ['de', 'Deutsch']];
+  async function guestPage() {
+    body().innerHTML = '<div class="skeleton" style="height:240px"></div>';
+    try {
+      S.content = (await api('GET', '/api/admin/guest-content')).sections;
+      if (!S.editId || !S.content.some((x) => x.id === S.editId)) S.editId = S.content[0] && S.content[0].id;
+      renderGuestPage();
+    } catch (e) { err(e); }
+  }
+  function renderGuestPage() {
+    const sec = S.content.find((x) => x.id === S.editId);
+    const sfx = S.editLang === 'en' ? '' : '_' + S.editLang;
+    const dir = S.editLang === 'ar' ? 'rtl' : 'ltr';
+    body().innerHTML = `<div class="gp">
+      <aside class="card gp-list"><h2 class="serif">Resort sections</h2><p class="muted">What guests see under "While you wait".</p>
+        <ul>${S.content.map((x) => `<li><button data-sec="${esc(x.id)}" class="${x.id === S.editId ? 'on' : ''}"><span>${esc(x.title)}</span>${!x.active ? '<em class="st off">Hidden</em>' : x.placeholder ? '<em class="st ph">Placeholder</em>' : '<em class="st ok">Live</em>'}</button></li>`).join('')}</ul></aside>
+      ${sec ? `<form class="card panel gp-edit" id="gpForm" novalidate>
+        <div class="panel-head"><div><div class="label">Editing</div><h2 class="serif">${esc(sec.title)}</h2></div></div>
+        <div class="seg" role="tablist" aria-label="Language">${LANG_TABS.map(([k, l]) => `<button type="button" role="tab" data-elang="${k}" class="${S.editLang === k ? 'on' : ''}" aria-selected="${S.editLang === k}">${l}</button>`).join('')}</div>
+        ${S.editLang !== 'en' ? '<p class="muted small">Leave a field blank to show the English text in this language.</p>' : ''}
+        <label class="field"><span>Title</span><input class="in" id="c_title" maxlength="60" dir="${dir}" value="${esc(sec['title' + sfx])}" placeholder="${S.editLang === 'en' ? '' : esc(sec.title)}"></label>
+        <label class="field"><span>Description</span><textarea class="in" id="c_body" maxlength="600" rows="4" dir="${dir}" placeholder="${S.editLang === 'en' ? 'Opening hours, location, what to know' : esc(sec.body)}">${esc(sec['body' + sfx])}</textarea></label>
+        <label class="field"><span>Small print <em class="opt">(optional)</em></span><input class="in" id="c_note" maxlength="200" dir="${dir}" value="${esc(sec['note' + sfx])}"></label>
+        <label class="field"><span>Happening today <em class="opt">(optional, shown at the top, e.g. "Aqua gym at 16:00, main pool")</em></span><input class="in" id="c_highlight" maxlength="120" dir="${dir}" value="${esc(sec['highlight' + sfx])}"></label>
+        <div class="gp-toggles"><label class="toggle"><input type="checkbox" id="c_active" ${sec.active ? 'checked' : ''}> Show this section to guests</label>
+          <label class="toggle"><input type="checkbox" id="c_ph" ${sec.placeholder ? 'checked' : ''}> Still placeholder text</label></div>
+        <div class="banner err" id="gpErr" hidden></div>
+        <div class="actions"><button class="btn btn-primary" id="gpSave" type="submit">Save ${esc(LANG_TABS.find((l) => l[0] === S.editLang)[1])} text</button></div>
+      </form>` : '<div class="card empty">No sections.</div>'}</div>`;
+    $$('[data-sec]').forEach((b) => b.onclick = () => { S.editId = b.dataset.sec; renderGuestPage(); });
+    $$('[data-elang]').forEach((b) => b.onclick = () => { S.editLang = b.dataset.elang; renderGuestPage(); });
+    const form = $('#gpForm');
+    if (form) form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const b = $('#gpSave'); b.classList.add('loading'); $('#gpErr').hidden = true;
+      const payload = { id: sec.id, active: $('#c_active').checked, placeholder: $('#c_ph').checked };
+      ['title', 'body', 'note', 'highlight'].forEach((f) => { payload[f + sfx] = $('#c_' + f).value; });
+      try { S.content = (await api('POST', '/api/admin/guest-content', payload)).sections; toast('Saved. Guests see it within seconds.'); renderGuestPage(); }
+      catch (ex) { b.classList.remove('loading'); $('#gpErr').textContent = ex.message; $('#gpErr').hidden = false; }
+    });
+  }
+
+  /* ---------- settings ---------- */
+  const SETTINGS_FORM = [
+    ['Hotel', [['hotel_name', 'Hotel name'], ['hotel_map_url', 'Hotel map link', 'url'], ['hotel_website_url', 'Hotel website link', 'url']]],
+    ['Waiting times', [['late_warn_minutes', 'Attention after (minutes)', 'num'], ['late_alert_minutes', 'Long wait after (minutes)', 'num']]],
+    ['Guest page', [['guest_welcome', 'Welcome line (English)'], ['guest_welcome_ar', 'Welcome line (Arabic)', 'rtl'], ['guest_welcome_ru', 'Welcome line (Russian)'], ['guest_welcome_de', 'Welcome line (German)'],
+      ['guest_show_placeholders', 'Show sections that still have placeholder text', 'bool'], ['qr_expire_hours', 'Guest link closes after check-in (hours)', 'num']]],
+    ['Records and security', [['wg_prefix', 'Waiting Guest number prefix'], ['archive_after_days', 'Archive closed records after (days)', 'num'], ['session_hours', 'Staff sign-in lasts (hours)', 'num']]],
+  ];
+  async function settings() {
+    body().innerHTML = '<div class="skeleton" style="height:240px"></div>';
+    try {
+      const st = await api('GET', '/api/admin/settings');
+      S.settings = st.values;
+      body().innerHTML = `<form class="card panel" id="stForm" novalidate><h2 class="serif">Settings</h2>
+        ${SETTINGS_FORM.map(([group, fields]) => `<fieldset class="st-group"><legend>${group}</legend><div class="form-grid">${fields.map(([k, label, kind]) => kind === 'bool'
+          ? `<label class="toggle full"><input type="checkbox" id="s_${k}" ${S.settings[k] === '1' ? 'checked' : ''}> ${label}</label>`
+          : `<label class="field ${kind === 'url' || k.startsWith('guest_welcome') ? 'full' : ''}"><span>${label}</span><input class="in" id="s_${k}" value="${esc(S.settings[k])}" ${kind === 'num' ? 'inputmode="numeric"' : ''} ${kind === 'url' ? 'inputmode="url" placeholder="https://"' : ''} ${kind === 'rtl' ? 'dir="rtl"' : ''}></label>`).join('')}</div></fieldset>`).join('')}
+        <div class="banner err" id="stErr" hidden></div>
+        <div class="actions"><button class="btn btn-primary" id="stSave" type="submit">Save settings</button></div></form>`;
+      $('#stForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const b = $('#stSave'); b.classList.add('loading'); $('#stErr').hidden = true;
+        $$('#stForm [aria-invalid]').forEach((x) => x.removeAttribute('aria-invalid'));
+        const values = {};
+        SETTINGS_FORM.forEach(([, fields]) => fields.forEach(([k, , kind]) => { const el = $('#s_' + k); values[k] = kind === 'bool' ? (el.checked ? '1' : '0') : el.value; }));
+        try { S.settings = (await api('POST', '/api/admin/settings', { values })).values; toast('Settings saved'); }
+        catch (ex) {
+          $('#stErr').textContent = ex.message; $('#stErr').hidden = false;
+          const f = ex.data && ex.data.field && $('#s_' + ex.data.field); if (f) { f.setAttribute('aria-invalid', 'true'); f.focus(); }
+        } finally { b.classList.remove('loading'); }
+      });
+    } catch (e) { err(e); }
+  }
+
+  /* ---------- data: imports and export ---------- */
+  function dataTab() {
+    body().innerHTML = `<div class="seg data-seg" role="tablist">${[['arrivals', "Today's arrivals"], ['rooms', 'Rooms'], ['export', 'Export']].map(([k, l], i) => `<button role="tab" data-dt="${k}" class="${i === 0 ? 'on' : ''}">${l}</button>`).join('')}</div><div id="dataHost"></div>`;
+    const show = (k) => {
+      $$('[data-dt]').forEach((b) => b.classList.toggle('on', b.dataset.dt === k));
+      S.imp = null;
+      if (k === 'export') exportView($('#dataHost')); else importer(k, $('#dataHost'));
+    };
+    $$('[data-dt]').forEach((b) => b.onclick = () => show(b.dataset.dt));
+    show('arrivals');
+  }
+
   /* ---------- CSV import (arrivals or rooms) ---------- */
-  function importer(kind) {
+  function importer(kind, host) {
+    const body = () => host;
     const isArr = kind === 'arrivals';
     const base = isArr ? '/api/import/arrivals' : '/api/import/rooms';
     S.imp = { csv: '', map: null, replaceAll: false };
@@ -1295,7 +1903,7 @@ WG.views.admin = function (root, user) {
         try {
           const r = await api('POST', base, { csv: S.imp.csv, map: S.imp.map || undefined, allowErrors: true, replaceAll });
           toast(`Imported: ${r.added} added, ${r.updated} updated${r.skipped ? `, ${r.skipped} skipped` : ''}`);
-          go('overview');
+          go('analytics');
         } catch (e) { b.classList.remove('loading'); err(e); }
       };
     }
@@ -1338,7 +1946,8 @@ WG.views.admin = function (root, user) {
   }
 
   /* ---------- export ---------- */
-  function exportView() {
+  function exportView(host) {
+    const body = () => host;
     body().innerHTML = `<div class="card panel"><h2 class="serif">Export Waiting Guests</h2>
       <p class="muted">Every Waiting Guest with all timestamps (created, room assigned, preparation started, room ready, guest notified, guest returned, completed). Use it to compare the digital process with the old manual one. Contains guest names: handle it as confidential.</p>
       <div class="actions"><button class="btn btn-primary" id="exGo">${icon('download')} Download CSV</button></div></div>`;
@@ -1355,8 +1964,8 @@ WG.views.admin = function (root, user) {
 
   (async function init() {
     try { S.roomTypes = (await api('GET', '/api/meta')).roomTypes; } catch (e) { err(e); }
-    go('overview');
-    WG.stopLive = live(() => { if (S.tab === 'overview') overview(true); }, setLive, { baseMs: 8000 });
+    go('analytics');
+    WG.stopLive = live(() => { if (S.tab === 'analytics' && !document.querySelector('#bcForm:focus-within')) analytics(true); }, setLive, { baseMs: 8000 });
   })();
 };
 
@@ -1364,154 +1973,215 @@ WG.views.admin = function (root, user) {
 'use strict';
 /* Guest page translations. Written for this build: have a native speaker of each
    language review the wording before guests see it. Every key must exist in every
-   language (a test enforces this). Staff screens are English only. */
+   language (a test enforces this). "{x}" placeholders are filled in by the page.
+   Staff screens are English only. */
 const WG_LANGS = [
-  { code: 'en', name: 'English', dir: 'ltr', locale: 'en-GB' },
-  { code: 'ar', name: 'العربية', dir: 'rtl', locale: 'ar-AE-u-nu-latn' }, // Latin digits, so numbers match the confirmation number
-  { code: 'ru', name: 'Русский', dir: 'ltr', locale: 'ru-RU' },
-  { code: 'de', name: 'Deutsch', dir: 'ltr', locale: 'de-DE' },
+  { code: 'en', name: 'English', short: 'EN', dir: 'ltr', locale: 'en-GB' },
+  { code: 'ar', name: 'العربية', short: 'ع', dir: 'rtl', locale: 'ar-AE-u-nu-latn' }, // Latin digits, so numbers match the confirmation number
+  { code: 'ru', name: 'Русский', short: 'RU', dir: 'ltr', locale: 'ru-RU' },
+  { code: 'de', name: 'Deutsch', short: 'DE', dir: 'ltr', locale: 'de-DE' },
 ];
 
 const WG_I18N = {
   en: {
-    roomStatus: 'Room status',
     preparingTitle: 'Your room is being prepared',
+    preparingSub: "We're getting everything ready for your stay.",
+    note_received: 'Our team has your arrival and will select your room shortly.',
+    note_assigned: 'Your room has been selected and will be prepared next.',
+    note_preparing: 'Housekeeping is preparing your room now.',
+    readyEyebrow: 'Good news',
     readyTitle: 'Your room is ready',
-    readyText: 'Please proceed to Reception to complete your check-in and collect your room keys.',
-    doneEyebrow: 'Check-in complete',
+    readyText: 'Please return to Reception to complete your check-in and collect your room keys.',
+    readyShow: 'Show this page or your reference at Reception.',
     doneTitle: 'Welcome. Enjoy your stay',
     doneText: 'Your check-in is complete. We hope you have a wonderful stay.',
-    cancelEyebrow: 'Waiting record closed',
-    cancelTitle: 'This waiting record is no longer active',
+    cancelTitle: 'This waiting record is closed',
     cancelText: 'Please speak to a member of the Reception team and they will be happy to help.',
-    wgNumber: 'Waiting Guest number',
+    expiredTitle: 'This link has expired',
+    expiredText: 'For your privacy, room status links close after check-in. Our Reception team is always happy to help.',
+    invalidTitle: 'This link is not valid',
+    invalidText: 'Please ask a member of the Reception team to help you.',
+    stepReceived: 'Received',
+    stepAssigned: 'Room selected',
+    stepPreparing: 'Preparing',
+    stepReady: 'Ready',
+    progress: 'Progress',
+    reference: 'Reference',
+    yourStay: 'Your stay',
     guest: 'Guest',
     confirmation: 'Confirmation',
     roomType: 'Room type',
-    arrival: 'Arrival',
-    stepReceived: 'Received',
-    stepPreparing: 'Preparing',
-    stepReady: 'Ready',
+    stay: 'Stay',
     whileWait: 'While you wait',
-    around: 'Around the resort',
-    aroundSub: 'Everything you need, whenever you want it.',
-    map: 'Hotel Map',
+    explore: 'Explore the resort',
+    happening: 'Happening today',
+    map: 'Hotel map',
     mapSub: 'Find your way around',
-    website: 'Hotel Website',
-    comingSoon: 'Coming soon',
+    website: 'Hotel website',
     detailsSoon: 'Details coming soon',
-    notice: 'This page updates automatically. Keep it open, or scan your QR again at any time.',
-    invalidTitle: 'This link is not valid',
-    invalidText: 'Please ask a member of the Reception team to help you.',
+    live: 'Updates automatically',
     reconnecting: 'Reconnecting…',
     language: 'Language',
     tabTitle: 'Your room',
     tabTitleReady: 'Your room is ready',
+    fbTitle: 'How was your waiting experience?',
+    fbHelpful: 'Was the live room status helpful?',
+    yes: 'Yes',
+    no: 'No',
+    fbSend: 'Send feedback',
+    fbThanks: 'Thank you. Your feedback helps us improve.',
+    fbStar: '{n} of 5 stars',
+    fbError: 'Could not send. Please try again.',
   },
   de: {
-    roomStatus: 'Zimmerstatus',
     preparingTitle: 'Ihr Zimmer wird vorbereitet',
+    preparingSub: 'Wir bereiten alles für Ihren Aufenthalt vor.',
+    note_received: 'Unser Team hat Ihre Ankunft erfasst und wählt in Kürze Ihr Zimmer aus.',
+    note_assigned: 'Ihr Zimmer wurde ausgewählt und wird als Nächstes vorbereitet.',
+    note_preparing: 'Das Housekeeping bereitet Ihr Zimmer gerade vor.',
+    readyEyebrow: 'Gute Nachrichten',
     readyTitle: 'Ihr Zimmer ist bereit',
     readyText: 'Bitte kommen Sie zur Rezeption, um Ihren Check-in abzuschließen und Ihre Zimmerschlüssel abzuholen.',
-    doneEyebrow: 'Check-in abgeschlossen',
+    readyShow: 'Zeigen Sie diese Seite oder Ihre Referenz an der Rezeption.',
     doneTitle: 'Willkommen. Genießen Sie Ihren Aufenthalt',
     doneText: 'Ihr Check-in ist abgeschlossen. Wir wünschen Ihnen einen wundervollen Aufenthalt.',
-    cancelEyebrow: 'Wartevorgang beendet',
-    cancelTitle: 'Dieser Wartevorgang ist nicht mehr aktiv',
+    cancelTitle: 'Dieser Wartevorgang ist abgeschlossen',
     cancelText: 'Bitte wenden Sie sich an das Rezeptionsteam, das Ihnen gerne weiterhilft.',
-    wgNumber: 'Wartenummer',
-    guest: 'Gast',
-    confirmation: 'Bestätigungsnummer',
-    roomType: 'Zimmerkategorie',
-    arrival: 'Anreise',
+    expiredTitle: 'Dieser Link ist abgelaufen',
+    expiredText: 'Zum Schutz Ihrer Privatsphäre werden Statuslinks nach dem Check-in geschlossen. Unser Rezeptionsteam hilft Ihnen jederzeit gerne.',
+    invalidTitle: 'Dieser Link ist ungültig',
+    invalidText: 'Bitte wenden Sie sich an das Rezeptionsteam.',
     stepReceived: 'Erhalten',
+    stepAssigned: 'Zimmer gewählt',
     stepPreparing: 'In Vorbereitung',
     stepReady: 'Bereit',
+    progress: 'Fortschritt',
+    reference: 'Referenz',
+    yourStay: 'Ihr Aufenthalt',
+    guest: 'Gast',
+    confirmation: 'Bestätigung',
+    roomType: 'Zimmerkategorie',
+    stay: 'Aufenthalt',
     whileWait: 'Während Sie warten',
-    around: 'Rund um das Resort',
-    aroundSub: 'Alles, was Sie brauchen, wann immer Sie es möchten.',
+    explore: 'Entdecken Sie das Resort',
+    happening: 'Heute im Resort',
     map: 'Hotelplan',
     mapSub: 'Finden Sie sich zurecht',
     website: 'Hotel-Website',
-    comingSoon: 'Demnächst verfügbar',
     detailsSoon: 'Details folgen in Kürze',
-    notice: 'Diese Seite aktualisiert sich automatisch. Lassen Sie sie geöffnet oder scannen Sie Ihren QR-Code jederzeit erneut.',
-    invalidTitle: 'Dieser Link ist ungültig',
-    invalidText: 'Bitte wenden Sie sich an das Rezeptionsteam.',
+    live: 'Aktualisiert sich automatisch',
     reconnecting: 'Verbindung wird wiederhergestellt…',
     language: 'Sprache',
     tabTitle: 'Ihr Zimmer',
     tabTitleReady: 'Ihr Zimmer ist bereit',
+    fbTitle: 'Wie war Ihre Wartezeit?',
+    fbHelpful: 'War der Live-Zimmerstatus hilfreich?',
+    yes: 'Ja',
+    no: 'Nein',
+    fbSend: 'Feedback senden',
+    fbThanks: 'Vielen Dank. Ihr Feedback hilft uns, besser zu werden.',
+    fbStar: '{n} von 5 Sternen',
+    fbError: 'Senden fehlgeschlagen. Bitte versuchen Sie es erneut.',
   },
   ru: {
-    roomStatus: 'Статус номера',
     preparingTitle: 'Ваш номер готовится',
+    preparingSub: 'Мы готовим всё к вашему отдыху.',
+    note_received: 'Наша команда получила информацию о вашем прибытии и скоро подберёт номер.',
+    note_assigned: 'Номер для вас выбран, скоро начнётся его подготовка.',
+    note_preparing: 'Служба уборки сейчас готовит ваш номер.',
+    readyEyebrow: 'Хорошие новости',
     readyTitle: 'Ваш номер готов',
     readyText: 'Пожалуйста, подойдите на стойку регистрации, чтобы завершить заселение и получить ключи от номера.',
-    doneEyebrow: 'Заселение завершено',
+    readyShow: 'Покажите эту страницу или номер ожидания на стойке регистрации.',
     doneTitle: 'Добро пожаловать! Приятного отдыха',
     doneText: 'Ваше заселение завершено. Желаем вам прекрасного отдыха.',
-    cancelEyebrow: 'Ожидание завершено',
-    cancelTitle: 'Эта запись ожидания больше не активна',
+    cancelTitle: 'Эта запись ожидания закрыта',
     cancelText: 'Пожалуйста, обратитесь к сотрудникам стойки регистрации, они с радостью вам помогут.',
-    wgNumber: 'Номер ожидания',
-    guest: 'Гость',
-    confirmation: 'Номер бронирования',
-    roomType: 'Тип номера',
-    arrival: 'Прибытие',
+    expiredTitle: 'Срок действия ссылки истёк',
+    expiredText: 'В целях конфиденциальности ссылки на статус закрываются после заселения. Сотрудники стойки регистрации всегда рады помочь.',
+    invalidTitle: 'Ссылка недействительна',
+    invalidText: 'Пожалуйста, обратитесь к сотрудникам стойки регистрации.',
     stepReceived: 'Принято',
+    stepAssigned: 'Номер выбран',
     stepPreparing: 'Готовится',
     stepReady: 'Готов',
+    progress: 'Ход подготовки',
+    reference: 'Номер ожидания',
+    yourStay: 'Ваше пребывание',
+    guest: 'Гость',
+    confirmation: 'Бронирование',
+    roomType: 'Тип номера',
+    stay: 'Даты',
     whileWait: 'Пока вы ждёте',
-    around: 'По территории курорта',
-    aroundSub: 'Всё необходимое, когда это нужно.',
+    explore: 'Откройте для себя курорт',
+    happening: 'Сегодня на курорте',
     map: 'Карта отеля',
     mapSub: 'Найдите нужное место',
     website: 'Сайт отеля',
-    comingSoon: 'Скоро будет доступно',
     detailsSoon: 'Подробности скоро появятся',
-    notice: 'Эта страница обновляется автоматически. Оставьте её открытой или в любой момент отсканируйте QR-код снова.',
-    invalidTitle: 'Ссылка недействительна',
-    invalidText: 'Пожалуйста, обратитесь к сотрудникам стойки регистрации.',
+    live: 'Обновляется автоматически',
     reconnecting: 'Повторное подключение…',
     language: 'Язык',
     tabTitle: 'Ваш номер',
     tabTitleReady: 'Ваш номер готов',
+    fbTitle: 'Как прошло ваше ожидание?',
+    fbHelpful: 'Был ли полезен статус номера в реальном времени?',
+    yes: 'Да',
+    no: 'Нет',
+    fbSend: 'Отправить отзыв',
+    fbThanks: 'Спасибо! Ваш отзыв помогает нам стать лучше.',
+    fbStar: '{n} из 5 звёзд',
+    fbError: 'Не удалось отправить. Попробуйте ещё раз.',
   },
   ar: {
-    roomStatus: 'حالة الغرفة',
     preparingTitle: 'جارٍ تجهيز غرفتك',
+    preparingSub: 'نُجهّز كل شيء لإقامتك.',
+    note_received: 'استلم فريقنا بيانات وصولك وسيختار غرفتك قريباً.',
+    note_assigned: 'تم اختيار غرفتك وسيبدأ تجهيزها قريباً.',
+    note_preparing: 'فريق التدبير الفندقي يجهّز غرفتك الآن.',
+    readyEyebrow: 'أخبار سارة',
     readyTitle: 'غرفتك جاهزة',
-    readyText: 'يرجى التوجه إلى مكتب الاستقبال لإتمام إجراءات تسجيل الوصول واستلام مفاتيح الغرفة.',
-    doneEyebrow: 'اكتمل تسجيل الوصول',
+    readyText: 'يرجى العودة إلى مكتب الاستقبال لإتمام تسجيل الوصول واستلام مفاتيح غرفتك.',
+    readyShow: 'اعرض هذه الصفحة أو رقم المرجع في مكتب الاستقبال.',
     doneTitle: 'أهلاً بك، نتمنى لك إقامة سعيدة',
     doneText: 'اكتمل تسجيل وصولك. نتمنى لك إقامة رائعة.',
-    cancelEyebrow: 'تم إغلاق سجل الانتظار',
-    cancelTitle: 'سجل الانتظار هذا لم يعد نشطاً',
+    cancelTitle: 'تم إغلاق سجل الانتظار هذا',
     cancelText: 'يرجى التواصل مع فريق الاستقبال وسيسعدهم مساعدتك.',
-    wgNumber: 'رقم الانتظار',
+    expiredTitle: 'انتهت صلاحية هذا الرابط',
+    expiredText: 'حفاظاً على خصوصيتك، تُغلق روابط حالة الغرفة بعد تسجيل الوصول. يسعد فريق الاستقبال بمساعدتك دائماً.',
+    invalidTitle: 'هذا الرابط غير صالح',
+    invalidText: 'يرجى مراجعة فريق الاستقبال.',
+    stepReceived: 'تم الاستلام',
+    stepAssigned: 'تم اختيار الغرفة',
+    stepPreparing: 'قيد التجهيز',
+    stepReady: 'جاهزة',
+    progress: 'مراحل التجهيز',
+    reference: 'المرجع',
+    yourStay: 'إقامتك',
     guest: 'الضيف',
     confirmation: 'رقم التأكيد',
     roomType: 'نوع الغرفة',
-    arrival: 'الوصول',
-    stepReceived: 'تم الاستلام',
-    stepPreparing: 'قيد التجهيز',
-    stepReady: 'جاهزة',
+    stay: 'مدة الإقامة',
     whileWait: 'أثناء انتظارك',
-    around: 'في أرجاء المنتجع',
-    aroundSub: 'كل ما تحتاجه، متى شئت.',
+    explore: 'اكتشف المنتجع',
+    happening: 'اليوم في المنتجع',
     map: 'خريطة الفندق',
     mapSub: 'اعرف طريقك',
-    website: 'موقع الفندق الإلكتروني',
-    comingSoon: 'قريباً',
+    website: 'موقع الفندق',
     detailsSoon: 'التفاصيل قريباً',
-    notice: 'يتم تحديث هذه الصفحة تلقائياً. أبقِها مفتوحة أو امسح رمز الاستجابة السريعة مرة أخرى في أي وقت.',
-    invalidTitle: 'هذا الرابط غير صالح',
-    invalidText: 'يرجى مراجعة فريق الاستقبال.',
+    live: 'يتم التحديث تلقائياً',
     reconnecting: 'جارٍ إعادة الاتصال…',
     language: 'اللغة',
     tabTitle: 'غرفتك',
     tabTitleReady: 'غرفتك جاهزة',
+    fbTitle: 'كيف كانت تجربة انتظارك؟',
+    fbHelpful: 'هل كانت حالة الغرفة المباشرة مفيدة؟',
+    yes: 'نعم',
+    no: 'لا',
+    fbSend: 'إرسال التقييم',
+    fbThanks: 'شكراً لك. ملاحظاتك تساعدنا على التحسّن.',
+    fbStar: '{n} من 5 نجوم',
+    fbError: 'تعذّر الإرسال. يرجى المحاولة مرة أخرى.',
   },
 };
 
@@ -1521,7 +2191,8 @@ const langOptions = (selected) => WG_LANGS.map((l) => `<option value="${l.code}"
 /* ---- 50-guest.js ---- */
 'use strict';
 /* Guest page. No login: the unguessable token in the link is the only credential.
-   The server returns guest-safe fields only (no phone, email, staff notes or room number). */
+   The server returns guest-safe fields only (no contact details, staff notes or room number).
+   The first render uses data embedded in the page by doGet, so there is no loading screen. */
 WG.views.guest = function (root, token) {
   const ICON = {
     sparkle: '<path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z"/><path d="M19 15l.7 2 2 .7-2 .7-.7 2-.7-2-2-.7 2-.7z"/>',
@@ -1533,113 +2204,195 @@ WG.views.guest = function (root, token) {
     bell: '<path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9M10.3 21a1.9 1.9 0 0 0 3.4 0"/>',
     map: '<path d="M9 20l-6-3V5l6 3m0 12l6-3m-6 3V8m6 9l6 3V7l-6-3m0 15V5m0 0L9 8"/>',
     globe: '<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/>',
-    hourglass: '<path d="M6 2h12M6 22h12M7 2v4a5 5 0 0 0 2 4l3 2-3 2a5 5 0 0 0-2 4v4M17 2v4a5 5 0 0 1-2 4l-3 2 3 2a5 5 0 0 1 2 4v4"/>',
     key: '<circle cx="8" cy="15" r="4"/><path d="M10.8 12.2L21 2M16 7l3 3"/>',
     heart: '<path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1-1.1a5.5 5.5 0 0 0-7.8 7.8l1 1.1L12 21l7.8-7.5 1-1.1a5.5 5.5 0 0 0 0-7.8z"/>',
     info: '<circle cx="12" cy="12" r="9"/><path d="M12 8h.01M11 12h1v4h1"/>',
+    lock: '<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>',
     chev: '<path d="M6 9l6 6 6-6"/>',
+    arrow: '<path d="M7 17L17 7M9 7h8v8"/>',
+    star: '<path d="M12 2.8l2.8 5.9 6.4.8-4.7 4.4 1.2 6.3L12 17.1l-5.7 3.1 1.2-6.3L2.8 9.5l6.4-.8z"/>',
   };
-  const svg = (n) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICON[n] || ''}</svg>`;
-  const fmtD = (d) => (d ? new Date(d + 'T00:00:00').toLocaleDateString(langInfo(lang).locale, { weekday: 'short', day: 'numeric', month: 'short' }) : '-');
-  const T = (k) => (WG_I18N[lang] && WG_I18N[lang][k]) || WG_I18N.en[k] || k;
-  const pick = (o) => (o && (o[lang] || o.en)) || '';
-  const HERO = {
-    preparing: { cls: '', icon: 'hourglass', eyebrow: 'roomStatus', title: 'preparingTitle', text: null },
-    ready: { cls: 'ready', icon: 'key', eyebrow: 'roomStatus', title: 'readyTitle', text: 'readyText' },
-    completed: { cls: 'done', icon: 'heart', eyebrow: 'doneEyebrow', title: 'doneTitle', text: 'doneText' },
-    cancelled: { cls: 'done', icon: 'info', eyebrow: 'cancelEyebrow', title: 'cancelTitle', text: 'cancelText' },
-  };
+  const svg = (n, cls = '') => `<svg class="${cls}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICON[n] || ''}</svg>`;
 
-  let lang = 'en';
+  let lang = 'en', data = null, version = null, timer = null, fails = 0, lastPhase = null, fb = { rating: 0, helpful: '', sent: false };
+  const T = (k, vars) => { let s = (WG_I18N[lang] && WG_I18N[lang][k]) || WG_I18N.en[k] || k; if (vars) for (const v in vars) s = s.replace('{' + v + '}', vars[v]); return s; };
+  const pick = (o) => (o && (o[lang] || o.en)) || '';
+  const fmtD = (d, opts) => (d ? new Date(d + 'T00:00:00').toLocaleDateString(langInfo(lang).locale, opts || { day: 'numeric', month: 'short' }) : '');
   const storedLang = () => { try { const l = localStorage.getItem('wg-guest-lang'); return WG_LANGS.some((x) => x.code === l) ? l : null; } catch (e) { return null; } };
   function applyLang(l) {
     lang = l;
-    const info = langInfo(l);
     document.documentElement.lang = l;
-    document.documentElement.dir = info.dir;
+    document.documentElement.dir = langInfo(l).dir;
   }
 
-  let data = null, phase = null, version = null, timer = null, fails = 0;
-  root.innerHTML = `<div class="g-shell"><header class="g-top"><div class="logo-chip"><img src="${WG_ASSETS.logo}" alt="Rixos Bab Al Bahr"></div></header>
-    <main id="gApp" aria-live="polite"><div class="hero skeleton-hero"><div class="skeleton" style="height:22px;width:50%;margin:0 auto"></div><div class="skeleton" style="height:64px;margin-top:18px"></div></div></main>
-    <footer class="g-foot">Rixos Bab Al Bahr</footer></div>`;
+  root.innerHTML = `<div class="g-shell">
+    <header class="g-top"><div class="logo-chip"><img src="${WG_ASSETS.logo}" alt="Rixos Bab Al Bahr"></div><div id="gLang"></div></header>
+    <main id="gApp"><section class="hero"><div class="skeleton" style="height:18px;width:40%;margin:0 auto;opacity:.4"></div><div class="skeleton" style="height:56px;margin-top:16px;opacity:.4"></div></section></main>
+  </div>`;
   const app = $('#gApp');
 
-  function render() {
-    const { waitingGuest: g, content: c } = data;
-    const h = HERO[g.phase] || HERO.preparing;
-    const welcome = pick(c.welcome);
-    const idx = { preparing: 1, ready: 2, completed: 3, cancelled: 0 }[g.phase];
-    const P = [T('stepReceived'), T('stepPreparing'), T('stepReady')];
-    const prog = g.phase === 'cancelled' ? '' : `<div class="progress" aria-label="Progress">${P.map((l, i) => {
-      const on = i < idx || (i === idx && g.phase !== 'preparing') || g.phase === 'completed';
-      const cur = i === idx && g.phase === 'preparing';
-      return `<div class="p ${on ? 'on' : ''} ${cur ? 'cur' : ''}"><i></i>${l}</div>${i < P.length - 1 ? `<div class="ln ${i < idx ? 'on' : ''}"></div>` : ''}`;
-    }).join('')}</div><div style="height:14px"></div>`;
-    const link = (l, ic, label, sub) => l && l.url
-      ? `<a class="link-btn" href="${esc(l.url)}" target="_blank" rel="noopener noreferrer">${svg(ic)}${esc(label)}<small>${esc(sub)}</small></a>`
-      : `<div class="link-btn off" aria-disabled="true">${svg(ic)}${esc(label)}<small>${esc(T('comingSoon'))}</small></div>`;
-    const showInfo = g.phase !== 'cancelled';
-    const switcher = `<nav class="lang" aria-label="${esc(T('language'))}">${WG_LANGS.map((l) => `<button type="button" data-lang="${l.code}" lang="${l.code}" class="${l.code === lang ? 'on' : ''}" aria-pressed="${l.code === lang}">${l.name}</button>`).join('')}</nav>`;
-    app.innerHTML = `${switcher}
-      <section class="hero ${h.cls}" aria-labelledby="st">
-        <div class="badge">${svg(h.icon)}</div><div class="eyebrow">${esc(T(h.eyebrow))}</div>
-        <h1 id="st">${esc(T(h.title))}</h1><p>${esc(h.text ? T(h.text) : welcome)}</p>
-        <div class="ref"><span>${esc(T('wgNumber'))}</span><b dir="ltr">${esc(g.wgNumber)}</b></div>
-      </section>
-      <section class="card g-card" aria-label="${esc(T('guest'))}"><div class="kv">
-        <div><span>${esc(T('guest'))}</span><b>${esc(g.guestName)}</b></div><div><span>${esc(T('confirmation'))}</span><b dir="ltr" style="text-align:start">${esc(g.confirmationNo)}</b></div>
-        <div><span>${esc(T('roomType'))}</span><b dir="ltr" style="text-align:start">${esc(g.roomType)}</b></div><div><span>${esc(T('arrival'))}</span><b>${fmtD(g.arrivalDate)}${g.arrivalTime ? `${langInfo(lang).dir === 'rtl' ? ' ' : ' · '}<bdi dir="ltr">${esc(g.arrivalTime)}</bdi>` : ''}</b></div></div>${prog}</section>
-      ${showInfo ? `<h2 class="sec-title wait-title">${esc(g.phase === 'ready' ? T('around') : T('whileWait'))}</h2>
-      <p class="wait-sub">${esc(g.phase === 'ready' ? T('aroundSub') : welcome)}</p>
-      <div class="links">${link(c.links.map, 'map', T('map'), T('mapSub'))}${link(c.links.website, 'globe', T('website'), c.hotelName)}</div>
-      <div class="cards">${c.sections.map((s) => `<details class="tile"><summary><span class="ic">${svg(s.icon)}</span><span class="tt">${esc(pick(s.title))}</span><span class="chev">${svg('chev')}</span></summary>
-        <div class="body">${esc(pick(s.body))}${pick(s.note) ? `<div style="margin-top:8px;font-size:12.5px">${esc(pick(s.note))}</div>` : ''}${s.placeholder ? `<div><span class="soon">${esc(T('detailsSoon'))}</span></div>` : ''}</div></details>`).join('')}</div>
-      <p class="notice">${esc(T('notice'))}</p>` : ''}`;
-    $$('.lang button', app).forEach((b) => b.addEventListener('click', () => {
+  function langMenu() {
+    $('#gLang').innerHTML = `<details class="lang"><summary aria-label="${esc(T('language'))}">${svg('globe')}<span>${esc(langInfo(lang).name)}</span></summary>
+      <div class="lang-list" role="list">${WG_LANGS.map((l) => `<button type="button" role="listitem" data-lang="${l.code}" lang="${l.code}" dir="${l.dir}" aria-current="${l.code === lang}">${l.name}</button>`).join('')}</div></details>`;
+    $$('#gLang [data-lang]').forEach((b) => b.addEventListener('click', () => {
       try { localStorage.setItem('wg-guest-lang', b.dataset.lang); } catch (e) { /* remembered for this page only */ }
-      const wasOpen = $$('details.tile', app).map((d) => d.open); // keep the cards the guest had opened
+      const open = $$('.x-item', app).map((d) => d.open);
       applyLang(b.dataset.lang);
-      render();
-      $$('details.tile', app).forEach((d, i) => { d.open = !!wasOpen[i]; });
+      render(false);
+      $$('.x-item', app).forEach((d, i) => { d.open = !!open[i]; });
     }));
-    if (phase && phase !== g.phase) {
-      try { navigator.vibrate && navigator.vibrate(g.phase === 'ready' ? [120, 60, 120] : 40); } catch (e) { /* not supported */ }
-      window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  function heroHtml(g, c) {
+    const steps = [['received', 'stepReceived'], ['assigned', 'stepAssigned'], ['preparing', 'stepPreparing'], ['ready', 'stepReady']];
+    const idx = { received: 0, assigned: 1, preparing: 2, ready: 3, completed: 4 }[g.phase];
+    const waiting = idx !== undefined && idx < 3;
+    const progress = idx === undefined || idx > 3 ? '' : `<ol class="steps" aria-label="${esc(T('progress'))}">${steps.map(([k, label], i) =>
+      `<li class="${i < idx || g.phase === 'ready' ? 'done' : ''} ${i === idx && waiting ? 'now' : ''}" ${i === idx ? 'aria-current="step"' : ''}><i></i><span>${esc(T(label))}</span></li>`).join('')}</ol>`;
+    if (g.phase === 'ready') {
+      return `<section class="hero ready" aria-live="polite" aria-labelledby="st">
+        <div class="mark">${svg('key')}</div>
+        <div class="eyebrow">${esc(T('readyEyebrow'))}</div>
+        <h1 id="st">${esc(T('readyTitle'))}</h1>
+        <p class="lead">${esc(T('readyText'))}</p>${progress}
+        <div class="ref"><span>${esc(T('reference'))}</span><b dir="ltr">${esc(g.wgNumber)}</b></div>
+        <p class="small">${esc(T('readyShow'))}</p></section>`;
     }
-    document.title = (g.phase === 'ready' ? T('tabTitleReady') : T('tabTitle')) + ' · Rixos Bab Al Bahr';
-    phase = g.phase;
+    if (g.phase === 'completed') {
+      return `<section class="hero done" aria-labelledby="st"><div class="mark">${svg('heart')}</div><h1 id="st">${esc(T('doneTitle'))}</h1><p class="lead">${esc(T('doneText'))}</p></section>`;
+    }
+    if (g.phase === 'cancelled') {
+      return `<section class="hero quiet" aria-labelledby="st"><div class="mark">${svg('info')}</div><h1 id="st">${esc(T('cancelTitle'))}</h1><p class="lead">${esc(T('cancelText'))}</p></section>`;
+    }
+    return `<section class="hero waiting" aria-live="polite" aria-labelledby="st">
+      <div class="mark breathing"><span></span></div>
+      <h1 id="st">${esc(T('preparingTitle'))}</h1>
+      <p class="lead">${esc(T('preparingSub'))}</p>${progress}
+      <p class="note">${esc(T('note_' + g.phase))}</p>
+      <div class="ref"><span>${esc(T('reference'))}</span><b dir="ltr">${esc(g.wgNumber)}</b></div></section>`;
+  }
+
+  function stayHtml(g) {
+    const dates = `${fmtD(g.arrivalDate)} – ${fmtD(g.departureDate, { day: 'numeric', month: 'short', year: 'numeric' })}`;
+    return `<section class="stay" aria-label="${esc(T('yourStay'))}"><dl>
+      <div><dt>${esc(T('guest'))}</dt><dd>${esc(g.guestName)}</dd></div>
+      <div><dt>${esc(T('roomType'))}</dt><dd>${esc(g.roomTypeName || g.roomType)}</dd></div>
+      <div><dt>${esc(T('stay'))}</dt><dd>${esc(dates)}</dd></div>
+      <div><dt>${esc(T('confirmation'))}</dt><dd dir="ltr">${esc(g.confirmationNo)}</dd></div></dl></section>`;
+  }
+
+  function feedbackHtml(g) {
+    if (fb.sent || g.feedbackGiven) return fb.sent ? `<section class="fb done" role="status">${svg('heart')}<p>${esc(T('fbThanks'))}</p></section>` : '';
+    if (!g.canGiveFeedback) return '';
+    return `<section class="fb" aria-labelledby="fbT"><h2 id="fbT">${esc(T('fbTitle'))}</h2>
+      <div class="stars" role="radiogroup" aria-label="${esc(T('fbTitle'))}">${[1, 2, 3, 4, 5].map((n) => `<button type="button" role="radio" aria-checked="${fb.rating === n}" class="${fb.rating >= n ? 'on' : ''}" data-star="${n}" aria-label="${esc(T('fbStar', { n }))}">${svg('star')}</button>`).join('')}</div>
+      <div class="helpful" ${fb.rating ? '' : 'hidden'}><p>${esc(T('fbHelpful'))}</p><div class="yn">${['yes', 'no'].map((v) => `<button type="button" data-helpful="${v}" aria-pressed="${fb.helpful === v}">${esc(T(v))}</button>`).join('')}</div>
+      <button type="button" class="send" id="fbSend">${esc(T('fbSend'))}</button><p class="fb-err" id="fbErr" hidden>${esc(T('fbError'))}</p></div></section>`;
+  }
+
+  function discoverHtml(g, c) {
+    if (!c || g.phase === 'cancelled') return '';
+    const highlights = c.sections.filter((s) => s.highlight && pick(s.highlight));
+    const links = [];
+    if (c.links.map && c.links.map.url) links.push(`<a class="qlink" href="${esc(c.links.map.url)}" target="_blank" rel="noopener noreferrer">${svg('map')}<span><b>${esc(T('map'))}</b><small>${esc(T('mapSub'))}</small></span>${svg('arrow', 'out')}</a>`);
+    if (c.links.website && c.links.website.url) links.push(`<a class="qlink" href="${esc(c.links.website.url)}" target="_blank" rel="noopener noreferrer">${svg('globe')}<span><b>${esc(T('website'))}</b><small>${esc(c.hotelName)}</small></span>${svg('arrow', 'out')}</a>`);
+    const waiting = ['received', 'assigned', 'preparing'].includes(g.phase);
+    if (!highlights.length && !links.length && !c.sections.length) return '';
+    return `<section class="discover" aria-labelledby="dT">
+      <h2 id="dT">${esc(waiting ? T('whileWait') : T('explore'))}</h2>
+      ${waiting && !pick(c.welcome).toLowerCase().startsWith(T('whileWait').toLowerCase()) ? `<p class="dsub">${esc(pick(c.welcome))}</p>` : ''}
+      ${highlights.length ? `<div class="today"><span class="label">${esc(T('happening'))}</span><ul>${highlights.map((s) => `<li>${svg(s.icon)}<span>${esc(pick(s.highlight))}</span></li>`).join('')}</ul></div>` : ''}
+      ${links.length ? `<div class="qlinks">${links.join('')}</div>` : ''}
+      ${c.sections.length ? `<div class="xlist">${c.sections.map((s) => `<details class="x-item"><summary><span class="ic">${svg(s.icon)}</span><span class="tt">${esc(pick(s.title))}</span>${svg('chev', 'chev')}</summary>
+        <div class="body"><p>${esc(pick(s.body))}</p>${pick(s.note) ? `<p class="note2">${esc(pick(s.note))}</p>` : ''}${s.placeholder ? `<span class="soon">${esc(T('detailsSoon'))}</span>` : ''}</div></details>`).join('')}</div>` : ''}
+    </section>`;
+  }
+
+  function render(animate) {
+    langMenu();
+    const g = data.waitingGuest, c = data.content;
+    if (g.phase === 'expired') {
+      app.innerHTML = `<section class="hero quiet"><div class="mark">${svg('lock')}</div><h1>${esc(T('expiredTitle'))}</h1><p class="lead">${esc(T('expiredText'))}</p></section>`;
+      document.title = 'Rixos Bab Al Bahr';
+      return;
+    }
+    const becameReady = animate && lastPhase && lastPhase !== 'ready' && g.phase === 'ready';
+    app.innerHTML = heroHtml(g, c) + (g.phase === 'cancelled' ? '' : stayHtml(g)) + feedbackHtml(g) + discoverHtml(g, c)
+      + `<footer class="g-foot"><span class="live-note"><i></i>${esc(T('live'))}</span><span>${esc(c ? c.hotelName : '')}</span></footer>`;
+    wireFeedback();
+    if (becameReady) {
+      $('.hero', app).classList.add('arrive');
+      try { if (navigator.vibrate) navigator.vibrate([120, 60, 120]); } catch (e) { /* not supported */ }
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } else if (animate && lastPhase && lastPhase !== g.phase) {
+      $('.hero', app).classList.add('step-change');
+    }
+    document.title = (g.phase === 'ready' ? T('tabTitleReady') : T('tabTitle')) + ' · ' + ((c && c.hotelName) || 'Rixos Bab Al Bahr');
+    lastPhase = g.phase;
+  }
+
+  function wireFeedback() {
+    $$('[data-star]', app).forEach((b) => b.addEventListener('click', () => { fb.rating = Number(b.dataset.star); render(false); const s = $(`[data-star="${fb.rating}"]`, app); if (s) s.focus(); }));
+    $$('[data-helpful]', app).forEach((b) => b.addEventListener('click', () => { fb.helpful = fb.helpful === b.dataset.helpful ? '' : b.dataset.helpful; render(false); }));
+    const send = $('#fbSend', app);
+    if (send) send.addEventListener('click', async () => {
+      send.disabled = true;
+      const r = await transport('POST', `/api/guest/${encodeURIComponent(token)}/feedback`, { rating: fb.rating, helpful: fb.helpful });
+      if (r.status === 200 || r.status === 409) { fb.sent = true; render(false); } else { send.disabled = false; $('#fbErr', app).hidden = false; }
+    });
+  }
+
+  function invalid() {
+    langMenu();
+    app.innerHTML = `<section class="hero quiet"><div class="mark">${svg('info')}</div><h1>${esc(T('invalidTitle'))}</h1><p class="lead">${esc(T('invalidText'))}</p></section>`;
   }
 
   function conn(ok) {
     let el = document.getElementById('conn');
     if (ok) { if (el) el.remove(); return; }
-    if (!el) { el = document.createElement('div'); el.id = 'conn'; el.className = 'conn'; el.textContent = T('reconnecting'); document.body.appendChild(el); }
+    if (!el) { el = document.createElement('div'); el.id = 'conn'; el.className = 'conn'; el.setAttribute('role', 'status'); document.body.appendChild(el); }
+    el.textContent = T('reconnecting');
   }
 
-  async function load() {
+  async function load(full) {
     try {
-      const r = await transport('GET', `/api/guest/${encodeURIComponent(token)}${version !== null && data ? `?v=${version}&have=1` : ''}`);
-      if (r.status === 404) { applyLang(storedLang() || 'en'); app.innerHTML = `<div class="err-view"><h1>${esc(T('invalidTitle'))}</h1><p class="muted">${esc(T('invalidText'))}</p></div>`; stop(); return; }
+      const visible = !document.hidden;
+      const q = [];
+      if (!full && version !== null && data) q.push(`v=${version}`, 'have=1');
+      if (visible) q.push('seen=1');
+      const r = await transport('GET', `/api/guest/${encodeURIComponent(token)}${q.length ? '?' + q.join('&') : ''}`);
+      if (r.status === 404) { invalid(); stop(); return; }
       if (r.status === 0 || r.status >= 500) throw new Error('unavailable');
       if (r.status >= 400) throw new Error('bad');
       fails = 0; conn(true);
       if (r.body.unchanged) return;
       version = r.body.version;
-      const changed = !data || JSON.stringify(data.waitingGuest) !== JSON.stringify(r.body.waitingGuest);
-      const firstLoad = !data;
+      const first = !data;
+      const changed = first || JSON.stringify(data.waitingGuest) !== JSON.stringify(r.body.waitingGuest) || JSON.stringify(data.content) !== JSON.stringify(r.body.content);
       data = r.body;
-      if (firstLoad) applyLang(storedLang() || data.waitingGuest.language || 'en'); // guest's own choice wins over Reception's
-      if (changed || firstLoad) render(); // only redraw on a real change, so open cards and scroll position are left alone
+      if (first) applyLang(storedLang() || data.waitingGuest.language || 'en');
+      if (changed) render(!first); // only redraw on a real change, so open cards and scroll position stay put
+      if (data.waitingGuest.phase === 'expired') stop();
     } catch (e) { fails++; if (fails >= 2) conn(false); }
   }
   function stop() { clearTimeout(timer); timer = null; }
   function loop() {
     stop();
-    timer = setTimeout(async () => { if (!document.hidden) await load(); loop(); }, fails ? Math.min(30000, 6000 * (fails + 1)) : 6000);
+    timer = setTimeout(async () => { if (!document.hidden) await load(false); if (timer !== null || fails) loop(); }, fails ? Math.min(30000, 5000 * (fails + 1)) : 5000);
   }
-  document.addEventListener('visibilitychange', () => { if (!document.hidden && timer !== null) load(); });
-  load().then(loop);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) load(false); });
+
+  // First paint from the data embedded by the server; then confirm with a live request (this also records the visit).
+  const pre = WG.boot.data;
+  if (pre && pre.waitingGuest) {
+    data = pre; version = pre.version;
+    applyLang(storedLang() || pre.waitingGuest.language || 'en');
+    render(false);
+    if (pre.waitingGuest.phase === 'expired') return;
+  } else if (WG.boot.platform === 'gas' && !pre) {
+    applyLang(storedLang() || 'en');
+  }
+  load(true).then(loop);
 };
 
 /* ---- 99-boot.js ---- */
