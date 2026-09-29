@@ -176,6 +176,7 @@ function createApp({ db = open(), autoSeed = true, quiet = false } = {}) {
           throw new HttpError(403, 'Cross-origin request blocked');
         return await handleApi(req, res, url, user);
       }
+      if (url.pathname === '/healthz') return send(res, 200, { ok: true });
       if (/^\/waiting\/[\w-]+\/?$/.test(url.pathname)) return serveStatic(res, 'guest.html', { 'Cache-Control': 'no-store' });
       const home = user ? (user.role === 'reception' ? '/reception' : '/controller') : '/login';
       if (url.pathname === '/') { res.writeHead(302, { Location: home }); return res.end(); }

@@ -1,0 +1,24 @@
+# One-click test deployment on Render (https://render.com). Mock data only.
+services:
+  - type: web
+    name: waiting-guest
+    runtime: node
+    plan: starter            # persistent disks need a paid plan
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /healthz
+    envVars:
+      - key: NODE_VERSION
+        value: 22.13.0
+      - key: NODE_ENV
+        value: production
+      - key: WG_DB_FILE
+        value: /var/data/waiting-guest.db
+      - key: WG_DEV_PASSWORD   # you type this in the Render screen; it is never stored in git
+        sync: false
+      - key: WG_PUBLIC_URL     # e.g. https://waiting-guest.onrender.com (set after first deploy)
+        sync: false
+    disk:
+      name: data
+      mountPath: /var/data
+      sizeGB: 1
