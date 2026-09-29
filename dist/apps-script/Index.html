@@ -1,0 +1,1462 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Waiting Guest</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,500;8..60,600&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap">
+<style>
+
+/* Design tokens are inherited from Room Guide (same hospitality product family). */
+:root {
+  --paper: #F7F5F1;
+  --panel: #FFFFFF;
+  --ink: #2B2118;
+  --ink-soft: #6B5D4F;
+  --line: #E6DFD3;
+  --bronze: #6B4E33;
+  --bronze-deep: #4F3A26;
+  --bronze-soft: #EFE4D2;
+  --gold-accent: #C9A24B;
+  --shadow: 0 10px 28px rgba(43, 33, 24, 0.09);
+  --shadow-sm: 0 3px 10px rgba(43, 33, 24, 0.08);
+  --danger: #B0532E;
+  --danger-soft: #F6E4DD;
+
+  /* Waiting Guest status palette (evolved from Room Guide's room-type colours) */
+  --s-waiting: #B57A12;   --s-waiting-bg: #FBF0D6;
+  --s-assigned: #3D6FA8;  --s-assigned-bg: #E3EDF8;
+  --s-preparing: #7A55A3; --s-preparing-bg: #EFE7F7;
+  --s-ready: #2F7F5A;     --s-ready-bg: #DDF1E6;
+  --s-returned: #23695C;  --s-returned-bg: #D9EEEA;
+  --s-completed: #6E747B; --s-completed-bg: #ECEDEF;
+
+  --radius: 12px;
+  --ease: cubic-bezier(.2, .7, .2, 1);
+  color-scheme: light;
+  font-family: "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+html[data-theme="dark"] {
+  --paper: #191510; --panel: #221C15; --ink: #EEE7DC; --ink-soft: #AB9C8B; --line: #382E23;
+  --bronze: #D2AC76; --bronze-deep: #E7C98F; --bronze-soft: #33291C; --gold-accent: #E3B23C;
+  --shadow: 0 10px 28px rgba(0,0,0,.35); --shadow-sm: 0 3px 10px rgba(0,0,0,.3);
+  --danger: #E08052; --danger-soft: #3A2419;
+  --s-waiting: #E3B23C;   --s-waiting-bg: #3A2E14;
+  --s-assigned: #7FAEE0;  --s-assigned-bg: #1D2C40;
+  --s-preparing: #B995DC; --s-preparing-bg: #2E2340;
+  --s-ready: #6FCB9C;     --s-ready-bg: #17372A;
+  --s-returned: #63C2B0;  --s-returned-bg: #16332E;
+  --s-completed: #A3A9B0; --s-completed-bg: #2B2E31;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--paper); color: var(--ink); transition: background .2s ease, color .2s ease; }
+body { font-size: 14px; line-height: 1.45; -webkit-font-smoothing: antialiased; }
+:focus-visible { outline: 2px solid var(--bronze); outline-offset: 2px; }
+button { font-family: inherit; }
+h1, h2, h3 { margin: 0; }
+.serif { font-family: "Source Serif 4", Georgia, serif; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.muted { color: var(--ink-soft); }
+.num { font-variant-numeric: tabular-nums; }
+svg.i { width: 16px; height: 16px; flex-shrink: 0; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; } }
+
+/* ---------- Top bar (same structure as Room Guide) ---------- */
+header.topbar { background: var(--panel); border-bottom: 1px solid var(--line); position: sticky; top: 0; z-index: 40; box-shadow: var(--shadow-sm); }
+.topbar-inner { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; padding: 12px 24px; }
+.brand { display: flex; align-items: center; gap: 14px; }
+.logo-chip { background: #fff; border-radius: 6px; padding: 4px 8px; display: flex; align-items: center; box-shadow: var(--shadow-sm); }
+.logo-chip img { height: 26px; display: block; }
+.brand .divider { width: 1px; height: 26px; background: var(--line); }
+.wordmark { font-family: "Source Serif 4", Georgia, serif; font-weight: 600; font-size: 19px; letter-spacing: .01em; white-space: nowrap; }
+.tagline { font-size: 11px; letter-spacing: .05em; text-transform: uppercase; color: var(--ink-soft); white-space: nowrap; margin-top: 1px; }
+.header-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.user-chip { font-size: 12.5px; color: var(--ink-soft); padding-right: 4px; }
+.user-chip b { color: var(--ink); font-weight: 700; }
+.live-dot { display: inline-flex; align-items: center; gap: 6px; font-size: 11.5px; font-weight: 600; color: var(--ink-soft); }
+.live-dot::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--s-ready); box-shadow: 0 0 0 0 var(--s-ready); animation: pulse 2s infinite; }
+.live-dot.off::before { background: var(--danger); animation: none; }
+@keyframes pulse { 0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--s-ready) 55%, transparent); } 70% { box-shadow: 0 0 0 8px transparent; } 100% { box-shadow: 0 0 0 0 transparent; } }
+
+/* ---------- Buttons ---------- */
+.text-btn, .icon-btn { border: 1px solid var(--line); background: var(--paper); color: var(--ink); cursor: pointer; font-weight: 600; transition: border-color .15s, color .15s, background .15s, transform .1s; }
+.text-btn { padding: 8px 14px; border-radius: 18px; font-size: 12.5px; display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+.icon-btn { width: 34px; height: 34px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; }
+.text-btn:hover, .icon-btn:hover { border-color: var(--bronze); color: var(--bronze-deep); }
+.btn { border: 1px solid transparent; border-radius: 10px; padding: 11px 18px; min-height: 44px; font-size: 13.5px; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 8px; transition: background .15s, transform .1s, box-shadow .15s, opacity .15s; text-decoration: none; }
+.btn:active:not(:disabled) { transform: scale(.98); }
+.btn-primary { background: var(--bronze); color: #fff; }
+.btn-primary:hover:not(:disabled) { background: var(--bronze-deep); }
+html[data-theme="dark"] .btn-primary { color: #1b140c; }
+.btn-ghost { background: var(--paper); border-color: var(--line); color: var(--ink); }
+.btn-ghost:hover:not(:disabled) { border-color: var(--bronze); color: var(--bronze-deep); }
+.btn-ready { background: var(--s-ready); color: #fff; }
+.btn-ready:hover:not(:disabled) { filter: brightness(.92); }
+html[data-theme="dark"] .btn-ready { color: #0d2418; }
+.btn:disabled { opacity: .5; cursor: not-allowed; }
+.btn-sm { min-height: 34px; padding: 6px 12px; font-size: 12.5px; border-radius: 9px; }
+.btn.loading { position: relative; color: transparent !important; pointer-events: none; }
+.btn.loading::after { content: ""; position: absolute; width: 16px; height: 16px; border: 2px solid #fff; border-right-color: transparent; border-radius: 50%; animation: spin .7s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ---------- Forms ---------- */
+.field { display: flex; flex-direction: column; gap: 6px; }
+.field > span, .label { font-size: 11px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--ink-soft); }
+.field .opt { font-weight: 500; text-transform: none; letter-spacing: 0; }
+input.in, textarea.in, select.in { border: 1px solid var(--line); background: var(--paper); color: var(--ink); padding: 11px 12px; border-radius: 8px; font: inherit; font-size: 14px; font-weight: 500; width: 100%; min-height: 44px; transition: border-color .15s, box-shadow .15s; }
+textarea.in { resize: vertical; min-height: 64px; }
+.in:focus { outline: none; border-color: var(--bronze); box-shadow: 0 0 0 3px color-mix(in srgb, var(--bronze) 18%, transparent); }
+.in[aria-invalid="true"] { border-color: var(--danger); }
+.field-error { font-size: 12px; color: var(--danger); }
+.search-box { display: flex; align-items: center; gap: 10px; border: 1px solid var(--line); border-radius: 26px; padding: 4px 8px 4px 18px; background: var(--panel); box-shadow: var(--shadow-sm); transition: border-color .15s, box-shadow .15s; }
+.search-box:focus-within { border-color: var(--bronze); box-shadow: 0 0 0 3px color-mix(in srgb, var(--bronze) 16%, transparent); }
+.search-box input { flex: 1; border: none; background: transparent; outline: none; font: inherit; font-size: 16px; font-weight: 500; color: var(--ink); min-height: 46px; min-width: 0; }
+.search-box input::placeholder { color: var(--ink-soft); font-weight: 400; }
+kbd { font: inherit; font-size: 10px; color: var(--ink-soft); border: 1px solid var(--line); border-radius: 4px; padding: 1px 5px; }
+
+/* ---------- Cards / pills / banners ---------- */
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; box-shadow: var(--shadow-sm); }
+.section-label { font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-soft); margin: 0 0 10px; }
+.pill { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 14px; font-size: 11.5px; font-weight: 700; white-space: nowrap; }
+.pill::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+.st-waiting { color: var(--s-waiting); background: var(--s-waiting-bg); }
+.st-room_assigned { color: var(--s-assigned); background: var(--s-assigned-bg); }
+.st-preparing { color: var(--s-preparing); background: var(--s-preparing-bg); }
+.st-ready { color: var(--s-ready); background: var(--s-ready-bg); }
+.st-returned { color: var(--s-returned); background: var(--s-returned-bg); }
+.st-completed { color: var(--s-completed); background: var(--s-completed-bg); }
+.type-pill { background: var(--bronze-soft); color: var(--bronze-deep); font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: 6px; letter-spacing: .02em; }
+.banner { padding: 10px 14px; border-radius: 10px; font-size: 13px; display: flex; gap: 10px; align-items: flex-start; }
+.banner.err { background: var(--danger-soft); color: var(--danger); }
+.banner.info { background: var(--bronze-soft); color: var(--bronze-deep); }
+.empty { text-align: center; padding: 36px 20px; color: var(--ink-soft); }
+.empty svg { width: 40px; height: 40px; stroke-width: 1.5; opacity: .7; margin-bottom: 8px; }
+.empty b { display: block; color: var(--ink); font-family: "Source Serif 4", Georgia, serif; font-size: 17px; font-weight: 600; margin-bottom: 4px; }
+.skeleton { background: linear-gradient(90deg, var(--line), color-mix(in srgb, var(--line) 40%, var(--panel)), var(--line)); background-size: 200% 100%; animation: shimmer 1.3s infinite; border-radius: 8px; }
+@keyframes shimmer { to { background-position: -200% 0; } }
+.kv { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px 18px; }
+.kv > div > span { display: block; font-size: 10.5px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-soft); margin-bottom: 2px; }
+.kv > div > b { font-weight: 600; font-size: 13.5px; word-break: break-word; }
+
+/* ---------- Toast ---------- */
+#toasts { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); z-index: 300; display: flex; flex-direction: column; gap: 8px; align-items: center; width: min(92vw, 420px); pointer-events: none; }
+.toast { background: var(--ink); color: var(--paper); padding: 12px 16px; border-radius: 12px; font-size: 13.5px; font-weight: 600; box-shadow: var(--shadow); animation: toastIn .3s var(--ease); display: flex; gap: 10px; align-items: center; }
+.toast.err { background: var(--danger); color: #fff; }
+.toast.out { opacity: 0; transform: translateY(8px); transition: all .3s; }
+@keyframes toastIn { from { opacity: 0; transform: translateY(12px) scale(.97); } }
+
+/* ---------- Modal ---------- */
+.modal-overlay { position: fixed; inset: 0; background: rgba(25, 20, 14, .5); z-index: 200; display: flex; align-items: center; justify-content: center; padding: 20px; animation: fade .2s; }
+.modal-box { background: var(--panel); border-radius: 16px; padding: 26px; max-width: 420px; width: 100%; box-shadow: var(--shadow); animation: rise .25s var(--ease); }
+.modal-box h2 { font-family: "Source Serif 4", Georgia, serif; font-size: 21px; font-weight: 600; margin-bottom: 6px; }
+.modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px; flex-wrap: wrap; }
+@keyframes fade { from { opacity: 0; } }
+@keyframes rise { from { opacity: 0; transform: translateY(10px) scale(.98); } }
+
+/* ---------- Auth ---------- */
+.auth-gate { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; }
+.auth-card { padding: 36px 34px 30px; width: 100%; max-width: 360px; text-align: center; animation: rise .4s var(--ease); }
+.auth-logo { background: #fff; display: inline-flex; padding: 8px 14px; border-radius: 8px; box-shadow: var(--shadow-sm); margin-bottom: 16px; }
+.auth-logo img { height: 32px; }
+.auth-card h1 { font-family: "Source Serif 4", Georgia, serif; font-weight: 600; font-size: 24px; margin-bottom: 4px; }
+.auth-sub { font-size: 12px; color: var(--ink-soft); margin-bottom: 22px; }
+.auth-card form { display: flex; flex-direction: column; gap: 14px; text-align: left; }
+
+/* Admin + shared additions */
+.linkish { background: none; border: none; padding: 0; font: inherit; color: var(--bronze-deep); font-weight: 700; text-decoration: underline; cursor: pointer; }
+.btn-danger { color: var(--danger); }
+.btn-danger:hover:not(:disabled) { border-color: var(--danger) !important; color: var(--danger) !important; }
+.mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12.5px; }
+code { background: var(--bronze-soft); padding: 1px 6px; border-radius: 5px; font-size: 12px; word-break: break-all; }
+.ad-wrap { max-width: 1100px; margin: 0 auto; padding: 18px 24px 48px; }
+.ad-tabs { display: flex; gap: 6px; margin-bottom: 18px; overflow-x: auto; scrollbar-width: none; padding-bottom: 2px; }
+.ad-tabs button { border: 1px solid var(--line); background: var(--panel); color: var(--ink-soft); padding: 9px 16px; border-radius: 18px; font-size: 13px; font-weight: 600; cursor: pointer; white-space: nowrap; transition: all .13s; }
+.ad-tabs button:hover { border-color: var(--bronze); }
+.ad-tabs button.on { background: var(--bronze); border-color: var(--bronze); color: #fff; }
+html[data-theme="dark"] .ad-tabs button.on { color: #1b140c; }
+.ad-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+.ad-h { font-size: 19px; font-weight: 600; margin: 26px 0 10px; }
+.panel { padding: 22px; animation: rise .3s var(--ease); }
+.panel h2 { font-size: 24px; font-weight: 600; margin-bottom: 6px; }
+.panel hr { border: none; border-top: 1px solid var(--line); margin: 18px 0; }
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.form-grid .full { grid-column: 1 / -1; }
+.actions { display: flex; gap: 10px; margin-top: 18px; flex-wrap: wrap; }
+@media (max-width: 560px) { .form-grid { grid-template-columns: 1fr; } .ad-wrap { padding: 14px 16px 40px; } }
+.tbl { width: 100%; border-collapse: collapse; font-size: 13px; }
+.tbl th { text-align: left; font-size: 10.5px; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-soft); padding: 10px 12px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+.tbl td { padding: 10px 12px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+.tbl tr:last-child td { border-bottom: none; }
+.drop { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin: 14px 0 10px; }
+details.map summary { cursor: pointer; font-size: 13px; }
+.pw-box { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 22px; font-weight: 700; letter-spacing: .04em; background: var(--bronze-soft); color: var(--bronze-deep); padding: 14px; border-radius: 10px; text-align: center; margin-top: 10px; user-select: all; word-break: break-all; }
+.metrics-note { font-size: 12px; }
+.metric { flex: 1 0 140px; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 10px 14px; box-shadow: var(--shadow-sm); }
+.metric span { display: block; font-size: 10.5px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-soft); }
+.metric b { font-family: "Source Serif 4", Georgia, serif; font-size: 26px; font-weight: 600; line-height: 1.2; }
+.metric.hot b { color: var(--danger); } .metric.good b { color: var(--s-ready); }
+
+.rc-wrap { display: grid; grid-template-columns: minmax(0, 1fr) 380px; gap: 24px; max-width: 1240px; margin: 0 auto; padding: 24px; align-items: start; }
+.rc-main { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+.hint { font-size: 12.5px; padding: 0 6px; }
+.rc-side { position: sticky; top: 84px; max-height: calc(100vh - 100px); display: flex; flex-direction: column; }
+.side-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; gap: 10px; }
+.side-head h2 { font-size: 19px; font-weight: 600; }
+.seg { display: inline-flex; background: var(--paper); border: 1px solid var(--line); border-radius: 18px; padding: 2px; }
+.seg button { border: none; background: transparent; padding: 5px 12px; border-radius: 16px; font-size: 12px; font-weight: 600; color: var(--ink-soft); cursor: pointer; }
+.seg button.on { background: var(--bronze); color: #fff; }
+html[data-theme="dark"] .seg button.on { color: #1b140c; }
+#list { overflow-y: auto; display: flex; flex-direction: column; gap: 8px; padding: 2px 2px 8px; }
+
+.row { display: grid; grid-template-columns: 1fr auto; gap: 4px 10px; padding: 12px 14px; text-align: left; width: 100%; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; cursor: pointer; color: inherit; font: inherit; transition: border-color .15s, box-shadow .15s, transform .15s; }
+.row:hover { border-color: var(--bronze); box-shadow: var(--shadow-sm); }
+.row.sel { border-color: var(--bronze); box-shadow: 0 0 0 2px color-mix(in srgb, var(--bronze) 25%, transparent); }
+.row .top { display: flex; gap: 8px; align-items: baseline; min-width: 0; }
+.row .wg { font-weight: 800; letter-spacing: .01em; }
+.row .nm { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.row .sub { grid-column: 1 / 2; font-size: 12px; color: var(--ink-soft); }
+.row .end { grid-row: 1 / 3; grid-column: 2; display: flex; flex-direction: column; align-items: flex-end; gap: 4px; justify-content: center; }
+.row .t { font-size: 12px; color: var(--ink-soft); font-weight: 600; }
+.row.res .wg { color: var(--bronze-deep); }
+.row.flash { animation: flash 1.4s var(--ease); }
+@keyframes flash { 0% { background: var(--bronze-soft); } }
+.group-label { font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-soft); margin: 4px 4px 0; }
+#results { display: flex; flex-direction: column; gap: 8px; }
+
+.panel { padding: 22px; animation: rise .3s var(--ease); }
+.panel-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
+.panel-head h2 { font-size: 24px; font-weight: 600; }
+.panel hr { border: none; border-top: 1px solid var(--line); margin: 18px 0; }
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.form-grid .full { grid-column: 1 / -1; }
+.auto-note { font-size: 12px; color: var(--ink-soft); display: flex; gap: 8px; align-items: center; margin: 4px 0 14px; }
+.actions { display: flex; gap: 10px; margin-top: 18px; flex-wrap: wrap; }
+.actions .btn-primary { flex: 1; min-width: 220px; font-size: 15px; min-height: 50px; }
+
+.success { text-align: center; padding: 28px 22px 24px; animation: rise .35s var(--ease); }
+.success .tick { width: 54px; height: 54px; border-radius: 50%; background: var(--s-ready-bg); color: var(--s-ready); display: inline-flex; align-items: center; justify-content: center; margin-bottom: 10px; animation: pop .5s var(--ease); }
+.success .tick svg { width: 26px; height: 26px; stroke-width: 2.6; }
+@keyframes pop { from { transform: scale(.4); opacity: 0; } }
+.big-wg { font-family: "Source Serif 4", Georgia, serif; font-size: 52px; font-weight: 600; letter-spacing: .02em; line-height: 1.05; color: var(--bronze-deep); margin: 4px 0; }
+.qr { width: 220px; max-width: 70vw; margin: 14px auto 6px; padding: 10px; background: #fff; border: 1px solid var(--line); border-radius: 14px; box-shadow: var(--shadow-sm); }
+.qr svg { width: 100%; height: auto; display: block; }
+.link-row { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin-top: 12px; }
+
+.timeline { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 0; }
+.timeline li { display: grid; grid-template-columns: 14px 1fr auto; gap: 10px; padding: 6px 0; position: relative; font-size: 13px; }
+.timeline li::before { content: ""; width: 9px; height: 9px; border-radius: 50%; background: var(--bronze); margin-top: 5px; box-shadow: 0 0 0 3px var(--bronze-soft); }
+.timeline li::after { content: ""; position: absolute; left: 4px; top: 20px; bottom: -6px; width: 1px; background: var(--line); }
+.timeline li:last-child::after { display: none; }
+.timeline .when { color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+.verify { background: var(--bronze-soft); border-radius: 12px; padding: 14px 16px; margin-bottom: 16px; }
+.verify .kv > div > b { font-size: 15px; }
+.ready-note { background: var(--s-ready-bg); color: var(--s-ready); padding: 10px 14px; border-radius: 10px; font-weight: 700; margin-bottom: 14px; display: flex; gap: 8px; align-items: center; }
+
+@media (max-width: 960px) {
+  .rc-wrap { grid-template-columns: 1fr; padding: 16px; }
+  .rc-side { position: static; max-height: none; }
+  .topbar-inner { padding: 10px 16px; }
+}
+@media (max-width: 560px) { .form-grid { grid-template-columns: 1fr; } .big-wg { font-size: 42px; } }
+
+.metrics { display: flex; gap: 10px; padding: 14px 24px 0; overflow-x: auto; scrollbar-width: none; max-width: 1500px; margin: 0 auto; }
+.metrics::-webkit-scrollbar { display: none; }
+.filters { display: flex; gap: 8px; padding: 12px 24px; flex-wrap: wrap; max-width: 1500px; margin: 0 auto; }
+.chip { border: 1px solid var(--line); background: var(--panel); color: var(--ink-soft); padding: 6px 13px; border-radius: 16px; font-size: 12px; font-weight: 600; cursor: pointer; transition: all .13s; display: inline-flex; gap: 6px; align-items: center; }
+.chip:hover { border-color: var(--bronze); }
+.chip.on { background: var(--bronze); border-color: var(--bronze); color: #fff; }
+html[data-theme="dark"] .chip.on { color: #1b140c; }
+.chip i { font-style: normal; opacity: .75; font-variant-numeric: tabular-nums; }
+
+.rc-body { display: grid; grid-template-columns: minmax(0, 1fr) 420px; gap: 20px; max-width: 1500px; margin: 0 auto; padding: 0 24px 40px; align-items: start; }
+#queue { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+
+/* queue card: dense, timer-first */
+.q { --c: var(--s-waiting); display: grid; grid-template-columns: 5px 118px minmax(0, 1fr) auto; align-items: stretch; background: var(--panel); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; cursor: pointer; text-align: left; width: 100%; color: inherit; font: inherit; padding: 0; box-shadow: var(--shadow-sm); transition: border-color .15s, box-shadow .15s, transform .15s; animation: rise .3s var(--ease); }
+.q:hover { border-color: var(--bronze); box-shadow: var(--shadow); }
+.q.sel { border-color: var(--bronze); box-shadow: 0 0 0 2px color-mix(in srgb, var(--bronze) 30%, transparent), var(--shadow); }
+.q.s-waiting { --c: var(--s-waiting); } .q.s-room_assigned { --c: var(--s-assigned); } .q.s-preparing { --c: var(--s-preparing); }
+.q.s-ready { --c: var(--s-ready); } .q.s-returned { --c: var(--s-returned); }
+.q .bar { background: var(--c); }
+.q.pri .bar { background: repeating-linear-gradient(45deg, var(--danger) 0 6px, var(--c) 6px 12px); }
+.q .timer { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 10px 6px; border-right: 1px solid var(--line); background: color-mix(in srgb, var(--c) 7%, var(--panel)); }
+.q .timer b { font-family: "Source Serif 4", Georgia, serif; font-size: 30px; line-height: 1; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--ink); }
+.q .timer small { font-size: 9.5px; letter-spacing: .08em; text-transform: uppercase; font-weight: 700; color: var(--ink-soft); margin-top: 5px; }
+.q.late1 .timer b { color: var(--s-waiting); } .q.late2 .timer b { color: var(--danger); }
+.q.s-ready .timer b, .q.s-returned .timer b { color: var(--s-ready); }
+.q .main { padding: 10px 14px; min-width: 0; display: flex; flex-direction: column; gap: 5px; }
+.q .l1 { display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; }
+.q .wg { font-weight: 800; font-size: 15px; letter-spacing: .01em; }
+.q .nm { font-weight: 700; font-size: 15px; }
+.q .l2 { display: flex; gap: 6px 14px; flex-wrap: wrap; font-size: 12px; color: var(--ink-soft); align-items: center; }
+.q .l2 span { display: inline-flex; gap: 5px; align-items: center; white-space: nowrap; }
+.q .l2 svg { width: 13px; height: 13px; }
+.q .l3 { font-size: 12.5px; display: flex; gap: 6px; flex-wrap: wrap; }
+.q .note { background: var(--bronze-soft); color: var(--bronze-deep); padding: 2px 8px; border-radius: 6px; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.q .note.rem { background: var(--s-waiting-bg); color: var(--s-waiting); }
+.q .side { display: flex; flex-direction: column; align-items: flex-end; justify-content: center; gap: 8px; padding: 10px 14px; }
+.q .room { font-family: "Source Serif 4", Georgia, serif; font-weight: 600; font-size: 20px; }
+.q .room.none { font-family: inherit; font-size: 12px; color: var(--ink-soft); font-weight: 500; }
+.q .flag { color: var(--danger); font-weight: 800; font-size: 10.5px; letter-spacing: .08em; }
+.q-new { animation: newrow 1.6s var(--ease); }
+@keyframes newrow { 0% { background: var(--bronze-soft); transform: translateY(-6px); } }
+
+/* detail column (mirrors Room Guide's right-hand detail panel) */
+.detail { position: sticky; top: 84px; max-height: calc(100vh - 100px); overflow-y: auto; }
+.d-card { padding: 20px; animation: rise .25s var(--ease); }
+.d-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 4px; }
+.d-head h2 { font-family: "Source Serif 4", Georgia, serif; font-size: 26px; font-weight: 600; }
+.d-sub { color: var(--ink-soft); font-size: 13px; margin-bottom: 14px; }
+.d-sec { margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--line); }
+.d-time { text-align: center; padding: 14px; border-radius: 12px; background: var(--bronze-soft); margin-bottom: 4px; }
+.d-time b { font-family: "Source Serif 4", Georgia, serif; font-size: 38px; font-weight: 600; font-variant-numeric: tabular-nums; line-height: 1; }
+.d-time span { display: block; font-size: 10.5px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-soft); margin-top: 4px; }
+.pref-box { background: var(--bronze-soft); border-radius: 10px; padding: 10px 12px; font-size: 13px; margin-bottom: 8px; }
+.pref-box.rem { background: var(--s-waiting-bg); }
+.pref-box span { display: block; font-size: 10.5px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-soft); }
+.steps { display: flex; flex-direction: column; gap: 4px; margin-bottom: 12px; }
+.step { display: grid; grid-template-columns: 20px 1fr auto; gap: 10px; align-items: center; font-size: 13px; color: var(--ink-soft); padding: 3px 0; }
+.step .dot { width: 12px; height: 12px; border-radius: 50%; border: 2px solid var(--line); margin-left: 4px; }
+.step.done { color: var(--ink); } .step.done .dot { background: var(--s-ready); border-color: var(--s-ready); }
+.step.now { color: var(--ink); font-weight: 700; } .step.now .dot { border-color: var(--bronze); background: var(--bronze-soft); box-shadow: 0 0 0 3px color-mix(in srgb, var(--bronze) 20%, transparent); }
+.step .ts { font-size: 12px; font-variant-numeric: tabular-nums; }
+.act { display: flex; flex-direction: column; gap: 8px; }
+.room-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(78px, 1fr)); gap: 6px; max-height: 240px; overflow-y: auto; padding: 2px; }
+.rm { border: 1px solid var(--line); background: var(--paper); border-radius: 10px; padding: 8px 6px; cursor: pointer; text-align: center; font: inherit; color: inherit; transition: border-color .15s, background .15s; min-height: 44px; }
+.rm:hover { border-color: var(--bronze); }
+.rm.on { background: var(--bronze); border-color: var(--bronze); color: #fff; }
+html[data-theme="dark"] .rm.on { color: #1b140c; }
+.rm b { display: block; font-size: 15px; }
+.rm small { display: block; font-size: 10px; opacity: .8; }
+.rm.other { opacity: .75; }
+.hk-dirty small { color: var(--danger); } .rm.on small { color: inherit; }
+.legend-note { font-size: 11.5px; color: var(--ink-soft); margin: 6px 0 0; }
+.toggle { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; cursor: pointer; }
+.detail-empty { padding: 36px 20px; }
+
+@media (max-width: 1100px) {
+  .rc-body { grid-template-columns: 1fr; padding: 0 16px 40px; }
+  .detail { position: fixed; inset: auto 0 0 0; max-height: 86vh; z-index: 60; border-radius: 18px 18px 0 0; box-shadow: 0 -12px 40px rgba(0,0,0,.25); background: var(--panel); transform: translateY(105%); transition: transform .3s var(--ease); }
+  .detail.open { transform: none; }
+  .detail-close { display: inline-flex !important; }
+  .metrics, .filters { padding-left: 16px; padding-right: 16px; }
+}
+@media (max-width: 640px) {
+  .q { grid-template-columns: 5px 84px minmax(0, 1fr); }
+  .q .side { grid-column: 3; flex-direction: row; justify-content: space-between; align-items: center; padding-top: 0; }
+  .q .timer b { font-size: 24px; }
+}
+.detail-close { display: none; }
+
+body { background: var(--paper); }
+.g-shell { max-width: 520px; margin: 0 auto; padding: 0 16px calc(28px + env(safe-area-inset-bottom)); min-height: 100vh; display: flex; flex-direction: column; }
+.g-top { display: flex; justify-content: center; padding: calc(18px + env(safe-area-inset-top)) 0 16px; }
+.g-foot { text-align: center; color: var(--ink-soft); font-size: 12px; letter-spacing: .06em; text-transform: uppercase; margin-top: auto; padding-top: 28px; }
+
+.hero { border-radius: 24px; padding: 30px 22px 26px; text-align: center; color: #fff; background: linear-gradient(155deg, #6B4E33 0%, #4F3A26 100%); box-shadow: var(--shadow); position: relative; overflow: hidden; transition: background .6s var(--ease); animation: rise .5s var(--ease); }
+.hero::before { content: ""; position: absolute; inset: -40% -20% auto auto; width: 320px; height: 320px; border-radius: 50%; background: radial-gradient(circle, rgba(201,162,75,.35), transparent 65%); pointer-events: none; }
+.hero.ready { background: linear-gradient(155deg, #2F7F5A 0%, #1F5B40 100%); }
+.hero.ready::before { background: radial-gradient(circle, rgba(255,255,255,.28), transparent 65%); }
+.hero.done { background: linear-gradient(155deg, #5c5f66, #43464c); }
+.hero > * { position: relative; }
+.eyebrow { font-size: 11.5px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; opacity: .85; }
+.hero h1 { font-family: "Source Serif 4", Georgia, serif; font-weight: 600; font-size: clamp(30px, 9vw, 40px); line-height: 1.12; margin: 12px 0 10px; letter-spacing: .005em; text-transform: none; }
+.hero p { margin: 0 auto; max-width: 34ch; font-size: 15px; line-height: 1.5; opacity: .95; }
+.badge { width: 68px; height: 68px; border-radius: 50%; margin: 0 auto 4px; display: flex; align-items: center; justify-content: center; background: rgba(255,255,255,.14); border: 1px solid rgba(255,255,255,.3); }
+.badge svg { width: 30px; height: 30px; stroke-width: 2.2; }
+.hero.ready .badge { animation: pop .7s var(--ease); background: rgba(255,255,255,.2); }
+.hero:not(.ready):not(.done) .badge svg { animation: sway 3.2s ease-in-out infinite; }
+@keyframes sway { 50% { transform: rotate(12deg) scale(1.06); } }
+@keyframes pop { from { transform: scale(.3); opacity: 0; } 60% { transform: scale(1.12); } }
+.ref { margin-top: 20px; display: inline-flex; flex-direction: column; gap: 2px; background: rgba(255,255,255,.12); border: 1px solid rgba(255,255,255,.25); border-radius: 14px; padding: 10px 22px; }
+.ref span { font-size: 10.5px; letter-spacing: .12em; text-transform: uppercase; opacity: .8; font-weight: 700; }
+.ref b { font-family: "Source Serif 4", Georgia, serif; font-size: 30px; letter-spacing: .04em; font-weight: 600; }
+
+.g-card { padding: 18px 18px 8px; margin-top: 14px; }
+.g-card .kv { grid-template-columns: 1fr 1fr; padding-bottom: 12px; }
+.g-card h2, .sec-title { font-family: "Source Serif 4", Georgia, serif; font-size: 22px; font-weight: 600; }
+
+.progress { display: flex; align-items: center; margin: 16px 4px 4px; }
+.progress .p { display: flex; flex-direction: column; align-items: center; gap: 6px; flex: 0 0 auto; width: 76px; font-size: 11px; font-weight: 600; color: var(--ink-soft); text-align: center; }
+.progress .p i { width: 14px; height: 14px; border-radius: 50%; border: 2px solid var(--line); background: var(--panel); transition: all .4s var(--ease); }
+.progress .p.on { color: var(--ink); } .progress .p.on i { background: var(--s-ready); border-color: var(--s-ready); }
+.progress .p.cur i { border-color: var(--bronze); background: var(--bronze-soft); box-shadow: 0 0 0 4px color-mix(in srgb, var(--bronze) 22%, transparent); animation: pulse2 2s infinite; }
+.progress .ln { flex: 1; height: 2px; background: var(--line); margin-bottom: 22px; }
+.progress .ln.on { background: var(--s-ready); }
+@keyframes pulse2 { 50% { box-shadow: 0 0 0 7px transparent; } }
+
+.wait-title { margin: 30px 4px 4px; }
+.wait-sub { margin: 0 4px 14px; color: var(--ink-soft); font-size: 14px; }
+.links { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px; }
+.link-btn { display: flex; flex-direction: column; gap: 6px; padding: 16px 14px; border-radius: 16px; text-decoration: none; color: var(--ink); background: var(--panel); border: 1px solid var(--line); box-shadow: var(--shadow-sm); font-weight: 700; min-height: 88px; transition: transform .15s, border-color .15s; }
+.link-btn:hover { border-color: var(--bronze); transform: translateY(-1px); }
+.link-btn svg { width: 22px; height: 22px; color: var(--bronze); }
+.link-btn small { font-weight: 500; color: var(--ink-soft); font-size: 12px; }
+.link-btn.off { opacity: .6; pointer-events: none; }
+.cards { display: flex; flex-direction: column; gap: 10px; }
+.tile { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; box-shadow: var(--shadow-sm); overflow: hidden; }
+.tile summary { list-style: none; cursor: pointer; display: flex; align-items: center; gap: 14px; padding: 16px; min-height: 60px; }
+.tile summary::-webkit-details-marker { display: none; }
+.tile .ic { width: 42px; height: 42px; border-radius: 12px; background: var(--bronze-soft); color: var(--bronze-deep); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.tile .ic svg { width: 22px; height: 22px; }
+.tile .tt { font-weight: 700; font-size: 15.5px; flex: 1; }
+.tile .chev { transition: transform .25s var(--ease); color: var(--ink-soft); }
+.tile[open] .chev { transform: rotate(180deg); }
+.tile .body { padding: 0 16px 16px 72px; color: var(--ink-soft); font-size: 14px; line-height: 1.55; animation: fade .3s; }
+.tile .soon { display: inline-block; margin-top: 8px; font-size: 10.5px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--bronze-deep); background: var(--bronze-soft); padding: 2px 8px; border-radius: 6px; }
+.notice { margin: 24px 4px 0; font-size: 12px; color: var(--ink-soft); text-align: center; }
+.err-view { text-align: center; padding: 60px 20px; }
+.err-view h1 { font-family: "Source Serif 4", Georgia, serif; font-size: 26px; margin-bottom: 8px; }
+.conn { position: fixed; left: 50%; transform: translateX(-50%); bottom: 14px; background: var(--ink); color: var(--paper); padding: 8px 14px; border-radius: 18px; font-size: 12.5px; font-weight: 600; z-index: 20; }
+@media (max-width: 360px) { .links { grid-template-columns: 1fr; } .progress .p { width: 64px; } }
+
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script>window.WG_BOOT = <?!= boot ?>;</script>
+<script>
+const WG_ASSETS = { logo: 'data:image/png;base64,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' };
+/* ---- 00-common.js ---- */
+'use strict';
+/* Shared client code. Runs inside Google Apps Script's HtmlService (production)
+   and in the local dev server; only the transport differs. */
+const WG = { views: {}, boot: window.WG_BOOT || {}, token: null, stopLive: null, skew: 0 };
+/** Server-corrected clock: hotel PCs are often a few minutes off, which would make waiting timers wrong. */
+const nowMs = () => Date.now() + WG.skew;
+
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+const esc = (v) => String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+const ICONS = {
+  search: '<circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>',
+  moon: '<path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/>',
+  sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
+  out: '<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/>',
+  check: '<path d="M20 6L9 17l-5-5"/>',
+  user: '<path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>',
+  bag: '<rect x="5" y="8" width="14" height="13" rx="2"/><path d="M9 8V5a3 3 0 0 1 6 0v3"/>',
+  clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 3.5"/>',
+  key: '<circle cx="8" cy="15" r="4"/><path d="M10.8 12.2L21 2M16 7l3 3"/>',
+  copy: '<rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/>',
+  link: '<path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"/>',
+  plus: '<path d="M12 5v14M5 12h14"/>',
+  queue: '<path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/>',
+  door: '<path d="M4 21V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v17M2 21h20M12 12h.01"/>',
+  upload: '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/>',
+  download: '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/>',
+  users: '<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.9M16 3.1a4 4 0 0 1 0 7.8"/>',
+  alert: '<path d="M10.3 3.9L1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0zM12 9v4M12 17h.01"/>',
+};
+const icon = (n) => `<svg class="i" viewBox="0 0 24 24" aria-hidden="true">${ICONS[n] || ''}</svg>`;
+
+const STATUS_LABEL = {
+  waiting: 'Waiting', room_assigned: 'Room Assigned', preparing: 'Room Being Prepared', ready: 'Room Ready',
+  returned: 'Guest Returned', completed: 'Completed', cancelled: 'Cancelled',
+};
+const STATUS_ORDER = ['waiting', 'room_assigned', 'preparing', 'ready', 'returned', 'completed'];
+const statusPill = (s) => `<span class="pill st-${s}">${STATUS_LABEL[s] || esc(s)}</span>`;
+
+/* ---------- transport: Apps Script (google.script.run) or dev server (fetch) ---------- */
+function transport(method, path, body) {
+  const token = WG.token || '';
+  if (window.google && window.google.script && window.google.script.run) {
+    return new Promise((resolve) => {
+      window.google.script.run
+        .withSuccessHandler((r) => resolve(r && typeof r.status === 'number' ? r : { status: 500, body: { error: 'Unexpected reply from the server' } }))
+        .withFailureHandler(() => resolve({ status: 0, body: { error: 'Cannot reach the server. Check your connection.' } }))
+        .apiCall(token, method, path, body || null);
+    });
+  }
+  return fetch('/rpc', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token, method, path, body: body || null }) })
+    .then((r) => r.json())
+    .catch(() => ({ status: 0, body: { error: 'Cannot reach the server. Check your connection.' } }));
+}
+
+async function api(method, path, body) {
+  const t0 = Date.now();
+  const r = await transport(method, path, body);
+  if (typeof r.t === 'number') WG.skew = r.t - (t0 + Date.now()) / 2; // assume symmetric latency
+  if (r.status === 401 && path !== '/api/login') { forgetToken(); showLogin('Your session has ended. Please sign in again.'); throw Object.assign(new Error('Signed out'), { status: 401, silent: true }); }
+  if (r.status === 0) throw Object.assign(new Error(r.body.error), { offline: true });
+  if (r.status >= 400) throw Object.assign(new Error((r.body && r.body.error) || 'Something went wrong'), { status: r.status, data: r.body });
+  return r.body;
+}
+
+function rememberToken(t) { WG.token = t; try { sessionStorage.setItem('wg-token', t); } catch (e) { /* storage blocked: stay signed in for this page only */ } }
+function forgetToken() { WG.token = null; try { sessionStorage.removeItem('wg-token'); } catch (e) { /* ignore */ } if (WG.stopLive) { WG.stopLive(); WG.stopLive = null; } }
+function storedToken() { try { return sessionStorage.getItem('wg-token'); } catch (e) { return null; } }
+
+/* ---------- live sync: poll a tiny version counter, refetch only when it changes ---------- */
+function live(onChange, onState = () => {}, { baseMs = 4000 } = {}) {
+  let last = null, timer = null, fails = 0, stopped = false, busy = false;
+  const tick = async () => {
+    if (stopped || busy) return;
+    if (document.hidden) { schedule(); return; }
+    busy = true;
+    try {
+      const { version } = await api('GET', '/api/version');
+      fails = 0; onState(true);
+      if (last === null || version !== last) onChange(); // first tick also refreshes, so nothing changed since page load is missed
+      last = version;
+    } catch (e) { if (e.silent) { stopped = true; return; } fails++; onState(false); }
+    busy = false; schedule();
+  };
+  const schedule = () => { clearTimeout(timer); if (!stopped) timer = setTimeout(tick, fails ? Math.min(30000, baseMs * (fails + 1)) : baseMs); };
+  const onVis = () => { if (!document.hidden) { clearTimeout(timer); tick(); } };
+  document.addEventListener('visibilitychange', onVis);
+  tick();
+  return () => { stopped = true; clearTimeout(timer); document.removeEventListener('visibilitychange', onVis); };
+}
+
+/* ---------- time ---------- */
+function fmtDuration(sec) {
+  if (sec == null || isNaN(sec)) return '-';
+  sec = Math.max(0, Math.floor(sec));
+  const h = Math.floor(sec / 3600), m = Math.floor((sec % 3600) / 60), s = sec % 60;
+  return h ? `${h}h ${String(m).padStart(2, '0')}m` : `${m}:${String(s).padStart(2, '0')}`;
+}
+const fmtClock = (t) => (t ? new Date(t).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '-');
+const fmtDate = (d) => (d ? new Date(d + 'T00:00:00').toLocaleDateString([], { day: 'numeric', month: 'short', year: 'numeric' }) : '-');
+const pax = (g) => `${g.adults} adult${g.adults === 1 ? '' : 's'}${g.children ? `, ${g.children} child${g.children === 1 ? '' : 'ren'}` : ''}`;
+function tickTimers() {
+  const now = nowMs();
+  for (const el of $$('[data-since]')) el.textContent = fmtDuration(((el.dataset.until ? Date.parse(el.dataset.until) : now) - Date.parse(el.dataset.since)) / 1000);
+}
+setInterval(tickTimers, 1000);
+
+/* ---------- toasts, dialogs ---------- */
+function toast(msg, type = '') {
+  let box = $('#toasts');
+  if (!box) { box = document.createElement('div'); box.id = 'toasts'; box.setAttribute('role', 'status'); box.setAttribute('aria-live', 'polite'); document.body.appendChild(box); }
+  const el = document.createElement('div');
+  el.className = `toast ${type}`;
+  el.innerHTML = `${type === 'err' ? icon('alert') : icon('check')}<span>${esc(msg)}</span>`;
+  box.appendChild(el);
+  setTimeout(() => { el.classList.add('out'); setTimeout(() => el.remove(), 300); }, type === 'err' ? 5500 : 2600);
+}
+
+function dialog({ title, body, confirmLabel = 'Confirm', cancelLabel = 'Cancel', input = null }) {
+  return new Promise((resolve) => {
+    const ov = document.createElement('div');
+    ov.className = 'modal-overlay';
+    ov.innerHTML = `<div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="dlgT"><h2 id="dlgT">${esc(title)}</h2><div class="muted">${body || ''}</div>
+      ${input ? `<label class="field" style="margin-top:14px"><span>${esc(input.label)}</span><input class="in" id="dlgIn" maxlength="200" autocomplete="off"></label><div class="field-error" id="dlgErr" hidden>${esc(input.error || 'Required')}</div>` : ''}
+      <div class="modal-actions">${cancelLabel ? `<button class="btn btn-ghost" data-r="0">${esc(cancelLabel)}</button>` : ''}<button class="btn btn-primary" data-r="1">${esc(confirmLabel)}</button></div></div>`;
+    const done = (v) => { ov.remove(); document.removeEventListener('keydown', key); resolve(v); };
+    const submit = () => {
+      if (!input) return done(true);
+      const v = $('#dlgIn', ov).value.trim();
+      if (v.length < (input.min || 1)) { $('#dlgErr', ov).hidden = false; return; }
+      done(v);
+    };
+    const key = (e) => { if (e.key === 'Escape') done(false); if (e.key === 'Enter' && input) { e.preventDefault(); submit(); } };
+    ov.addEventListener('click', (e) => { if (e.target === ov) return done(false); const r = e.target.closest('[data-r]'); if (r) r.dataset.r === '1' ? submit() : done(false); });
+    document.addEventListener('keydown', key);
+    document.body.appendChild(ov);
+    (input ? $('#dlgIn', ov) : $('[data-r="1"]', ov)).focus();
+  });
+}
+const confirmDialog = (o) => dialog(o);
+
+async function copyText(text) {
+  try { await navigator.clipboard.writeText(text); return true; } catch (e) { /* iframe may block the clipboard API */ }
+  try {
+    const ta = document.createElement('textarea'); ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+    document.body.appendChild(ta); ta.select(); const ok = document.execCommand('copy'); ta.remove(); return ok;
+  } catch (e) { return false; }
+}
+
+/* ---------- theme + top bar ---------- */
+function applyTheme(t) {
+  document.documentElement.dataset.theme = t;
+  const b = $('#themeToggle');
+  if (b) b.innerHTML = `<svg class="i" viewBox="0 0 24 24">${ICONS[t === 'dark' ? 'sun' : 'moon']}</svg>`;
+}
+(function initTheme() {
+  let t = 'light';
+  try { t = localStorage.getItem('wg-theme') || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'); } catch (e) { /* default light */ }
+  document.documentElement.dataset.theme = t;
+})();
+
+const ROLE_NAME = { reception: 'Reception', rooms_controller: 'Rooms Controller', admin: 'Admin' };
+
+function mountTopbar(user, tagline) {
+  $('#topbar').innerHTML = `<header class="topbar"><div class="topbar-inner">
+    <div class="brand"><div class="logo-chip"><img src="${WG_ASSETS.logo}" alt="Rixos Bab Al Bahr"></div><div class="divider"></div>
+      <div><div class="wordmark">Waiting Guest</div><div class="tagline">${esc(tagline)}</div></div></div>
+    <div class="header-actions">
+      <span class="live-dot" id="liveDot" title="Live connection">Live</span>
+      <span class="user-chip"><b>${esc(user.name)}</b> · ${ROLE_NAME[user.role] || ''}</span>
+      <button class="icon-btn" id="themeToggle" title="Toggle dark mode" aria-label="Toggle dark mode"></button>
+      <button class="text-btn" id="pwBtn" title="Change my password">Password</button>
+      <button class="text-btn" id="logoutBtn">${icon('out')} Sign out</button>
+    </div></div></header>`;
+  applyTheme(document.documentElement.dataset.theme);
+  $('#themeToggle').onclick = () => {
+    const t = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
+    try { localStorage.setItem('wg-theme', t); } catch (e) { /* ignore */ }
+    applyTheme(t);
+  };
+  $('#logoutBtn').onclick = async () => { try { await api('POST', '/api/logout', {}); } catch (e) { /* ignore */ } forgetToken(); location.reload(); };
+  $('#pwBtn').onclick = changePasswordDialog;
+}
+const setLive = (ok) => { const d = $('#liveDot'); if (d) { d.classList.toggle('off', !ok); d.textContent = ok ? 'Live' : 'Reconnecting'; } };
+
+function changePasswordDialog() {
+  const ov = document.createElement('div');
+  ov.className = 'modal-overlay';
+  ov.innerHTML = `<form class="modal-box" role="dialog" aria-modal="true" aria-labelledby="pwT"><h2 id="pwT">Change password</h2>
+    <div style="display:flex;flex-direction:column;gap:12px;margin-top:12px">
+    <label class="field"><span>Current password</span><input class="in" id="pwCur" type="password" autocomplete="current-password" required></label>
+    <label class="field"><span>New password (8+ characters)</span><input class="in" id="pwNew" type="password" autocomplete="new-password" required minlength="8"></label>
+    <div class="banner err" id="pwErr" hidden></div></div>
+    <div class="modal-actions"><button type="button" class="btn btn-ghost" data-r="0">Cancel</button><button class="btn btn-primary" type="submit" id="pwGo">Save</button></div></form>`;
+  document.body.appendChild(ov);
+  $('#pwCur', ov).focus();
+  const close = () => ov.remove();
+  $('[data-r="0"]', ov).onclick = close;
+  ov.addEventListener('click', (e) => { if (e.target === ov) close(); });
+  ov.querySelector('form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const b = $('#pwGo', ov); b.classList.add('loading'); $('#pwErr', ov).hidden = true;
+    try { await api('POST', '/api/me/password', { current: $('#pwCur', ov).value, next: $('#pwNew', ov).value }); toast('Password changed'); close(); }
+    catch (ex) { b.classList.remove('loading'); $('#pwErr', ov).textContent = ex.message; $('#pwErr', ov).hidden = false; }
+  });
+}
+
+/* ---- 10-login.js ---- */
+'use strict';
+
+function showLogin(message) {
+  $('#root').innerHTML = `<main class="auth-gate"><div class="card auth-card">
+    <div class="auth-logo"><img src="${WG_ASSETS.logo}" alt="Rixos Bab Al Bahr"></div>
+    <h1>Waiting Guest</h1><div class="auth-sub">Sign in to continue</div>
+    <form id="loginForm">
+      <label class="field"><span>Username</span><input class="in" id="lu" autocomplete="username" autocapitalize="none" autocorrect="off" autofocus required></label>
+      <label class="field"><span>Password</span><input class="in" id="lp" type="password" autocomplete="current-password" required></label>
+      <div class="banner ${message ? 'info' : 'err'}" id="loginMsg" role="alert" ${message ? '' : 'hidden'}>${esc(message || '')}</div>
+      <button class="btn btn-primary" id="loginGo" type="submit">Sign in</button>
+    </form></div></main>`;
+  $('#loginForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const b = $('#loginGo'), msg = $('#loginMsg');
+    b.classList.add('loading'); msg.hidden = true; msg.className = 'banner err';
+    try {
+      const out = await api('POST', '/api/login', { username: $('#lu').value.trim(), password: $('#lp').value });
+      rememberToken(out.token);
+      mountForUser(out.user);
+    } catch (ex) {
+      msg.textContent = ex.message; msg.hidden = false; b.classList.remove('loading'); $('#lp').select();
+    }
+  });
+}
+
+function mountForUser(user) {
+  const view = user.role === 'reception' ? 'reception' : user.role === 'rooms_controller' ? 'controller' : 'admin';
+  WG.views[view]($('#root'), user);
+}
+
+/* ---- 20-reception.js ---- */
+'use strict';
+/* Reception: fast search, auto-filled reservation, four manual fields, QR; later verify and complete. */
+WG.views.reception = function (root, user) {
+  const S = { roomTypes: {}, active: [], completed: [], tab: 'active', selectedId: null, searchTimer: null, seq: 0 };
+  const typeName = (c) => S.roomTypes[c] || c;
+  const ASSOCIATE_KEY = 'wg-associate';
+
+  root.innerHTML = `<div id="topbar"></div>
+  <div class="rc-wrap">
+    <main class="rc-main">
+      <div class="search-box" role="search">
+        ${icon('search')}
+        <label for="q" class="sr-only">Search</label>
+        <input id="q" type="search" placeholder="Confirmation number, guest name or WG number" autocomplete="off" inputmode="search" autofocus>
+        <kbd>/</kbd>
+      </div>
+      <div class="hint muted" id="hint">New arrival: type the <b>confirmation number</b>. Guest returning: search by name, confirmation or <b>WG number</b>. <button class="linkish" id="manualLink">Reservation not found? Enter it manually</button></div>
+      <div id="results" aria-live="polite"></div>
+      <div id="work"></div>
+    </main>
+    <aside class="rc-side">
+      <div class="side-head"><h2 class="serif">Waiting guests</h2>
+        <div class="seg" role="tablist"><button role="tab" data-tab="active" class="on">Active</button><button role="tab" data-tab="completed">Closed</button></div></div>
+      <div id="list"></div>
+    </aside>
+  </div>`;
+  mountTopbar(user, 'Reception');
+
+  /* ---------- list (right column) ---------- */
+  function rowHtml(g, sel) {
+    const t = g.status === 'completed' ? `<span class="t">${fmtClock(g.timestamps.completed)}</span>`
+      : g.status === 'cancelled' ? `<span class="t">${fmtClock(g.timestamps.cancelled)}</span>`
+      : g.status === 'ready' || g.status === 'returned' ? `<span class="t">ready ${fmtClock(g.timestamps.roomReady)}</span>`
+      : `<span class="t num" data-since="${esc(g.timestamps.created)}">0:00</span>`;
+    return `<button class="row${sel ? ' sel' : ''}" data-wg="${g.id}"><div class="top"><span class="wg">${esc(g.wgNumber)}</span><span class="nm">${esc(g.guestName)}</span></div>
+      <div class="sub">${esc(g.confirmationNo)} · ${esc(g.roomType)} · ${esc(g.associate || '')}</div>
+      <div class="end">${statusPill(g.status)}${t}</div></button>`;
+  }
+  function renderList() {
+    const items = S.tab === 'active' ? S.active : S.completed;
+    $('#list').innerHTML = items.length ? items.map((g) => rowHtml(g, g.id === S.selectedId)).join('')
+      : `<div class="empty">${icon('queue')}<b>${S.tab === 'active' ? 'No active waiting guests' : 'Nothing closed yet'}</b>Guests you create will appear here and update live.</div>`;
+    tickTimers();
+  }
+  async function loadList() {
+    try {
+      const d = await api('GET', '/api/waiting-guests');
+      S.active = d.active; S.completed = d.completed;
+      renderList();
+      if (S.selectedId) refreshSelected();
+    } catch (e) { if (!e.offline && !e.silent) toast(e.message, 'err'); }
+  }
+  $('#list').addEventListener('click', (e) => { const r = e.target.closest('[data-wg]'); if (r) openWg(Number(r.dataset.wg)); });
+  $$('.seg button').forEach((b) => b.addEventListener('click', () => {
+    S.tab = b.dataset.tab; $$('.seg button').forEach((x) => x.classList.toggle('on', x === b)); renderList();
+  }));
+
+  /* ---------- search ---------- */
+  const q = $('#q');
+  q.addEventListener('input', () => { clearTimeout(S.searchTimer); S.searchTimer = setTimeout(() => runSearch(false), 220); });
+  q.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { clearTimeout(S.searchTimer); runSearch(true); }
+    if (e.key === 'Escape') { q.value = ''; runSearch(false); }
+  });
+  document.addEventListener('keydown', (e) => { if (e.key === '/' && !/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)) { e.preventDefault(); q.focus(); q.select(); } });
+  $('#manualLink').onclick = () => openManual(q.value.trim());
+
+  async function runSearch(fromEnter) {
+    const term = q.value.trim();
+    const box = $('#results');
+    const my = ++S.seq;
+    if (term.length < 2) { box.innerHTML = ''; $('#hint').hidden = false; return; }
+    $('#hint').hidden = true;
+    try {
+      const d = await api('GET', `/api/search?q=${encodeURIComponent(term)}`);
+      if (my !== S.seq) return;
+      const activeConf = new Set(d.waitingGuests.filter((w) => !['completed', 'cancelled'].includes(w.status)).map((w) => w.confirmationNo));
+      const res = d.reservations.filter((r) => !activeConf.has(r.confirmationNo));
+      let html = '';
+      if (d.waitingGuests.length) html += `<div class="group-label">Waiting guests</div>` + d.waitingGuests.map((g) => rowHtml(g, g.id === S.selectedId)).join('');
+      if (res.length) html += `<div class="group-label">Reservations</div>` + res.map((r) => `<button class="row res" data-res="${esc(r.confirmationNo)}"><div class="top"><span class="wg">${esc(r.confirmationNo)}</span><span class="nm">${esc(r.guestName)}</span></div>
+        <div class="sub">${esc(typeName(r.roomType))} · ${pax(r)}${r.arrivalTime ? ' · arrives ' + esc(r.arrivalTime) : ''}</div><div class="end"><span class="type-pill">${esc(r.roomType)}</span></div></button>`).join('');
+      if (!html) html = `<div class="card empty">${icon('search')}<b>No match</b>Check the confirmation number, or search a returning guest by name or WG number.<div style="margin-top:12px"><button class="btn btn-ghost btn-sm" id="manualBtn">Enter reservation manually</button></div></div>`;
+      box.innerHTML = html; tickTimers();
+      const mb = $('#manualBtn'); if (mb) mb.onclick = () => openManual(term);
+      if (fromEnter === true && d.waitingGuests.length + res.length === 1) {
+        if (d.waitingGuests.length) openWg(d.waitingGuests[0].id); else openReservation(res[0].confirmationNo);
+      }
+    } catch (e) { if (my === S.seq && !e.silent) box.innerHTML = `<div class="banner err">${esc(e.message)}</div>`; }
+  }
+  $('#results').addEventListener('click', (e) => {
+    const w = e.target.closest('[data-wg]'), r = e.target.closest('[data-res]');
+    if (w) openWg(Number(w.dataset.wg)); else if (r) openReservation(r.dataset.res);
+  });
+
+  /* ---------- shared operational fields ---------- */
+  const rememberedAssociate = () => { try { return localStorage.getItem(ASSOCIATE_KEY) || ''; } catch (e) { return ''; } };
+  const opFields = (associate) => `<div class="form-grid">
+    <label class="field"><span>Luggage tag <em class="opt">(optional)</em></span><input class="in" id="fTag" maxlength="40" autocomplete="off"></label>
+    <label class="field"><span>Associate name</span><input class="in" id="fAssoc" maxlength="80" value="${esc(associate)}" autocomplete="off" required><span class="field-error" id="assocErr" hidden>Enter your name</span></label>
+    <label class="field full"><span>Guest preferences <em class="opt">(optional)</em></span><textarea class="in" id="fPref" maxlength="500" rows="2"></textarea></label>
+    <label class="field full"><span>Remarks <em class="opt">(optional)</em></span><textarea class="in" id="fRem" maxlength="500" rows="2"></textarea></label></div>`;
+
+  /* ---------- reservation -> create ---------- */
+  async function openReservation(no) {
+    S.selectedId = null; renderList();
+    const work = $('#work');
+    work.innerHTML = `<div class="card panel"><div class="skeleton" style="height:28px;width:40%"></div><div class="skeleton" style="height:90px;margin-top:16px"></div></div>`;
+    try {
+      const d = await api('GET', `/api/search?q=${encodeURIComponent(no)}`);
+      const r = d.reservations.find((x) => x.confirmationNo === no);
+      if (!r) throw new Error('Reservation not found');
+      const associate = rememberedAssociate();
+      work.innerHTML = `<form class="card panel" id="createForm" novalidate>
+        <div class="panel-head"><div><div class="label">Reservation ${esc(r.confirmationNo)}</div><h2 class="serif">${esc(r.guestName)}</h2></div><span class="type-pill">${esc(r.roomType)} · ${esc(typeName(r.roomType))}</span></div>
+        <div class="kv">
+          <div><span>Arrival</span><b>${fmtDate(r.arrivalDate)}${r.arrivalTime ? ' · ' + esc(r.arrivalTime) : ''}</b></div>
+          <div><span>Departure</span><b>${fmtDate(r.departureDate)}</b></div>
+          <div><span>Guests</span><b>${pax(r)}</b></div>
+          <div><span>Phone</span><b>${esc(r.phone || '-')}</b></div>
+          <div><span>Email</span><b>${esc(r.email || '-')}</b></div>
+          ${r.mealPlan ? `<div><span>Meal plan</span><b>${esc(r.mealPlan)}</b></div>` : ''}
+          ${r.vipCode ? `<div><span>VIP</span><b>${esc(r.vipCode)}</b></div>` : ''}
+          ${r.specialRequests ? `<div style="grid-column:1/-1"><span>Reservation requests</span><b>${esc(r.specialRequests)}</b></div>` : ''}
+        </div><hr>
+        <div class="auto-note">${icon('check')} Phone, email, Waiting Guest number and QR are filled in automatically.</div>
+        ${opFields(associate)}
+        <div class="banner err" id="formErr" role="alert" hidden style="margin-top:14px"></div>
+        <div class="actions"><button class="btn btn-primary" id="createBtn" type="submit">${icon('plus')} Create Waiting Guest</button><button class="btn btn-ghost" type="button" id="cancelBtn">Cancel</button></div>
+      </form>`;
+      (associate ? $('#fTag') : $('#fAssoc')).focus();
+      $('#cancelBtn').onclick = clearWork;
+      $('#createForm').addEventListener('submit', (e) => { e.preventDefault(); submitCreate(r.confirmationNo, null); });
+      $('#createForm').addEventListener('keydown', (e) => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); submitCreate(r.confirmationNo, null); } });
+      work.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    } catch (e) { if (!e.silent) work.innerHTML = `<div class="banner err">${esc(e.message)}</div>`; }
+  }
+
+  /* ---------- manual fallback (reservation missing from the imported arrivals) ---------- */
+  function openManual(term) {
+    S.selectedId = null; renderList();
+    const today = new Date(), iso = (d) => new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+    const tomorrow = new Date(today.getTime() + 86400000);
+    const types = Object.keys(S.roomTypes).sort();
+    const associate = rememberedAssociate();
+    $('#work').innerHTML = `<form class="card panel" id="manualForm" novalidate>
+      <div class="panel-head"><div><div class="label">Manual entry</div><h2 class="serif">Reservation not in the arrivals list</h2></div></div>
+      <div class="banner info" style="margin-bottom:14px">${icon('alert')}<span>Use this only when the confirmation number is not found. Copy the details exactly from Opera. The record is marked <b>Manual entry</b>.</span></div>
+      <div class="form-grid">
+        <label class="field"><span>Confirmation number</span><input class="in" id="mConf" maxlength="30" value="${/^[A-Za-z0-9\-\/]+$/.test(term) ? esc(term) : ''}" autocomplete="off" required></label>
+        <label class="field"><span>Guest name</span><input class="in" id="mName" maxlength="120" autocomplete="off" required></label>
+        <label class="field"><span>Arrival date</span><input class="in" id="mArr" type="date" value="${iso(today)}" required></label>
+        <label class="field"><span>Departure date</span><input class="in" id="mDep" type="date" value="${iso(tomorrow)}" required></label>
+        <label class="field"><span>Room type</span><select class="in" id="mType" required><option value="">Select…</option>${types.map((c) => `<option value="${esc(c)}">${esc(c)} · ${esc(S.roomTypes[c])}</option>`).join('')}</select></label>
+        <label class="field"><span>Arrival time <em class="opt">(optional)</em></span><input class="in" id="mTime" type="time"></label>
+        <label class="field"><span>Adults</span><input class="in" id="mAd" type="number" min="1" max="20" value="2" required></label>
+        <label class="field"><span>Children</span><input class="in" id="mCh" type="number" min="0" max="20" value="0"></label>
+        <label class="field"><span>Phone <em class="opt">(optional)</em></span><input class="in" id="mPh" maxlength="40" autocomplete="off"></label>
+        <label class="field"><span>Email <em class="opt">(optional)</em></span><input class="in" id="mEm" maxlength="120" autocomplete="off"></label>
+      </div><hr>${opFields(associate)}
+      <div class="banner err" id="formErr" role="alert" hidden style="margin-top:14px"></div>
+      <div class="actions"><button class="btn btn-primary" id="createBtn" type="submit">${icon('plus')} Create Waiting Guest</button><button class="btn btn-ghost" type="button" id="cancelBtn">Cancel</button></div></form>`;
+    $('#cancelBtn').onclick = clearWork;
+    (/^[A-Za-z0-9\-\/]+$/.test(term) ? $('#mName') : $('#mConf')).focus();
+    $('#manualForm').addEventListener('submit', (e) => {
+      e.preventDefault();
+      const manual = { guestName: $('#mName').value, arrivalDate: $('#mArr').value, departureDate: $('#mDep').value, roomType: $('#mType').value, arrivalTime: $('#mTime').value,
+        adults: $('#mAd').value, children: $('#mCh').value, phone: $('#mPh').value, email: $('#mEm').value };
+      submitCreate($('#mConf').value.trim(), manual);
+    });
+    $('#work').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+
+  async function submitCreate(no, manual) {
+    const assoc = $('#fAssoc').value.trim();
+    $('#assocErr').hidden = !!assoc;
+    $('#fAssoc').setAttribute('aria-invalid', assoc ? 'false' : 'true');
+    if (!assoc) { $('#fAssoc').focus(); return; }
+    const btn = $('#createBtn');
+    if (btn.classList.contains('loading')) return; // guard against double clicks
+    btn.classList.add('loading'); $('#formErr').hidden = true;
+    try {
+      try { localStorage.setItem(ASSOCIATE_KEY, assoc); } catch (e) { /* ignore */ }
+      const { waitingGuest: g } = await api('POST', '/api/waiting-guests', {
+        confirmationNo: no, associate: assoc, luggageTag: $('#fTag').value, preferences: $('#fPref').value, remarks: $('#fRem').value, manual,
+      });
+      S.selectedId = null; // keep the success panel; live refresh must not replace it
+      await showQr(g, true);
+      q.value = ''; $('#results').innerHTML = ''; $('#hint').hidden = false;
+      await loadList();
+      const row = $(`#list [data-wg="${g.id}"]`); if (row) row.classList.add('flash');
+    } catch (e) {
+      btn.classList.remove('loading');
+      if (e.silent) return;
+      if (e.status === 409 && e.data && e.data.waitingGuest) {
+        $('#formErr').innerHTML = `${esc(e.message)}. <button type="button" class="text-btn" id="openExisting">Open ${esc(e.data.waitingGuest.wgNumber)}</button>`;
+        $('#openExisting').onclick = () => openWg(e.data.waitingGuest.id);
+      } else $('#formErr').textContent = e.message;
+      $('#formErr').hidden = false;
+    }
+  }
+
+  async function showQr(g, fresh) {
+    $('#work').innerHTML = `<div class="card success">
+      ${fresh ? `<div class="tick">${icon('check')}</div>` : ''}
+      <div class="label">${fresh ? 'Waiting Guest created' : 'Guest QR'}</div>
+      <div class="big-wg">${esc(g.wgNumber)}</div>
+      <div><b>${esc(g.guestName)}</b> · ${esc(g.confirmationNo)}</div>
+      <div class="muted" style="margin-top:6px">${fresh ? `Now in the Rooms Controller queue. Waiting timer started at ${fmtClock(g.timestamps.created)}.` : `Status: ${esc(STATUS_LABEL[g.status])}`}</div>
+      <div class="qr" id="qrBox" aria-label="Guest QR code"><div class="skeleton" style="aspect-ratio:1"></div></div>
+      <div class="muted" style="font-size:12.5px">The guest scans this QR to follow their room status. No login needed.</div>
+      <div class="link-row" id="qrActions"><button class="btn btn-primary btn-sm" id="nextBtn">${icon('plus')} New Waiting Guest</button></div></div>`;
+    $('#nextBtn').onclick = () => { clearWork(); q.focus(); };
+    try {
+      const { url, svg } = await api('GET', `/api/waiting-guests/${g.id}/qr`);
+      $('#qrBox').innerHTML = svg;
+      $('#qrActions').insertAdjacentHTML('afterbegin', `<button class="btn btn-ghost btn-sm" id="copyBtn">${icon('copy')} Copy guest link</button><a class="btn btn-ghost btn-sm" href="${esc(url)}" target="_blank" rel="noopener">${icon('link')} Open guest page</a>`);
+      $('#copyBtn').onclick = async () => toast((await copyText(url)) ? 'Guest link copied' : 'Could not copy. Use "Open guest page".', 'ok');
+    } catch (e) { $('#qrBox').textContent = 'QR unavailable'; }
+  }
+
+  function clearWork() { $('#work').innerHTML = ''; S.selectedId = null; renderList(); }
+
+  /* ---------- existing waiting guest: verify + complete ---------- */
+  async function openWg(id) {
+    S.selectedId = id; renderList();
+    $$('#results .row').forEach((r) => r.classList.toggle('sel', Number(r.dataset.wg) === id));
+    await refreshSelected(true);
+  }
+  async function refreshSelected(scroll) {
+    const id = S.selectedId;
+    if (!id) return;
+    try {
+      const { waitingGuest: g, history } = await api('GET', `/api/waiting-guests/${id}`);
+      if (id !== S.selectedId) return;
+      if (document.querySelector('.modal-overlay')) return; // never redraw under an open dialog
+      renderWg(g, history);
+      if (scroll) $('#work').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    } catch (e) { if (!e.silent) $('#work').innerHTML = `<div class="banner err">${esc(e.message)}</div>`; }
+  }
+
+  function editDialog(g) {
+    const ov = document.createElement('div');
+    ov.className = 'modal-overlay';
+    ov.innerHTML = `<form class="modal-box" style="max-width:480px" role="dialog" aria-modal="true" aria-labelledby="edT"><h2 id="edT">Edit ${esc(g.wgNumber)}</h2>
+      <div style="display:flex;flex-direction:column;gap:12px;margin-top:12px">
+      <label class="field"><span>Luggage tag</span><input class="in" id="eTag" maxlength="40" value="${esc(g.luggageTag)}"></label>
+      <label class="field"><span>Associate name</span><input class="in" id="eAssoc" maxlength="80" value="${esc(g.associate)}" required></label>
+      <label class="field"><span>Guest preferences</span><textarea class="in" id="ePref" maxlength="500" rows="2">${esc(g.preferences)}</textarea></label>
+      <label class="field"><span>Remarks</span><textarea class="in" id="eRem" maxlength="500" rows="2">${esc(g.remarks)}</textarea></label>
+      <div class="banner err" id="edErr" hidden></div></div>
+      <div class="modal-actions"><button type="button" class="btn btn-ghost" data-r="0">Cancel</button><button class="btn btn-primary" type="submit" id="edGo">Save</button></div></form>`;
+    document.body.appendChild(ov);
+    const close = () => ov.remove();
+    $('[data-r="0"]', ov).onclick = close;
+    ov.addEventListener('click', (e) => { if (e.target === ov) close(); });
+    ov.querySelector('form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const b = $('#edGo', ov); b.classList.add('loading');
+      try {
+        await api('POST', `/api/waiting-guests/${g.id}/details`, { luggageTag: $('#eTag', ov).value, associate: $('#eAssoc', ov).value, preferences: $('#ePref', ov).value, remarks: $('#eRem', ov).value });
+        close(); toast('Details updated'); await loadList();
+      } catch (ex) { b.classList.remove('loading'); $('#edErr', ov).textContent = ex.message; $('#edErr', ov).hidden = false; }
+    });
+  }
+
+  function renderWg(g, history) {
+    const ready = g.status === 'ready' || g.status === 'returned', closed = ['completed', 'cancelled'].includes(g.status);
+    const note = g.status === 'ready' ? `<div class="ready-note">${icon('key')} Room is ready. Verify the guest, then complete.</div>`
+      : g.status === 'returned' ? `<div class="ready-note">${icon('key')} Guest is at the desk. Complete to finish.</div>`
+      : g.status === 'completed' ? `<div class="banner info">Completed at ${fmtClock(g.timestamps.completed)}. Key activation and the final hotel transaction happen outside this system.</div>`
+      : g.status === 'cancelled' ? `<div class="banner err">Cancelled at ${fmtClock(g.timestamps.cancelled)}: ${esc(g.cancelReason)}</div>`
+      : `<div class="banner info">${icon('clock')}<span>Room is not ready yet (${esc(STATUS_LABEL[g.status])}). It cannot be completed until the Rooms Controller marks it ready.</span></div>`;
+    $('#work').innerHTML = `<div class="card panel">
+      <div class="panel-head"><div><div class="label">Waiting Guest</div><h2 class="serif">${esc(g.wgNumber)}</h2></div><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">${g.source === 'manual' ? '<span class="type-pill">Manual entry</span>' : ''}${statusPill(g.status)}</div></div>
+      ${note}
+      <div class="verify"><div class="label" style="margin-bottom:8px">Verify guest</div><div class="kv">
+        <div><span>Guest name</span><b>${esc(g.guestName)}</b></div><div><span>Confirmation</span><b>${esc(g.confirmationNo)}</b></div>
+        <div><span>WG number</span><b>${esc(g.wgNumber)}</b></div><div><span>Arrival → Departure</span><b>${fmtDate(g.arrivalDate)} → ${fmtDate(g.departureDate)}</b></div></div></div>
+      <div class="kv">
+        <div><span>Room type</span><b>${esc(g.roomType)} · ${esc(typeName(g.roomType))}</b></div><div><span>Guests</span><b>${pax(g)}</b></div>
+        <div><span>Luggage tag</span><b>${esc(g.luggageTag || '-')}</b></div><div><span>Associate</span><b>${esc(g.associate || '-')}</b></div>
+        ${g.roomNumber && ready ? `<div><span>Assigned room</span><b>${esc(g.roomNumber)}</b></div>` : ''}
+        ${g.preferences ? `<div style="grid-column:1/-1"><span>Preferences</span><b>${esc(g.preferences)}</b></div>` : ''}
+        ${g.remarks ? `<div style="grid-column:1/-1"><span>Remarks</span><b>${esc(g.remarks)}</b></div>` : ''}
+      </div>
+      <hr><div class="section-label">History</div>
+      <ul class="timeline">${history.map((h) => `<li><span>${esc(STATUS_LABEL[h.to] || h.to)}${h.note ? ` <span class="muted">(${esc(h.note)})</span>` : ''}<span class="muted"> · ${esc(h.by || '')}</span></span><span class="when">${fmtClock(h.at)}</span></li>`).join('')}</ul>
+      <div class="actions">
+        ${!closed ? `<button class="btn btn-primary" id="completeBtn" ${ready ? '' : 'disabled'}>${icon('check')} Complete Waiting Guest</button>` : ''}
+        ${g.status === 'ready' ? `<button class="btn btn-ghost" id="returnedBtn">Guest returned</button>` : ''}
+        <button class="btn btn-ghost" id="qrBtn">${icon('link')} Show QR</button>
+        ${!closed ? `<button class="btn btn-ghost" id="editBtn">Edit details</button><button class="btn btn-ghost btn-danger" id="cancelWgBtn">Cancel</button>` : ''}
+      </div></div>`;
+    const cb = $('#completeBtn');
+    if (cb && ready) cb.onclick = async () => {
+      const ok = await confirmDialog({ title: `Complete ${g.wgNumber}?`, body: `Confirm you have verified <b>${esc(g.guestName)}</b> (${esc(g.confirmationNo)}). This closes the Waiting Guest record.`, confirmLabel: 'Complete' });
+      if (!ok) return;
+      cb.classList.add('loading');
+      try { await api('POST', `/api/waiting-guests/${g.id}/status`, { status: 'completed' }); toast(`${g.wgNumber} completed`); await loadList(); }
+      catch (e) { cb.classList.remove('loading'); if (!e.silent) toast(e.message, 'err'); await loadList(); }
+    };
+    const rb = $('#returnedBtn');
+    if (rb) rb.onclick = async () => { rb.classList.add('loading'); try { await api('POST', `/api/waiting-guests/${g.id}/status`, { status: 'returned' }); toast('Marked as returned'); await loadList(); } catch (e) { rb.classList.remove('loading'); if (!e.silent) toast(e.message, 'err'); await loadList(); } };
+    $('#qrBtn').onclick = () => { S.selectedId = null; showQr(g, false); };
+    const eb = $('#editBtn'); if (eb) eb.onclick = () => editDialog(g);
+    const xb = $('#cancelWgBtn');
+    if (xb) xb.onclick = async () => {
+      const reason = await dialog({ title: `Cancel ${g.wgNumber}?`, body: 'Use this when the record was created by mistake or the guest no longer waits. The guest page will stop showing room updates.', confirmLabel: 'Cancel Waiting Guest', cancelLabel: 'Keep', input: { label: 'Reason (required)', min: 3, error: 'Please give a short reason' } });
+      if (!reason) return;
+      try { await api('POST', `/api/waiting-guests/${g.id}/cancel`, { reason }); toast(`${g.wgNumber} cancelled`); await loadList(); } catch (e) { if (!e.silent) toast(e.message, 'err'); }
+    };
+  }
+
+  /* ---------- boot ---------- */
+  (async function init() {
+    try {
+      S.roomTypes = (await api('GET', '/api/meta')).roomTypes;
+      $('#list').innerHTML = '<div class="skeleton" style="height:64px"></div><div class="skeleton" style="height:64px"></div>';
+      await loadList();
+      WG.stopLive = live(loadList, setLive);
+    } catch (e) { if (!e.silent) toast(e.message, 'err'); }
+  })();
+};
+
+/* ---- 30-controller.js ---- */
+'use strict';
+/* Rooms Controller: dense live queue, timer first, one-click operational actions. */
+WG.views.controller = function (root, user) {
+  const S = { roomTypes: {}, queue: [], filter: 'all', selectedId: null, seen: new Set(), first: true, late1: 30, late2: 60, pendingRoom: null };
+  const typeName = (c) => S.roomTypes[c] || c;
+  const FILTERS = [['all', 'All active'], ['waiting', 'Waiting'], ['room_assigned', 'Room Assigned'], ['preparing', 'Being Prepared'], ['ready', 'Ready (awaiting guest)']];
+  const inFilter = (g) => S.filter === 'all' || g.status === S.filter || (S.filter === 'ready' && g.status === 'returned');
+
+  root.innerHTML = `<div id="topbar"></div>
+    <div class="metrics" id="metrics" aria-label="Live figures"></div>
+    <div class="filters" id="filters" role="toolbar" aria-label="Filter queue"></div>
+    <div class="rc-body"><main id="queue" aria-live="polite"></main><aside class="detail" id="detail" aria-label="Guest details"></aside></div>`;
+  mountTopbar(user, 'Rooms Controller');
+
+  async function loadMetrics() {
+    try {
+      const m = await api('GET', '/api/metrics');
+      $('#metrics').innerHTML = `
+        <div class="metric"><span>Active</span><b>${m.active}</b></div>
+        <div class="metric"><span>Still waiting for a room</span><b>${m.stillWaitingForRoom}</b></div>
+        <div class="metric good"><span>Ready, guest not back</span><b>${m.readyAwaitingGuest}</b></div>
+        <div class="metric"><span>Completed</span><b>${m.completed}</b></div>
+        <div class="metric"><span>Avg. wait to ready</span><b>${m.avgWaitToReadySec == null ? '-' : fmtDuration(m.avgWaitToReadySec)}</b></div>`;
+    } catch (e) { /* metrics are non-critical */ }
+  }
+
+  function cls(g) {
+    const c = ['q', `s-${g.status}`];
+    if (g.priority) c.push('pri');
+    if (!['ready', 'returned'].includes(g.status)) {
+      const min = (nowMs() - Date.parse(g.timestamps.created)) / 60000;
+      if (min >= S.late2) c.push('late2'); else if (min >= S.late1) c.push('late1');
+    }
+    if (g.id === S.selectedId) c.push('sel');
+    return c.join(' ');
+  }
+  const timerHtml = (g) => ['ready', 'returned'].includes(g.status)
+    ? `<div class="timer"><b class="num" data-since="${esc(g.timestamps.roomReady)}">0:00</b><small>Ready for</small></div>`
+    : `<div class="timer"><b class="num" data-since="${esc(g.timestamps.created)}">0:00</b><small>Waiting</small></div>`;
+
+  function cardHtml(g, isNew) {
+    return `<button class="${cls(g)}${isNew ? ' q-new' : ''}" data-id="${g.id}" aria-label="${esc(g.wgNumber)} ${esc(g.guestName)}">
+      <span class="bar"></span>${timerHtml(g)}
+      <div class="main">
+        <div class="l1"><span class="wg">${esc(g.wgNumber)}</span><span class="nm">${esc(g.guestName)}</span>${g.priority ? '<span class="flag">PRIORITY</span>' : ''}${g.source === 'manual' ? '<span class="type-pill">Manual</span>' : ''}</div>
+        <div class="l2"><span>${icon('key')}${esc(g.confirmationNo)}</span><span class="type-pill">${esc(g.roomType)}</span><span>${icon('user')}${g.adults}A${g.children ? ` ${g.children}C` : ''}</span>
+          <span>${icon('clock')}Arr ${esc(g.arrivalTime || fmtClock(g.timestamps.guestArrival))}</span>${g.luggageTag ? `<span>${icon('bag')}${esc(g.luggageTag)}</span>` : ''}<span>${esc(g.associate || '')}</span></div>
+        ${g.preferences || g.remarks ? `<div class="l3">${g.preferences ? `<span class="note" title="${esc(g.preferences)}">Pref: ${esc(g.preferences)}</span>` : ''}${g.remarks ? `<span class="note rem" title="${esc(g.remarks)}">Rem: ${esc(g.remarks)}</span>` : ''}</div>` : ''}
+      </div>
+      <div class="side">${statusPill(g.status)}${g.roomNumber ? `<div class="room">${esc(g.roomNumber)}</div>` : '<div class="room none">No room yet</div>'}</div>
+    </button>`;
+  }
+  function renderFilters() {
+    $('#filters').innerHTML = FILTERS.map(([k, l]) => {
+      const n = S.queue.filter((g) => (k === 'all' ? true : k === 'ready' ? ['ready', 'returned'].includes(g.status) : g.status === k)).length;
+      return `<button class="chip${S.filter === k ? ' on' : ''}" data-f="${k}">${l}<i>${n}</i></button>`;
+    }).join('');
+  }
+  function renderQueue() {
+    renderFilters();
+    const rows = S.queue.filter(inFilter);
+    const box = $('#queue');
+    if (!rows.length) {
+      box.innerHTML = `<div class="card empty">${icon('door')}<b>${S.queue.length ? 'Nothing in this filter' : 'No waiting guests'}</b>${S.queue.length ? 'Try another status filter.' : 'When Reception creates a Waiting Guest it appears here within seconds.'}</div>`;
+      return;
+    }
+    const rank = { waiting: 0, room_assigned: 1, preparing: 2, ready: 3, returned: 4 };
+    rows.sort((a, b) => Number(b.priority) - Number(a.priority) || rank[a.status] - rank[b.status] || Date.parse(a.timestamps.created) - Date.parse(b.timestamps.created));
+    box.innerHTML = rows.map((g) => cardHtml(g, !S.first && !S.seen.has(g.id))).join('');
+    tickTimers();
+  }
+  async function loadQueue() {
+    try {
+      const d = await api('GET', '/api/waiting-guests');
+      const prev = new Set(S.queue.map((g) => g.id));
+      S.queue = d.active;
+      renderQueue();
+      if (!S.first) for (const g of S.queue) if (!prev.has(g.id)) toast(`New waiting guest ${g.wgNumber}: ${g.guestName}`);
+      for (const g of S.queue) S.seen.add(g.id);
+      S.first = false;
+      loadMetrics();
+      if (S.selectedId) { if (S.queue.some((g) => g.id === S.selectedId)) loadDetail(S.selectedId, true); else closeDetail(); }
+    } catch (e) { if (!e.offline && !e.silent) toast(e.message, 'err'); }
+  }
+  $('#queue').addEventListener('click', (e) => { const c = e.target.closest('[data-id]'); if (c) selectGuest(Number(c.dataset.id)); });
+  $('#filters').addEventListener('click', (e) => { const c = e.target.closest('[data-f]'); if (c) { S.filter = c.dataset.f; renderQueue(); } });
+
+  /* ---------- detail ---------- */
+  function selectGuest(id) { S.selectedId = id; S.pendingRoom = null; $$('#queue .q').forEach((c) => c.classList.toggle('sel', Number(c.dataset.id) === id)); loadDetail(id); }
+  function closeDetail() { S.selectedId = null; $('#detail').classList.remove('open'); renderDetailEmpty(); $$('#queue .q.sel').forEach((c) => c.classList.remove('sel')); }
+  const renderDetailEmpty = () => { $('#detail').innerHTML = `<div class="card detail-empty empty">${icon('queue')}<b>Select a waiting guest</b>See preferences, assign a room and update status.</div>`; };
+  async function loadDetail(id, quiet) {
+    const el = $('#detail');
+    if (!quiet) { el.classList.add('open'); el.innerHTML = `<div class="card d-card"><div class="skeleton" style="height:30px;width:50%"></div><div class="skeleton" style="height:120px;margin-top:16px"></div></div>`; }
+    try {
+      const d = await api('GET', `/api/waiting-guests/${id}`);
+      if (id !== S.selectedId) return;
+      if (document.querySelector('.modal-overlay')) return;
+      renderDetail(d);
+    } catch (e) { if (!e.silent) el.innerHTML = `<div class="banner err">${esc(e.message)}</div>`; }
+  }
+
+  function stepsHtml(g) {
+    const t = g.timestamps;
+    const items = [['waiting', 'Waiting Guest created', t.created], ['room_assigned', 'Room assigned', t.roomAssigned], ['preparing', 'Room being prepared', t.preparationStarted],
+      ['ready', 'Room ready (guest notified via QR)', t.roomReady], ['returned', 'Guest returned', t.guestReturned], ['completed', 'Completed', t.completed]];
+    const idx = STATUS_ORDER.indexOf(g.status);
+    return `<div class="steps">${items.map(([k, l, ts], i) => `<div class="step ${ts ? 'done' : ''}${i === idx ? ' now' : ''}"><span class="dot"></span><span>${l}</span><span class="ts">${ts ? fmtClock(ts) : ''}</span></div>`).join('')}</div>`;
+  }
+
+  function renderDetail(d) {
+    const g = d.waitingGuest, ready = ['ready', 'returned'].includes(g.status), done = ['completed', 'cancelled'].includes(g.status);
+    const el = $('#detail');
+    const pending = S.pendingRoom && S.pendingRoom.id === g.id ? S.pendingRoom.room : (g.roomNumber || null);
+    const canPick = ['waiting', 'room_assigned', 'preparing'].includes(g.status);
+    const scroll = el.scrollTop;
+    el.classList.add('open');
+    el.innerHTML = `<div class="card d-card">
+      <div class="d-head"><div><div class="label">Waiting Guest</div><h2>${esc(g.wgNumber)}</h2></div><div style="display:flex;gap:8px;align-items:center">${statusPill(g.status)}<button class="icon-btn detail-close" id="dClose" aria-label="Close">✕</button></div></div>
+      <div class="d-sub"><b style="color:var(--ink)">${esc(g.guestName)}</b> · ${esc(g.confirmationNo)}</div>
+      ${done ? '' : `<div class="d-time"><b class="num" data-since="${esc(ready ? g.timestamps.roomReady : g.timestamps.created)}">0:00</b><span>${ready ? 'Room ready for' : 'Waiting'}</span></div>`}
+      <div class="d-sec"><div class="kv">
+        <div><span>Room type</span><b>${esc(g.roomType)} · ${esc(typeName(g.roomType))}</b></div><div><span>Guests</span><b>${pax(g)}</b></div>
+        <div><span>Arrival</span><b>${fmtDate(g.arrivalDate)} ${esc(g.arrivalTime || '')}</b></div><div><span>Departure</span><b>${fmtDate(g.departureDate)}</b></div>
+        <div><span>Luggage tag</span><b>${esc(g.luggageTag || '-')}</b></div><div><span>Associate</span><b>${esc(g.associate || '-')}</b></div></div></div>
+      ${g.preferences || g.remarks ? `<div class="d-sec">${g.preferences ? `<div class="pref-box"><span>Guest preferences</span>${esc(g.preferences)}</div>` : ''}${g.remarks ? `<div class="pref-box rem"><span>Remarks</span>${esc(g.remarks)}</div>` : ''}</div>` : ''}
+      <div class="d-sec"><div class="section-label">Room</div>
+        ${g.roomNumber ? `<div style="margin-bottom:10px"><span class="muted">Assigned:</span> <b class="serif" style="font-size:22px">${esc(g.roomNumber)}</b></div>` : ''}
+        ${canPick ? (d.rooms.length ? `<div class="room-grid" id="roomGrid">${d.rooms.map((r) => `<button class="rm hk-${r.hkStatus}${r.matchesType ? '' : ' other'}${pending === r.roomNumber ? ' on' : ''}" data-room="${esc(r.roomNumber)}" title="${esc(r.roomType)} · ${esc(typeName(r.roomType))}"><b>${esc(r.roomNumber)}</b><small>${esc(r.roomType)} · ${r.hkStatus === 'inspected' ? 'insp.' : esc(r.hkStatus)}</small></button>`).join('')}</div>
+          <p class="legend-note">Rooms of the guest's type (${esc(g.roomType)}) are listed first; faded rooms are a different type.</p>
+          <button class="btn btn-primary" id="assignBtn" style="margin-top:10px;width:100%" ${pending && pending !== g.roomNumber ? '' : 'disabled'}>${g.roomNumber ? 'Change room' : 'Assign room'}${pending && pending !== g.roomNumber ? ' ' + esc(pending) : ''}</button>`
+          : `<div class="banner info">${icon('alert')}<span>No rooms are available. An admin needs to import rooms, or a room must be released.</span></div>`) : ''}
+      </div>
+      <div class="d-sec"><div class="section-label">Status</div>${stepsHtml(g)}
+        <div class="act">
+          ${g.status === 'room_assigned' ? `<button class="btn btn-ghost" data-status="preparing">Room being prepared</button>` : ''}
+          ${['room_assigned', 'preparing'].includes(g.status) ? `<button class="btn btn-ready" data-status="ready">${icon('key')} Mark room ready</button>` : ''}
+          ${g.status === 'waiting' ? `<div class="muted" style="font-size:12.5px">Assign a room to continue.</div>` : ''}
+          ${ready ? `<div class="muted" style="font-size:12.5px">Guest has been notified on their QR page. Reception completes the record when the guest returns.</div>` : ''}
+          ${!done ? `<label class="toggle"><input type="checkbox" id="priTgl" ${g.priority ? 'checked' : ''}> Operational priority</label><button class="btn btn-ghost btn-sm btn-danger" id="cancelWgBtn" style="align-self:flex-start">Cancel this Waiting Guest</button>` : ''}
+        </div></div>
+      <div class="d-sec"><div class="section-label">History</div><div class="kv" style="grid-template-columns:1fr">${d.history.map((h) => `<div style="display:flex;justify-content:space-between;gap:10px"><b style="font-weight:600">${esc(STATUS_LABEL[h.to] || h.to)}${h.roomNumber ? ' · ' + esc(h.roomNumber) : ''}${h.note ? ` <span class="muted" style="font-weight:400">(${esc(h.note)})</span>` : ''}</b><span class="muted num">${fmtClock(h.at)} · ${esc(h.by || '')}</span></div>`).join('')}</div></div>
+    </div>`;
+    el.scrollTop = scroll;
+    tickTimers();
+    $('#dClose').onclick = closeDetail;
+    $$('#roomGrid .rm').forEach((b) => b.onclick = () => { S.pendingRoom = { id: g.id, room: b.dataset.room }; renderDetail(d); });
+    const ab = $('#assignBtn');
+    if (ab) ab.onclick = () => act(ab, () => api('POST', `/api/waiting-guests/${g.id}/assign-room`, { roomNumber: pending }), `Room ${pending} assigned to ${g.wgNumber}`, () => { S.pendingRoom = null; });
+    $$('[data-status]').forEach((b) => b.onclick = async () => {
+      const to = b.dataset.status;
+      if (to === 'ready') {
+        const ok = await confirmDialog({ title: `Mark room ${g.roomNumber} ready?`, body: `${esc(g.guestName)} will see <b>Your room is ready</b> on their QR page within seconds.`, confirmLabel: 'Mark ready' });
+        if (!ok) return;
+      }
+      act(b, () => api('POST', `/api/waiting-guests/${g.id}/status`, { status: to }), to === 'ready' ? `${g.wgNumber} is ready. Guest notified.` : `${g.wgNumber} updated`);
+    });
+    const p = $('#priTgl');
+    if (p) p.onchange = () => act(p, () => api('POST', `/api/waiting-guests/${g.id}/priority`, { priority: p.checked }), p.checked ? 'Priority on' : 'Priority off');
+    const xb = $('#cancelWgBtn');
+    if (xb) xb.onclick = async () => {
+      const reason = await dialog({ title: `Cancel ${g.wgNumber}?`, body: 'Use this when the record was created by mistake or the guest no longer waits. Any assigned room is released.', confirmLabel: 'Cancel Waiting Guest', cancelLabel: 'Keep', input: { label: 'Reason (required)', min: 3, error: 'Please give a short reason' } });
+      if (!reason) return;
+      act(xb, () => api('POST', `/api/waiting-guests/${g.id}/cancel`, { reason }), `${g.wgNumber} cancelled`);
+    };
+  }
+  async function act(btn, fn, okMsg, after) {
+    btn.classList.add('loading'); btn.disabled = true;
+    try { await fn(); if (after) after(); toast(okMsg); await loadQueue(); }
+    catch (e) { if (!e.silent) toast(e.message, 'err'); btn.classList.remove('loading'); btn.disabled = false; await loadQueue(); }
+  }
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !document.querySelector('.modal-overlay')) closeDetail(); });
+
+  (async function init() {
+    try {
+      const meta = await api('GET', '/api/meta');
+      S.roomTypes = meta.roomTypes; S.late1 = meta.lateWarnMinutes || 30; S.late2 = meta.lateAlertMinutes || 60;
+      renderDetailEmpty();
+      $('#queue').innerHTML = '<div class="skeleton" style="height:84px"></div><div class="skeleton" style="height:84px"></div><div class="skeleton" style="height:84px"></div>';
+      await loadQueue();
+      WG.stopLive = live(loadQueue, setLive);
+    } catch (e) { if (!e.silent) toast(e.message, 'err'); }
+  })();
+};
+
+/* ---- 40-admin.js ---- */
+'use strict';
+/* Admin: overview, arrivals/rooms import, users, export. */
+WG.views.admin = function (root, user) {
+  const S = { tab: 'overview', users: [], metrics: null, summary: null, roomTypes: {}, imp: null };
+
+  root.innerHTML = `<div id="topbar"></div>
+    <div class="ad-wrap"><nav class="ad-tabs" role="tablist" id="adTabs">
+      <button role="tab" data-tab="overview">Overview</button><button role="tab" data-tab="arrivals">Import arrivals</button>
+      <button role="tab" data-tab="rooms">Import rooms</button><button role="tab" data-tab="users">Users</button><button role="tab" data-tab="export">Export</button></nav>
+    <main id="adBody" aria-live="polite"></main></div>`;
+  mountTopbar(user, 'Admin');
+
+  const tabs = $('#adTabs');
+  tabs.addEventListener('click', (e) => { const b = e.target.closest('[data-tab]'); if (b) go(b.dataset.tab); });
+  function go(tab) {
+    S.tab = tab; S.imp = null;
+    $$('#adTabs button').forEach((b) => b.classList.toggle('on', b.dataset.tab === tab));
+    ({ overview, arrivals: () => importer('arrivals'), rooms: () => importer('rooms'), users, export: exportView })[tab]();
+  }
+  const body = () => $('#adBody');
+  const err = (e) => { if (!e.silent) toast(e.message, 'err'); };
+
+  /* ---------- overview ---------- */
+  async function overview(quiet) {
+    if (!quiet) body().innerHTML = '<div class="skeleton" style="height:120px"></div>';
+    try {
+      const [sum, m] = await Promise.all([api('GET', '/api/admin/summary'), api('GET', '/api/metrics')]);
+      S.summary = sum; S.metrics = m;
+      const warn = [];
+      if (!sum.rooms) warn.push('No rooms yet. Import rooms so the Rooms Controller can assign them.');
+      if (!sum.arrivalsToday) warn.push(`No reservations arriving today (${fmtDate(sum.today)}). Import today's arrivals so Reception can look guests up.`);
+      body().innerHTML = `${warn.map((w) => `<div class="banner info" style="margin-bottom:10px">${icon('alert')}<span>${esc(w)}</span></div>`).join('')}
+        <div class="ad-cards">
+          <div class="metric"><span>Reservations loaded</span><b>${sum.reservations}</b></div>
+          <div class="metric"><span>Arriving today</span><b>${sum.arrivalsToday}</b></div>
+          <div class="metric"><span>Rooms</span><b>${sum.rooms}</b></div>
+          <div class="metric"><span>Staff users</span><b>${sum.users}</b></div></div>
+        <h3 class="serif ad-h">Live figures <span class="muted" style="font-family:inherit;font-size:12px;font-weight:500">(computed from real records only)</span></h3>
+        <div class="ad-cards">
+          <div class="metric"><span>Active</span><b>${m.active}</b></div><div class="metric"><span>Completed</span><b>${m.completed}</b></div><div class="metric"><span>Cancelled</span><b>${m.cancelled}</b></div>
+          <div class="metric"><span>Avg. wait to ready</span><b>${m.avgWaitToReadySec == null ? '-' : fmtDuration(m.avgWaitToReadySec)}</b></div>
+          <div class="metric"><span>Avg. ready to return</span><b>${m.avgReadyToReturnSec == null ? '-' : fmtDuration(m.avgReadyToReturnSec)}</b></div>
+          <div class="metric"><span>Avg. total time</span><b>${m.avgTotalSec == null ? '-' : fmtDuration(m.avgTotalSec)}</b></div></div>
+        <h3 class="serif ad-h">Active Waiting Guests (read only)</h3>
+        <div class="card" style="overflow:auto"><table class="tbl"><thead><tr><th>WG</th><th>Guest</th><th>Status</th><th>Room</th><th>Waiting</th></tr></thead><tbody>
+          ${sum.active.length ? sum.active.map((g) => `<tr><td><b>${esc(g.wgNumber)}</b></td><td>${esc(g.guestName)}</td><td>${statusPill(g.status)}</td><td>${esc(g.roomNumber || '-')}</td><td class="num" data-since="${esc(g.timestamps.created)}"${['ready', 'returned'].includes(g.status) ? ` data-until="${esc(g.timestamps.roomReady)}"` : ''}>0:00</td></tr>`).join('') : '<tr><td colspan="5" class="muted" style="text-align:center;padding:24px">No active Waiting Guests</td></tr>'}
+        </tbody></table></div>
+        <p class="muted" style="font-size:12.5px;margin-top:14px">Guest links open at: <code>${esc(sum.guestBase || 'unknown (deploy the web app first)')}</code></p>`;
+      tickTimers();
+    } catch (e) { err(e); }
+  }
+
+  /* ---------- CSV import (arrivals or rooms) ---------- */
+  function importer(kind) {
+    const isArr = kind === 'arrivals';
+    const base = isArr ? '/api/import/arrivals' : '/api/import/rooms';
+    S.imp = { csv: '', map: null, replaceAll: false };
+    body().innerHTML = `<div class="card panel"><h2 class="serif">${isArr ? "Import today's arrivals" : 'Import rooms'}</h2>
+      <p class="muted">${isArr ? 'Export the arrivals report from Opera and save it as <b>CSV</b> (in Excel: File → Save As → CSV). Dates are read day first (dd/mm/yyyy).' : 'Upload a CSV of rooms with room number, room type, and optionally building, floor and housekeeping status.'} Nothing is saved until you review the preview and confirm.</p>
+      <div class="drop" id="drop"><input type="file" id="file" accept=".csv,.txt,text/csv" class="sr-only"><label for="file" class="btn btn-ghost">${icon('upload')} Choose CSV file</label><span class="muted" id="fname">or paste the contents below</span></div>
+      <textarea class="in mono" id="paste" rows="5" placeholder="Paste CSV text here" spellcheck="false"></textarea>
+      <div class="actions"><button class="btn btn-primary" id="previewBtn">Preview</button></div>
+      <div id="impOut"></div></div>`;
+    $('#file').addEventListener('change', async (e) => {
+      const f = e.target.files[0]; if (!f) return;
+      if (f.size > 2_000_000) return toast('File is too large (max about 2 MB)', 'err');
+      $('#paste').value = await f.text(); $('#fname').textContent = f.name;
+    });
+    $('#previewBtn').onclick = () => preview();
+    async function preview(map) {
+      const csv = $('#paste').value;
+      if (!csv.trim()) return toast('Choose a file or paste CSV first', 'err');
+      const b = $('#previewBtn'); b.classList.add('loading');
+      try {
+        S.imp.csv = csv; S.imp.map = map || null;
+        const p = await api('POST', base + '/preview', { csv, map: map || undefined });
+        renderPreview(p);
+      } catch (e) { err(e); } finally { b.classList.remove('loading'); }
+    }
+    function renderPreview(p) {
+      const sel = (f) => `<label class="field"><span>${esc(f.label)}${f.required ? ' *' : ''}</span><select class="in mapSel" data-key="${f.key}"><option value="">(not in file)</option>${p.headers.map((h, i) => `<option value="${i}" ${p.map[f.key] === i ? 'selected' : ''}>${esc(h || 'Column ' + (i + 1))}</option>`).join('')}</select></label>`;
+      const canImport = !p.missing.length && p.validCount > 0;
+      $('#impOut').innerHTML = `<hr><div class="section-label">Columns found (header on line ${p.headerLine})</div>
+        <details ${p.missing.length ? 'open' : ''} class="map"><summary>${p.missing.length ? `<b style="color:var(--danger)">Required columns missing: ${p.missing.map(esc).join(', ')}. Match them below.</b>` : 'Review or change column matching'}</summary>
+        <div class="form-grid" style="margin-top:12px">${p.fields.map(sel).join('')}</div><div class="actions"><button class="btn btn-ghost btn-sm" id="remap">Re-check with these columns</button></div></details>
+        <div class="ad-cards" style="margin-top:12px"><div class="metric good"><span>Valid rows</span><b>${p.validCount}</b></div><div class="metric ${p.errorCount ? 'hot' : ''}"><span>Rows with errors</span><b>${p.errorCount}</b></div><div class="metric"><span>Warnings</span><b>${p.warningCount}</b></div></div>
+        ${p.errorCount ? `<div class="banner err" style="margin-top:12px"><span><b>These rows will be skipped:</b><br>${p.errors.map((x) => `Line ${x.line}: ${esc(x.message)}`).join('<br>')}${p.errorCount > p.errors.length ? `<br>…and ${p.errorCount - p.errors.length} more` : ''}</span></div>` : ''}
+        ${p.warningCount ? `<div class="banner info" style="margin-top:10px"><span>${p.warnings.map((x) => `Line ${x.line}: ${esc(x.message)}`).join('<br>')}</span></div>` : ''}
+        ${p.sample.length ? `<div class="section-label" style="margin-top:14px">First rows as they will be saved</div><div style="overflow:auto"><table class="tbl"><thead><tr>${Object.keys(p.sample[0]).map((k) => `<th>${esc(k)}</th>`).join('')}</tr></thead><tbody>${p.sample.map((r) => `<tr>${Object.keys(r).map((k) => `<td>${esc(r[k])}</td>`).join('')}</tr>`).join('')}</tbody></table></div>` : ''}
+        ${isArr ? `<label class="toggle" style="margin-top:14px"><input type="checkbox" id="replaceAll"> Replace all existing reservations (removes older ones)</label>` : ''}
+        <div class="actions"><button class="btn btn-primary" id="commitBtn" ${canImport ? '' : 'disabled'}>Import ${p.validCount} row${p.validCount === 1 ? '' : 's'}${p.errorCount ? ' (skip errors)' : ''}</button></div>`;
+      const rm = $('#remap'); if (rm) rm.onclick = () => { const map = {}; $$('.mapSel').forEach((s) => { map[s.dataset.key] = s.value === '' ? -1 : Number(s.value); }); preview(map); };
+      $('#commitBtn').onclick = async () => {
+        const replaceAll = isArr && $('#replaceAll').checked;
+        const ok = await confirmDialog({ title: `Import ${p.validCount} row${p.validCount === 1 ? '' : 's'}?`, body: replaceAll ? '<b>All existing reservations will be replaced.</b> Waiting Guests already created are not affected.' : 'Existing rows with the same key are updated; new ones are added.', confirmLabel: 'Import' });
+        if (!ok) return;
+        const b = $('#commitBtn'); b.classList.add('loading');
+        try {
+          const r = await api('POST', base, { csv: S.imp.csv, map: S.imp.map || undefined, allowErrors: true, replaceAll });
+          toast(`Imported: ${r.added} added, ${r.updated} updated${r.skipped ? `, ${r.skipped} skipped` : ''}`);
+          go('overview');
+        } catch (e) { b.classList.remove('loading'); err(e); }
+      };
+    }
+  }
+
+  /* ---------- users ---------- */
+  async function users() {
+    body().innerHTML = '<div class="skeleton" style="height:120px"></div>';
+    try {
+      S.users = (await api('GET', '/api/users')).users;
+      body().innerHTML = `<div class="card panel"><h2 class="serif">Staff users</h2>
+        <p class="muted">Passwords are generated for you and shown once. Share them privately; staff can change them from the top bar.</p>
+        <div style="overflow:auto"><table class="tbl"><thead><tr><th>Name</th><th>Username</th><th>Role</th><th>Status</th><th></th></tr></thead><tbody>
+        ${S.users.map((u) => `<tr><td><b>${esc(u.name)}</b></td><td>${esc(u.username)}</td><td>${esc(ROLE_NAME[u.role] || u.role)}</td><td>${u.active ? '<span class="pill st-ready">Active</span>' : '<span class="pill st-completed">Inactive</span>'}</td>
+          <td style="white-space:nowrap"><button class="btn btn-ghost btn-sm" data-reset="${u.id}">Reset password</button> <button class="btn btn-ghost btn-sm" data-active="${u.id}" data-to="${u.active ? 0 : 1}">${u.active ? 'Deactivate' : 'Activate'}</button></td></tr>`).join('')}</tbody></table></div>
+        <hr><h3 class="serif" style="font-size:18px">Add a user</h3>
+        <form id="newUser" class="form-grid" style="margin-top:12px">
+          <label class="field"><span>Full name</span><input class="in" id="nuName" maxlength="80" required></label>
+          <label class="field"><span>Username</span><input class="in" id="nuUser" maxlength="32" autocapitalize="none" required></label>
+          <label class="field"><span>Role</span><select class="in" id="nuRole"><option value="reception">Reception</option><option value="rooms_controller">Rooms Controller</option><option value="admin">Admin</option></select></label>
+          <div class="field"><span>&nbsp;</span><button class="btn btn-primary" type="submit" id="nuGo">${icon('plus')} Create user</button></div></form></div>`;
+      $('#newUser').addEventListener('submit', async (e) => {
+        e.preventDefault(); const b = $('#nuGo'); b.classList.add('loading');
+        try { const r = await api('POST', '/api/users', { name: $('#nuName').value, username: $('#nuUser').value, role: $('#nuRole').value }); await shownPassword(`User created: ${r.user.username}`, r.password); users(); }
+        catch (ex) { b.classList.remove('loading'); err(ex); }
+      });
+      body().onclick = async (e) => {
+        const r = e.target.closest('[data-reset]'), a = e.target.closest('[data-active]');
+        if (r) {
+          const u = S.users.find((x) => x.id === Number(r.dataset.reset));
+          if (!(await confirmDialog({ title: `Reset password for ${u.username}?`, body: 'Their current password stops working and they are signed out.', confirmLabel: 'Reset' }))) return;
+          try { const out = await api('POST', `/api/users/${u.id}/reset-password`, {}); await shownPassword(`New password for ${u.username}`, out.password); } catch (ex) { err(ex); }
+        }
+        if (a) { try { await api('POST', `/api/users/${a.dataset.active}/active`, { active: a.dataset.to === '1' }); users(); } catch (ex) { err(ex); } }
+      };
+    } catch (e) { err(e); }
+  }
+  function shownPassword(title, pw) {
+    return dialog({ title, body: `<p>Copy this password now. It is <b>not shown again</b>.</p><div class="pw-box" id="pwShow">${esc(pw)}</div>`, confirmLabel: 'I have copied it', cancelLabel: '' });
+  }
+
+  /* ---------- export ---------- */
+  function exportView() {
+    body().innerHTML = `<div class="card panel"><h2 class="serif">Export Waiting Guests</h2>
+      <p class="muted">Every Waiting Guest with all timestamps (created, room assigned, preparation started, room ready, guest notified, guest returned, completed). Use it to compare the digital process with the old manual one. Contains guest names: handle it as confidential.</p>
+      <div class="actions"><button class="btn btn-primary" id="exGo">${icon('download')} Download CSV</button></div></div>`;
+    $('#exGo').onclick = async () => {
+      const b = $('#exGo'); b.classList.add('loading');
+      try {
+        const { csv } = await api('GET', '/api/export/waiting-guests');
+        const url = URL.createObjectURL(new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' }));
+        const a = document.createElement('a'); a.href = url; a.download = `waiting-guests-${new Date().toISOString().slice(0, 10)}.csv`; document.body.appendChild(a); a.click(); a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 2000);
+      } catch (e) { err(e); } finally { b.classList.remove('loading'); }
+    };
+  }
+
+  (async function init() {
+    try { S.roomTypes = (await api('GET', '/api/meta')).roomTypes; } catch (e) { err(e); }
+    go('overview');
+    WG.stopLive = live(() => { if (S.tab === 'overview') overview(true); }, setLive, { baseMs: 8000 });
+  })();
+};
+
+/* ---- 50-guest.js ---- */
+'use strict';
+/* Guest page. No login: the unguessable token in the link is the only credential.
+   The server returns guest-safe fields only (no phone, email, staff notes or room number). */
+WG.views.guest = function (root, token) {
+  const ICON = {
+    sparkle: '<path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z"/><path d="M19 15l.7 2 2 .7-2 .7-.7 2-.7-2-2-.7 2-.7z"/>',
+    pool: '<path d="M2 18c1.5 0 1.5 1 3 1s1.5-1 3-1 1.5 1 3 1 1.5-1 3-1 1.5 1 3 1 1.5-1 3-1M2 13c1.5 0 1.5 1 3 1s1.5-1 3-1 1.5 1 3 1 1.5-1 3-1 1.5 1 3 1 1.5-1 3-1M8 12V5a2 2 0 0 1 4 0M14 12V5a2 2 0 0 1 4 0M8 8h6"/>',
+    beach: '<path d="M12 12L3 21M12 3a9 9 0 0 1 9 9H3a9 9 0 0 1 9-9zM2 21h20"/>',
+    dining: '<path d="M7 3v8a2 2 0 0 0 2 2v8M5 3v6M9 3v6M17 21V3c-2.5 1-4 3.5-4 7 0 2 1 3 4 3"/>',
+    activity: '<circle cx="12" cy="12" r="9"/><path d="M8 14s1.5 2 4 2 4-2 4-2M9 9h.01M15 9h.01"/>',
+    wifi: '<path d="M5 12.5a10 10 0 0 1 14 0M8.5 16a5 5 0 0 1 7 0M2 9a14 14 0 0 1 20 0"/><circle cx="12" cy="19.5" r=".8"/>',
+    bell: '<path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9M10.3 21a1.9 1.9 0 0 0 3.4 0"/>',
+    map: '<path d="M9 20l-6-3V5l6 3m0 12l6-3m-6 3V8m6 9l6 3V7l-6-3m0 15V5m0 0L9 8"/>',
+    globe: '<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/>',
+    hourglass: '<path d="M6 2h12M6 22h12M7 2v4a5 5 0 0 0 2 4l3 2-3 2a5 5 0 0 0-2 4v4M17 2v4a5 5 0 0 1-2 4l-3 2 3 2a5 5 0 0 1 2 4v4"/>',
+    key: '<circle cx="8" cy="15" r="4"/><path d="M10.8 12.2L21 2M16 7l3 3"/>',
+    heart: '<path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1-1.1a5.5 5.5 0 0 0-7.8 7.8l1 1.1L12 21l7.8-7.5 1-1.1a5.5 5.5 0 0 0 0-7.8z"/>',
+    info: '<circle cx="12" cy="12" r="9"/><path d="M12 8h.01M11 12h1v4h1"/>',
+    chev: '<path d="M6 9l6 6 6-6"/>',
+  };
+  const svg = (n) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICON[n] || ''}</svg>`;
+  const fmtD = (d) => (d ? new Date(d + 'T00:00:00').toLocaleDateString([], { weekday: 'short', day: 'numeric', month: 'short' }) : '-');
+
+  const HERO = {
+    preparing: { cls: '', icon: 'hourglass', eyebrow: 'Room status', title: 'Your room is being prepared', text: null },
+    ready: { cls: 'ready', icon: 'key', eyebrow: 'Room status', title: 'Your room is ready', text: 'Please proceed to Reception to complete your check-in and collect your room keys.' },
+    completed: { cls: 'done', icon: 'heart', eyebrow: 'Check-in complete', title: 'Welcome. Enjoy your stay', text: 'Your check-in is complete. We hope you have a wonderful stay.' },
+    cancelled: { cls: 'done', icon: 'info', eyebrow: 'Waiting record closed', title: 'This waiting record is no longer active', text: 'Please speak to a member of the Reception team and they will be happy to help.' },
+  };
+
+  let data = null, phase = null, version = null, timer = null, fails = 0;
+  root.innerHTML = `<div class="g-shell"><header class="g-top"><div class="logo-chip"><img src="${WG_ASSETS.logo}" alt="Rixos Bab Al Bahr"></div></header>
+    <main id="gApp" aria-live="polite"><div class="hero skeleton-hero"><div class="skeleton" style="height:22px;width:50%;margin:0 auto"></div><div class="skeleton" style="height:64px;margin-top:18px"></div></div></main>
+    <footer class="g-foot">Rixos Bab Al Bahr</footer></div>`;
+  const app = $('#gApp');
+
+  function render() {
+    const { waitingGuest: g, content: c } = data;
+    const h = HERO[g.phase] || HERO.preparing;
+    const idx = { preparing: 1, ready: 2, completed: 3, cancelled: 0 }[g.phase];
+    const P = ['Received', 'Preparing', 'Ready'];
+    const prog = g.phase === 'cancelled' ? '' : `<div class="progress" aria-label="Progress">${P.map((l, i) => {
+      const on = i < idx || (i === idx && g.phase !== 'preparing') || g.phase === 'completed';
+      const cur = i === idx && g.phase === 'preparing';
+      return `<div class="p ${on ? 'on' : ''} ${cur ? 'cur' : ''}"><i></i>${l}</div>${i < P.length - 1 ? `<div class="ln ${i < idx ? 'on' : ''}"></div>` : ''}`;
+    }).join('')}</div><div style="height:14px"></div>`;
+    const link = (l, ic, sub) => l && l.url
+      ? `<a class="link-btn" href="${esc(l.url)}" target="_blank" rel="noopener noreferrer">${svg(ic)}${esc(l.label)}<small>${sub}</small></a>`
+      : `<div class="link-btn off" aria-disabled="true">${svg(ic)}${esc(l ? l.label : '')}<small>Coming soon</small></div>`;
+    const showInfo = g.phase !== 'cancelled';
+    app.innerHTML = `
+      <section class="hero ${h.cls}" aria-labelledby="st">
+        <div class="badge">${svg(h.icon)}</div><div class="eyebrow">${h.eyebrow}</div>
+        <h1 id="st">${h.title}</h1><p>${esc(h.text || c.welcome)}</p>
+        <div class="ref"><span>Waiting Guest number</span><b>${esc(g.wgNumber)}</b></div>
+      </section>
+      <section class="card g-card" aria-label="Your details"><div class="kv">
+        <div><span>Guest</span><b>${esc(g.guestName)}</b></div><div><span>Confirmation</span><b>${esc(g.confirmationNo)}</b></div>
+        <div><span>Room type</span><b>${esc(g.roomType)}</b></div><div><span>Arrival</span><b>${fmtD(g.arrivalDate)}${g.arrivalTime ? ' · ' + esc(g.arrivalTime) : ''}</b></div></div>${prog}</section>
+      ${showInfo ? `<h2 class="sec-title wait-title">${g.phase === 'ready' ? 'Around the resort' : 'While you wait'}</h2>
+      <p class="wait-sub">${g.phase === 'ready' ? 'Everything you need, whenever you want it.' : esc(c.welcome)}</p>
+      <div class="links">${link(c.links.map, 'map', 'Find your way around')}${link(c.links.website, 'globe', esc(c.hotelName))}</div>
+      <div class="cards">${c.sections.map((s) => `<details class="tile"><summary><span class="ic">${svg(s.icon)}</span><span class="tt">${esc(s.title)}</span><span class="chev">${svg('chev')}</span></summary>
+        <div class="body">${esc(s.body)}${s.note ? `<div style="margin-top:8px;font-size:12.5px">${esc(s.note)}</div>` : ''}${s.placeholder ? '<div><span class="soon">Details coming soon</span></div>' : ''}</div></details>`).join('')}</div>
+      <p class="notice">This page updates automatically. Keep it open, or scan your QR again at any time.</p>` : ''}`;
+    if (phase && phase !== g.phase) {
+      try { navigator.vibrate && navigator.vibrate(g.phase === 'ready' ? [120, 60, 120] : 40); } catch (e) { /* not supported */ }
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+    document.title = g.phase === 'ready' ? 'Your room is ready · Rixos Bab Al Bahr' : 'Your room · Rixos Bab Al Bahr';
+    phase = g.phase;
+  }
+
+  function conn(ok) {
+    let el = document.getElementById('conn');
+    if (ok) { if (el) el.remove(); return; }
+    if (!el) { el = document.createElement('div'); el.id = 'conn'; el.className = 'conn'; el.textContent = 'Reconnecting…'; document.body.appendChild(el); }
+  }
+
+  async function load() {
+    try {
+      const r = await transport('GET', `/api/guest/${encodeURIComponent(token)}${version !== null && data ? `?v=${version}&have=1` : ''}`);
+      if (r.status === 404) { app.innerHTML = `<div class="err-view"><h1>This link is not valid</h1><p class="muted">Please ask a member of the Reception team to help you.</p></div>`; stop(); return; }
+      if (r.status === 0 || r.status >= 500) throw new Error('unavailable');
+      if (r.status >= 400) throw new Error('bad');
+      fails = 0; conn(true);
+      if (r.body.unchanged) return;
+      version = r.body.version;
+      const changed = !data || JSON.stringify(data.waitingGuest) !== JSON.stringify(r.body.waitingGuest);
+      data = r.body;
+      if (changed) render(); // only redraw on a real change, so open cards and scroll position are left alone
+    } catch (e) { fails++; if (fails >= 2) conn(false); }
+  }
+  function stop() { clearTimeout(timer); timer = null; }
+  function loop() {
+    stop();
+    timer = setTimeout(async () => { if (!document.hidden) await load(); loop(); }, fails ? Math.min(30000, 6000 * (fails + 1)) : 6000);
+  }
+  document.addEventListener('visibilitychange', () => { if (!document.hidden && timer !== null) load(); });
+  load().then(loop);
+};
+
+/* ---- 99-boot.js ---- */
+'use strict';
+(async function boot() {
+  const root = $('#root');
+  if (WG.boot.mode === 'guest') return WG.views.guest(root, WG.boot.token);
+  const t = storedToken();
+  if (t) {
+    WG.token = t;
+    try { const { user } = await api('GET', '/api/me'); return mountForUser(user); } catch (e) { if (!e.silent) { forgetToken(); showLogin(); } return; }
+  }
+  showLogin();
+})();
+
+</script>
+</body>
+</html>
