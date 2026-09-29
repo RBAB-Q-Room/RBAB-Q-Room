@@ -262,6 +262,144 @@ const Waiting = (function () {
     });
   }
 
+  // ---- admin: correct, edit, delete, reset ----------------------------------
+  const STATUS_TS = ['room_assigned_at', 'preparation_started_at', 'room_ready_at', 'guest_returned_at', 'completed_at']; // in workflow order
+
+  /** Admin: fix any field of a record, including the reservation snapshot. */
+  function adminUpdate(user, id, input) {
+    role(user, ['admin']);
+    input = input || {};
+    return Locks.run(function () {
+      const r = must(id);
+      const conf = clean_(input.confirmationNo !== undefined ? input.confirmationNo : r.confirmation_no, 30);
+      const res = validateManual({
+        guestName: input.guestName !== undefined ? input.guestName : r.guest_name,
+        arrivalDate: input.arrivalDate !== undefined ? input.arrivalDate : r.arrival_date,
+        departureDate: input.departureDate !== undefined ? input.departureDate : r.departure_date,
+        arrivalTime: input.arrivalTime !== undefined ? input.arrivalTime : r.arrival_time,
+        roomType: input.roomType !== undefined ? input.roomType : r.room_type,
+        adults: input.adults !== undefined ? input.adults : r.adults,
+        children: input.children !== undefined ? input.children : r.children,
+        phone: r.phone, email: r.email,
+      }, conf);
+      if (conf !== r.confirmation_no && isActive(r)) {
+        const dup = Store.all('WaitingGuests').filter(function (x) { return x.id !== id && x.confirmation_no === conf && isActive(x); })[0];
+        if (dup) throw HttpError_(409, dup.wg_number + ' is already active for confirmation ' + conf);
+      }
+      const associate = input.associate !== undefined ? clean_(input.associate, 80) : r.associate;
+      if (!associate) throw HttpError_(400, 'Associate name is required', { field: 'associate' });
+      const row = Store.update('WaitingGuests', r._row, {
+        confirmation_no: res.confirmationNo, guest_name: res.guestName, arrival_date: res.arrivalDate, arrival_time: res.arrivalTime,
+        departure_date: res.departureDate, room_type: res.roomType, adults: res.adults, children: res.children,
+        luggage_tag: input.luggageTag !== undefined ? clean_(input.luggageTag, 40) : r.luggage_tag, associate: associate,
+        preferences: input.preferences !== undefined ? clean_(input.preferences, 500) : r.preferences,
+        remarks: input.remarks !== undefined ? clean_(input.remarks, 500) : r.remarks,
+        language: normLanguage_(input.language, r.language || 'en'),
+        tags: input.tags === undefined ? r.tags : cleanTags_(input.tags),
+        vip_code: input.vipCode !== undefined ? clean_(input.vipCode, 20) : r.vip_code,
+      });
+      log(id, r.status, r.status, r.room_number, user, 'Record corrected by admin');
+      audit_(user, 'record.edit', r.wg_number);
+      Store.bump();
+      return toStaff(row);
+    });
+  }
+
+  /**
+   * Admin: set any status (e.g. undo a room marked ready by mistake, reopen a
+   * completed record). Timestamps of later steps are cleared so metrics stay true.
+   */
+  function correctStatus(user, id, to, roomNumber, reason) {
+    role(user, ['admin']);
+    if (STATUSES.indexOf(to) === -1) throw HttpError_(400, 'Unknown status');
+    const why = clean_(reason, 200);
+    if (why.length < 3) throw HttpError_(400, 'Please give a short reason', { field: 'reason' });
+    return Locks.run(function () {
+      const r = must(id);
+      if (to === r.status) throw HttpError_(409, 'The record already has this status');
+      const now = nowIso_();
+      const patch = { status: to };
+      const needsRoom = ['room_assigned', 'preparing', 'ready', 'returned', 'completed'].indexOf(to) !== -1;
+      let room = r.room_number;
+      if (needsRoom) {
+        if (roomNumber) {
+          const rm = Store.find('Rooms', 'room_number', clean_(roomNumber, 10));
+          if (!rm) throw HttpError_(404, 'Room not found');
+          room = rm.room_number;
+        }
+        if (!room) throw HttpError_(409, 'Choose a room for this status');
+        if (to !== 'completed') {
+          const clash = Store.all('WaitingGuests').filter(function (x) { return x.room_number === room && isActive(x) && x.id !== id; })[0];
+          if (clash) throw HttpError_(409, 'Room ' + room + ' is already held by ' + clash.wg_number);
+        }
+      } else room = '';
+      patch.room_number = room;
+      const reached = { waiting: 0, room_assigned: 1, preparing: 2, ready: 3, returned: 4, completed: 5, cancelled: -1 }[to];
+      STATUS_TS.forEach(function (col, i) {
+        if (to === 'cancelled') return;
+        if (i >= reached) patch[col] = '';
+        else if (!r[col] && i !== 1) patch[col] = now; // steps before the new one must have a time (preparation is optional)
+      });
+      if (to !== 'cancelled') { patch.cancelled_at = ''; patch.cancel_reason = ''; }
+      else { patch.cancelled_at = now; patch.cancel_reason = why; }
+      if (reached < 3 && to !== 'cancelled') { patch.guest_notified_at = ''; patch.guest_seen_ready_at = ''; }
+      if (to === 'ready' && !r.guest_notified_at) patch.guest_notified_at = now;
+      const reachedTs = { room_assigned: 'room_assigned_at', preparing: 'preparation_started_at', ready: 'room_ready_at', returned: 'guest_returned_at', completed: 'completed_at' }[to];
+      if (reachedTs) patch[reachedTs] = now;
+      const row = Store.update('WaitingGuests', r._row, patch);
+      log(id, r.status, to, room, user, 'Corrected by admin: ' + why);
+      audit_(user, 'record.status', r.wg_number + ' ' + r.status + ' -> ' + to + ' (' + why + ')');
+      Store.bump();
+      return toStaff(row);
+    });
+  }
+
+  /** Admin: permanently delete one record and its history. The guest link stops working. */
+  function adminDelete(user, id, confirmWg) {
+    role(user, ['admin']);
+    return Locks.run(function () {
+      const r = must(id);
+      if (String(confirmWg || '').trim().toUpperCase() !== r.wg_number.toUpperCase()) throw HttpError_(400, 'Type ' + r.wg_number + ' to confirm', { field: 'confirm' });
+      Store.all('StatusHistory').filter(function (h) { return h.waiting_guest_id === id; }).sort(function (a, b) { return b._row - a._row; })
+        .forEach(function (h) { Store.remove('StatusHistory', h._row); });
+      Store.remove('WaitingGuests', must(id)._row);
+      audit_(user, 'record.delete', r.wg_number + ' (' + r.confirmation_no + ')');
+      Store.bump();
+      return { ok: true };
+    });
+  }
+
+  /**
+   * Admin: wipe all Waiting Guests and their history (e.g. after testing) and restart
+   * numbering at 1. Optionally also remove all imported reservations.
+   * Users, rooms, settings and guest-page content are kept.
+   */
+  function resetAll(user, input) {
+    role(user, ['admin']);
+    input = input || {};
+    if (String(input.confirm || '').trim() !== 'RESET') throw HttpError_(400, 'Type RESET to confirm', { field: 'confirm' });
+    return Locks.run(function () {
+      const n = Store.all('WaitingGuests').length;
+      Store.clear('WaitingGuests');
+      Store.clear('StatusHistory');
+      ['wg_id', 'wg_number', 'history_counter'].forEach(function (k) { Store.kvSet('Meta', k, 0); });
+      let res = 0;
+      if (input.reservations) { res = Store.all('Reservations').length; Store.clear('Reservations'); }
+      audit_(user, 'data.reset', n + ' waiting guest record(s)' + (input.reservations ? ', ' + res + ' reservation(s)' : ''));
+      Store.bump();
+      return { waitingGuests: n, reservations: res };
+    });
+  }
+
+  /** Admin: every record (active and closed), newest first, optionally filtered. */
+  function adminList(q, status) {
+    const t = fold_(q);
+    return Store.all('WaitingGuests')
+      .filter(function (r) { return !status || status === 'all' || (status === 'active' ? isActive(r) : r.status === status); })
+      .filter(function (r) { return !t || [r.guest_name, r.wg_number, r.confirmation_no, r.room_number, r.luggage_tag].some(function (x) { return fold_(x).indexOf(t) !== -1; }); })
+      .sort(function (a, b) { return a.created_at < b.created_at ? 1 : -1; }).slice(0, 300).map(toStaff);
+  }
+
   function setPriority(user, id, priority) {
     role(user, ['rooms_controller']);
     return Locks.run(function () {
@@ -479,7 +617,8 @@ const Waiting = (function () {
     return lines.join('\r\n');
   }
 
-  return { create: create, editDetails: editDetails, assignRoom: assignRoom, setStatus: setStatus, cancel: cancel, setPriority: setPriority,
+  return { adminUpdate: adminUpdate, correctStatus: correctStatus, adminDelete: adminDelete, resetAll: resetAll, adminList: adminList,
+    create: create, editDetails: editDetails, assignRoom: assignRoom, setStatus: setStatus, cancel: cancel, setPriority: setPriority,
     queue: queue, recentClosed: recentClosed, get: get, history: history, search: search, availableRooms: availableRooms, guestView: guestView, markSeen: markSeen, feedback: feedback,
     metrics: metrics, exportCsv: exportCsv, toStaff: toStaff };
 })();

@@ -320,6 +320,21 @@ html[data-theme="dark"] { --chart: #B87A30; --chart-hl: #D69A4E; }
 @media (max-width: 900px) { .bc-grid, .gp { grid-template-columns: 1fr; } }
 @media (max-width: 560px) { .form-grid { grid-template-columns: 1fr; } .ad-wrap { padding-inline: 14px; } .ad-cards { grid-template-columns: 1fr 1fr; } }
 
+/* records, danger zone */
+.rec-tools { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+.rec-tools .search-box { flex: 1 1 260px; max-width: 420px; }
+.row-acts { white-space: nowrap; text-align: end; }
+.row-acts .btn + .btn { margin-inline-start: 6px; }
+.rec-tbl td { vertical-align: middle; }
+.modal-box.wide { max-width: 620px; max-height: 90vh; overflow-y: auto; }
+.mf-body { display: grid; gap: 12px; margin-top: 10px; }
+.mf-body p { margin: 0; }
+.btn-danger-solid { background: var(--danger); color: #fff; }
+.btn-danger-solid:hover:not(:disabled) { filter: brightness(.92); }
+html[data-theme="dark"] .btn-danger-solid { color: #1b140c; }
+.danger-zone { border-color: color-mix(in srgb, var(--danger) 40%, var(--line)); }
+.danger-zone p { margin: 0; max-width: 70ch; }
+
 .rc-wrap { display: grid; grid-template-columns: minmax(0, 1fr) 380px; gap: 24px; max-width: 1240px; margin: 0 auto; padding: 24px; align-items: start; }
 .rc-main { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
 .hint { font-size: 12.5px; padding: 0 6px; }
@@ -1599,7 +1614,7 @@ WG.views.controller = function (root, user) {
    settings, data imports and staff users. Measured figures and assumptions are never mixed. */
 WG.views.admin = function (root, user) {
   const S = { tab: 'analytics', range: 'today', users: [], roomTypes: {}, imp: null, settings: null, content: null, editId: null, editLang: 'en' };
-  const TABS = [['analytics', 'Analytics'], ['guest', 'Guest page'], ['settings', 'Settings'], ['data', 'Data'], ['users', 'Users']];
+  const TABS = [['analytics', 'Analytics'], ['records', 'Records'], ['guest', 'Guest page'], ['settings', 'Settings'], ['data', 'Data'], ['users', 'Users']];
 
   root.innerHTML = `<div id="topbar"></div>
     <div class="ad-wrap"><nav class="ad-tabs" role="tablist" id="adTabs">${TABS.map(([k, l]) => `<button role="tab" data-tab="${k}" aria-selected="false">${l}</button>`).join('')}</nav>
@@ -1610,7 +1625,7 @@ WG.views.admin = function (root, user) {
   function go(tab) {
     S.tab = tab; S.imp = null;
     $$('#adTabs button').forEach((b) => { b.classList.toggle('on', b.dataset.tab === tab); b.setAttribute('aria-selected', b.dataset.tab === tab); });
-    ({ analytics, guest: guestPage, settings, data: dataTab, users })[tab]();
+    ({ analytics, records, guest: guestPage, settings, data: dataTab, users })[tab]();
   }
   const body = () => $('#adBody');
   const err = (e) => { if (!e.silent) toast(e.message, 'err'); };
@@ -1765,6 +1780,98 @@ WG.views.admin = function (root, user) {
     });
   }
 
+  /* ---------- records: correct, edit, delete ---------- */
+  S.rq = ''; S.rstatus = 'all';
+  async function records() {
+    body().innerHTML = `<div class="card panel"><div class="panel-head"><div><h2 class="serif">Waiting Guest records</h2><p class="muted small">Correct mistakes here. Every change is recorded in the timeline and the audit log.</p></div></div>
+      <div class="rec-tools"><div class="search-box compact">${icon('search')}<label for="rq" class="sr-only">Search records</label><input id="rq" type="search" placeholder="Name, WG number, confirmation, room" value="${esc(S.rq)}" autocomplete="off"></div>
+        <label class="sortsel"><span class="sr-only">Status</span><select id="rs" class="in">${[['all', 'All statuses'], ['active', 'Active'], ...Object.keys(STATUS_LABEL).map((k) => [k, STATUS_LABEL[k]])].map(([k, l]) => `<option value="${k}" ${S.rstatus === k ? 'selected' : ''}>${l}</option>`).join('')}</select></label></div>
+      <div id="recList"><div class="skeleton" style="height:120px"></div></div></div>`;
+    let tmr;
+    $('#rq').addEventListener('input', (e) => { S.rq = e.target.value; clearTimeout(tmr); tmr = setTimeout(loadRecords, 250); });
+    $('#rs').addEventListener('change', (e) => { S.rstatus = e.target.value; loadRecords(); });
+    loadRecords();
+  }
+  async function loadRecords() {
+    try {
+      const { records: list } = await api('GET', `/api/admin/records?q=${encodeURIComponent(S.rq)}&status=${S.rstatus}`);
+      S.records = list;
+      const box = $('#recList'); if (!box) return;
+      box.innerHTML = list.length ? `<div class="table-wrap"><table class="tbl rec-tbl"><thead><tr><th>WG</th><th>Guest</th><th>Confirmation</th><th>Status</th><th>Room</th><th>Created</th><th><span class="sr-only">Actions</span></th></tr></thead><tbody>
+        ${list.map((g) => `<tr><td class="num"><b>${esc(g.wgNumber)}</b></td><td>${esc(g.guestName)}</td><td class="num">${esc(g.confirmationNo)}</td><td>${statusPill(g.status)}</td><td class="num">${esc(g.roomNumber || '-')}</td>
+          <td class="num">${fmtDate(g.timestamps.created.slice(0, 10))} ${fmtClock(g.timestamps.created)}</td>
+          <td class="row-acts"><button class="btn btn-ghost btn-sm" data-edit="${g.id}">Edit</button><button class="btn btn-ghost btn-sm" data-st="${g.id}">Status</button><button class="btn btn-ghost btn-sm btn-danger" data-del="${g.id}">Delete</button></td></tr>`).join('')}
+        </tbody></table></div>` : `<div class="empty">${icon('search')}<b>No records</b>${S.rq || S.rstatus !== 'all' ? 'Nothing matches this search.' : 'Waiting Guests created at Reception appear here.'}</div>`;
+      box.onclick = (e) => {
+        const b = e.target.closest('button'); if (!b) return;
+        const g = S.records.find((x) => x.id === Number(b.dataset.edit || b.dataset.st || b.dataset.del)); if (!g) return;
+        if (b.dataset.edit) editRecord(g); else if (b.dataset.st) statusRecord(g); else deleteRecord(g);
+      };
+    } catch (e) { err(e); }
+  }
+  function modalForm(title, inner, submitLabel, onSubmit, danger) {
+    const ov = document.createElement('div');
+    ov.className = 'modal-overlay';
+    ov.innerHTML = `<form class="modal-box wide" role="dialog" aria-modal="true" aria-labelledby="mfT" novalidate><h2 id="mfT">${esc(title)}</h2><div class="mf-body">${inner}</div>
+      <div class="banner err" id="mfErr" hidden></div>
+      <div class="modal-actions"><button type="button" class="btn btn-ghost" data-r="0">Cancel</button><button class="btn ${danger ? 'btn-danger-solid' : 'btn-primary'}" type="submit" id="mfGo">${esc(submitLabel)}</button></div></form>`;
+    document.body.appendChild(ov);
+    const close = () => { ov.remove(); document.removeEventListener('keydown', key); };
+    const key = (e) => { if (e.key === 'Escape') close(); };
+    document.addEventListener('keydown', key);
+    $('[data-r="0"]', ov).onclick = close;
+    ov.addEventListener('click', (e) => { if (e.target === ov) close(); });
+    ov.querySelector('form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const b = $('#mfGo', ov); b.classList.add('loading'); $('#mfErr', ov).hidden = true;
+      try { await onSubmit(ov); close(); } catch (ex) { b.classList.remove('loading'); if (!ex.silent) { $('#mfErr', ov).textContent = ex.message; $('#mfErr', ov).hidden = false; } }
+    });
+    const first = $('input, select, textarea', ov); if (first) first.focus();
+    return ov;
+  }
+  function editRecord(g) {
+    const types = Object.keys(S.roomTypes).sort();
+    const f = (id, label, val, attrs = '') => `<label class="field"><span>${label}</span><input class="in" id="${id}" value="${esc(val == null ? '' : val)}" ${attrs}></label>`;
+    modalForm(`Edit ${g.wgNumber}`, `<div class="form-grid">
+      ${f('eName', 'Guest name', g.guestName, 'maxlength="120"')}${f('eConf', 'Confirmation', g.confirmationNo, 'maxlength="30"')}
+      ${f('eArr', 'Arrival date', g.arrivalDate, 'type="date"')}${f('eDep', 'Departure date', g.departureDate, 'type="date"')}
+      <label class="field"><span>Room type</span><select class="in" id="eType">${types.concat(types.includes(g.roomType) ? [] : [g.roomType]).map((c) => `<option value="${esc(c)}" ${c === g.roomType ? 'selected' : ''}>${esc(c)} · ${esc(S.roomTypes[c] || c)}</option>`).join('')}</select></label>
+      ${f('eTime', 'Arrival time', g.arrivalTime, 'type="time"')}
+      ${f('eAd', 'Adults', g.adults, 'type="number" min="1" max="20"')}${f('eCh', 'Children', g.children, 'type="number" min="0" max="20"')}
+      ${f('eTag', 'Luggage tag', g.luggageTag, 'maxlength="40"')}${f('eAssoc', 'Associate', g.associate, 'maxlength="80"')}
+      ${f('eVip', 'VIP code', g.vipCode, 'maxlength="20"')}<label class="field"><span>Guest language</span><select class="in" id="eLang">${langOptions(g.language)}</select></label>
+      <label class="field full"><span>Preferences</span><textarea class="in" id="ePref" rows="2" maxlength="500">${esc(g.preferences)}</textarea></label>
+      <label class="field full"><span>Remarks</span><textarea class="in" id="eRem" rows="2" maxlength="500">${esc(g.remarks)}</textarea></label></div>`,
+    'Save changes', async (ov) => {
+      await api('POST', `/api/admin/records/${g.id}`, { guestName: $('#eName', ov).value, confirmationNo: $('#eConf', ov).value, arrivalDate: $('#eArr', ov).value, departureDate: $('#eDep', ov).value,
+        roomType: $('#eType', ov).value, arrivalTime: $('#eTime', ov).value, adults: $('#eAd', ov).value, children: $('#eCh', ov).value, luggageTag: $('#eTag', ov).value, associate: $('#eAssoc', ov).value,
+        vipCode: $('#eVip', ov).value, language: $('#eLang', ov).value, preferences: $('#ePref', ov).value, remarks: $('#eRem', ov).value });
+      toast(`${g.wgNumber} updated`); loadRecords();
+    });
+  }
+  function statusRecord(g) {
+    const needsRoom = ['room_assigned', 'preparing', 'ready', 'returned', 'completed'];
+    const ov = modalForm(`Correct the status of ${g.wgNumber}`, `<p class="muted small">Current status: ${statusPill(g.status)}${g.roomNumber ? ` · room <b>${esc(g.roomNumber)}</b>` : ''}. Use this to undo a mistake, for example a room marked ready too early or a record completed for the wrong guest. The guest page follows immediately.</p>
+      <div class="form-grid"><label class="field"><span>New status</span><select class="in" id="sNew">${Object.keys(STATUS_LABEL).filter((k) => k !== g.status).map((k) => `<option value="${k}">${STATUS_LABEL[k]}</option>`).join('')}</select></label>
+      <label class="field" id="sRoomWrap"><span>Room</span><input class="in" id="sRoom" value="${esc(g.roomNumber)}" maxlength="10" placeholder="Room number"></label>
+      <label class="field full"><span>Reason (required)</span><input class="in" id="sWhy" maxlength="200" placeholder="e.g. Marked ready by mistake"></label></div>`,
+    'Change status', async (o) => {
+      await api('POST', `/api/admin/records/${g.id}/status`, { status: $('#sNew', o).value, roomNumber: $('#sRoom', o).value.trim(), reason: $('#sWhy', o).value });
+      toast(`${g.wgNumber} is now ${STATUS_LABEL[$('#sNew', o).value]}`); loadRecords();
+    });
+    const sync = () => { $('#sRoomWrap', ov).hidden = !needsRoom.includes($('#sNew', ov).value); };
+    $('#sNew', ov).addEventListener('change', sync); sync();
+  }
+  function deleteRecord(g) {
+    modalForm(`Delete ${g.wgNumber}?`, `<p>This permanently removes <b>${esc(g.guestName)}</b>'s record and its timeline. Their guest link stops working. This cannot be undone.</p>
+      <p class="muted small">To keep the record but take it out of the queue, use <b>Status → Cancelled</b> instead.</p>
+      <label class="field"><span>Type ${esc(g.wgNumber)} to confirm</span><input class="in" id="dConf" autocomplete="off" autocapitalize="characters"></label>`,
+    'Delete permanently', async (ov) => {
+      await api('POST', `/api/admin/records/${g.id}/delete`, { confirm: $('#dConf', ov).value });
+      toast(`${g.wgNumber} deleted`); loadRecords();
+    }, true);
+  }
+
   /* ---------- guest page content ---------- */
   const LANG_TABS = [['en', 'English'], ['ar', 'العربية'], ['ru', 'Русский'], ['de', 'Deutsch']];
   async function guestPage() {
@@ -1842,13 +1949,33 @@ WG.views.admin = function (root, user) {
     } catch (e) { err(e); }
   }
 
+  /* ---------- reset (danger zone) ---------- */
+  function resetView(host) {
+    host.innerHTML = `<div class="card panel danger-zone"><h2 class="serif">Reset test data</h2>
+      <p>Deletes <b>every Waiting Guest record and its timeline</b>, and starts numbering again at <b>${esc((S.settings && S.settings.wg_prefix) || 'WG')}-0001</b>. All guest links stop working.</p>
+      <p class="muted small">Kept: staff users, rooms, settings and guest-page content. Use this after testing, before real guests. For live use, export first (Data → Export).</p>
+      <label class="toggle"><input type="checkbox" id="rsRes"> Also delete all imported reservations</label>
+      <label class="field" style="max-width:320px"><span>Type RESET to confirm</span><input class="in" id="rsConf" autocomplete="off" autocapitalize="characters"></label>
+      <div class="banner err" id="rsErr" hidden></div>
+      <div class="actions"><button class="btn btn-danger-solid" id="rsGo" disabled>Reset now</button></div></div>`;
+    $('#rsConf').addEventListener('input', (e) => { $('#rsGo').disabled = e.target.value.trim() !== 'RESET'; });
+    $('#rsGo').onclick = async () => {
+      const b = $('#rsGo'); b.classList.add('loading'); $('#rsErr').hidden = true;
+      try {
+        const r = await api('POST', '/api/admin/reset', { confirm: $('#rsConf').value.trim(), reservations: $('#rsRes').checked });
+        toast(`Reset done: ${r.waitingGuests} record(s)${r.reservations ? ` and ${r.reservations} reservation(s)` : ''} deleted`);
+        resetView(host);
+      } catch (e) { b.classList.remove('loading'); $('#rsErr').textContent = e.message; $('#rsErr').hidden = false; }
+    };
+  }
+
   /* ---------- data: imports and export ---------- */
   function dataTab() {
-    body().innerHTML = `<div class="seg data-seg" role="tablist">${[['arrivals', "Today's arrivals"], ['rooms', 'Rooms'], ['export', 'Export']].map(([k, l], i) => `<button role="tab" data-dt="${k}" class="${i === 0 ? 'on' : ''}">${l}</button>`).join('')}</div><div id="dataHost"></div>`;
+    body().innerHTML = `<div class="seg data-seg" role="tablist">${[['arrivals', "Today's arrivals"], ['rooms', 'Rooms'], ['export', 'Export'], ['reset', 'Reset']].map(([k, l], i) => `<button role="tab" data-dt="${k}" class="${i === 0 ? 'on' : ''}">${l}</button>`).join('')}</div><div id="dataHost"></div>`;
     const show = (k) => {
       $$('[data-dt]').forEach((b) => b.classList.toggle('on', b.dataset.dt === k));
       S.imp = null;
-      if (k === 'export') exportView($('#dataHost')); else importer(k, $('#dataHost'));
+      if (k === 'export') exportView($('#dataHost')); else if (k === 'reset') resetView($('#dataHost')); else importer(k, $('#dataHost'));
     };
     $$('[data-dt]').forEach((b) => b.onclick = () => show(b.dataset.dt));
     show('arrivals');
@@ -1918,7 +2045,7 @@ WG.views.admin = function (root, user) {
         <p class="muted">Passwords are generated for you and shown once. Share them privately; staff can change them from the top bar.</p>
         <div style="overflow:auto"><table class="tbl"><thead><tr><th>Name</th><th>Username</th><th>Role</th><th>Status</th><th></th></tr></thead><tbody>
         ${S.users.map((u) => `<tr><td><b>${esc(u.name)}</b></td><td>${esc(u.username)}</td><td>${esc(ROLE_NAME[u.role] || u.role)}</td><td>${u.active ? '<span class="pill st-ready">Active</span>' : '<span class="pill st-completed">Inactive</span>'}</td>
-          <td style="white-space:nowrap"><button class="btn btn-ghost btn-sm" data-reset="${u.id}">Reset password</button> <button class="btn btn-ghost btn-sm" data-active="${u.id}" data-to="${u.active ? 0 : 1}">${u.active ? 'Deactivate' : 'Activate'}</button></td></tr>`).join('')}</tbody></table></div>
+          <td class="row-acts"><button class="btn btn-ghost btn-sm" data-uedit="${u.id}">Edit</button><button class="btn btn-ghost btn-sm" data-reset="${u.id}">Reset password</button><button class="btn btn-ghost btn-sm" data-active="${u.id}" data-to="${u.active ? 0 : 1}">${u.active ? 'Deactivate' : 'Activate'}</button>${u.id === user.id ? '' : `<button class="btn btn-ghost btn-sm btn-danger" data-udel="${u.id}">Delete</button>`}</td></tr>`).join('')}</tbody></table></div>
         <hr><h3 class="serif" style="font-size:18px">Add a user</h3>
         <form id="newUser" class="form-grid" style="margin-top:12px">
           <label class="field"><span>Full name</span><input class="in" id="nuName" maxlength="80" required></label>
@@ -1932,6 +2059,23 @@ WG.views.admin = function (root, user) {
       });
       body().onclick = async (e) => {
         const r = e.target.closest('[data-reset]'), a = e.target.closest('[data-active]');
+        const ue = e.target.closest('[data-uedit]'), ud = e.target.closest('[data-udel]');
+        if (ue) {
+          const u = S.users.find((x) => x.id === Number(ue.dataset.uedit));
+          modalForm(`Edit ${u.username}`, `<div class="form-grid"><label class="field"><span>Full name</span><input class="in" id="uName" maxlength="80" value="${esc(u.name)}"></label>
+            <label class="field"><span>Role</span><select class="in" id="uRole">${[['reception', 'Reception'], ['rooms_controller', 'Rooms Controller'], ['admin', 'Admin']].map(([k, l]) => `<option value="${k}" ${u.role === k ? 'selected' : ''}>${l}</option>`).join('')}</select></label></div>
+            <p class="muted small">Changing the role signs this person out; the new role applies when they sign in again.</p>`,
+          'Save', async (ov) => { await api('POST', `/api/users/${u.id}/update`, { name: $('#uName', ov).value, role: $('#uRole', ov).value }); toast('User updated'); users(); });
+        }
+        if (ud) {
+          const u = S.users.find((x) => x.id === Number(ud.dataset.udel));
+          modalForm(`Delete ${u.username}?`, `<p>This removes <b>${esc(u.name)}</b>'s login permanently. Their past actions stay in the records. To stop access temporarily, use <b>Deactivate</b> instead.</p>
+            <label class="field"><span>Type ${esc(u.username)} to confirm</span><input class="in" id="udConf" autocomplete="off" autocapitalize="none"></label>`,
+          'Delete user', async (ov) => {
+            if ($('#udConf', ov).value.trim().toLowerCase() !== u.username.toLowerCase()) throw new Error(`Type ${u.username} to confirm`);
+            await api('POST', `/api/users/${u.id}/delete`, {}); toast(`${u.username} deleted`); users();
+          }, true);
+        }
         if (r) {
           const u = S.users.find((x) => x.id === Number(r.dataset.reset));
           if (!(await confirmDialog({ title: `Reset password for ${u.username}?`, body: 'Their current password stops working and they are signed out.', confirmLabel: 'Reset' }))) return;

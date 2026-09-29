@@ -2973,6 +2973,44 @@ const Auth = (function () {
     });
   }
 
+  /** Admin: change a user's name or role. */
+  function updateUser(actor, id, input) {
+    input = input || {};
+    return Locks.run(function () {
+      const u = Store.find('Users', 'id', id);
+      if (!u) throw HttpError_(404, 'User not found');
+      const patch = {};
+      if (input.name !== undefined) { patch.display_name = clean_(input.name, 80); if (!patch.display_name) throw HttpError_(400, 'Name is required'); }
+      if (input.role !== undefined) {
+        if (!ROLES[input.role]) throw HttpError_(400, 'Choose a valid role');
+        if (u.role === 'admin' && input.role !== 'admin' && u.active && activeAdmins().length <= 1) throw HttpError_(409, 'You cannot remove the last active admin');
+        if (actor && actor.id === id && input.role !== 'admin') throw HttpError_(409, 'You cannot remove your own admin role');
+        patch.role = input.role;
+      }
+      const oldRole = u.role; // read before update: Store.update refreshes the row object in place
+      Store.update('Users', u._row, patch);
+      if (patch.role && patch.role !== oldRole) killSessions(id); // new role applies at next sign-in
+      audit_(actor, 'user.update', u.username + (patch.role && patch.role !== oldRole ? ' role ' + oldRole + ' -> ' + patch.role : ''));
+      Store.bump();
+      return { ok: true };
+    });
+  }
+
+  /** Admin: delete a user. Their past actions stay in the history (shown without a name). */
+  function deleteUser(actor, id) {
+    return Locks.run(function () {
+      const u = Store.find('Users', 'id', id);
+      if (!u) throw HttpError_(404, 'User not found');
+      if (actor && actor.id === id) throw HttpError_(409, 'You cannot delete your own account');
+      if (u.role === 'admin' && u.active && activeAdmins().length <= 1) throw HttpError_(409, 'You cannot delete the last active admin');
+      killSessions(id);
+      Store.remove('Users', Store.find('Users', 'id', id)._row);
+      audit_(actor, 'user.delete', u.username);
+      Store.bump();
+      return { ok: true };
+    });
+  }
+
   function resetPassword(actor, id) {
     return Locks.run(function () {
       const u = Store.find('Users', 'id', id);
@@ -2998,7 +3036,7 @@ const Auth = (function () {
     });
   }
 
-  return { login: login, logout: logout, userFromToken: userFromToken, listUsers: listUsers, createUser: createUser,
+  return { updateUser: updateUser, deleteUser: deleteUser, login: login, logout: logout, userFromToken: userFromToken, listUsers: listUsers, createUser: createUser,
     setActive: setActive, resetPassword: resetPassword, changeOwnPassword: changeOwnPassword, hashPassword: hashPassword, validPassword: validPassword };
 })();
 
@@ -3552,6 +3590,144 @@ const Waiting = (function () {
     });
   }
 
+  // ---- admin: correct, edit, delete, reset ----------------------------------
+  const STATUS_TS = ['room_assigned_at', 'preparation_started_at', 'room_ready_at', 'guest_returned_at', 'completed_at']; // in workflow order
+
+  /** Admin: fix any field of a record, including the reservation snapshot. */
+  function adminUpdate(user, id, input) {
+    role(user, ['admin']);
+    input = input || {};
+    return Locks.run(function () {
+      const r = must(id);
+      const conf = clean_(input.confirmationNo !== undefined ? input.confirmationNo : r.confirmation_no, 30);
+      const res = validateManual({
+        guestName: input.guestName !== undefined ? input.guestName : r.guest_name,
+        arrivalDate: input.arrivalDate !== undefined ? input.arrivalDate : r.arrival_date,
+        departureDate: input.departureDate !== undefined ? input.departureDate : r.departure_date,
+        arrivalTime: input.arrivalTime !== undefined ? input.arrivalTime : r.arrival_time,
+        roomType: input.roomType !== undefined ? input.roomType : r.room_type,
+        adults: input.adults !== undefined ? input.adults : r.adults,
+        children: input.children !== undefined ? input.children : r.children,
+        phone: r.phone, email: r.email,
+      }, conf);
+      if (conf !== r.confirmation_no && isActive(r)) {
+        const dup = Store.all('WaitingGuests').filter(function (x) { return x.id !== id && x.confirmation_no === conf && isActive(x); })[0];
+        if (dup) throw HttpError_(409, dup.wg_number + ' is already active for confirmation ' + conf);
+      }
+      const associate = input.associate !== undefined ? clean_(input.associate, 80) : r.associate;
+      if (!associate) throw HttpError_(400, 'Associate name is required', { field: 'associate' });
+      const row = Store.update('WaitingGuests', r._row, {
+        confirmation_no: res.confirmationNo, guest_name: res.guestName, arrival_date: res.arrivalDate, arrival_time: res.arrivalTime,
+        departure_date: res.departureDate, room_type: res.roomType, adults: res.adults, children: res.children,
+        luggage_tag: input.luggageTag !== undefined ? clean_(input.luggageTag, 40) : r.luggage_tag, associate: associate,
+        preferences: input.preferences !== undefined ? clean_(input.preferences, 500) : r.preferences,
+        remarks: input.remarks !== undefined ? clean_(input.remarks, 500) : r.remarks,
+        language: normLanguage_(input.language, r.language || 'en'),
+        tags: input.tags === undefined ? r.tags : cleanTags_(input.tags),
+        vip_code: input.vipCode !== undefined ? clean_(input.vipCode, 20) : r.vip_code,
+      });
+      log(id, r.status, r.status, r.room_number, user, 'Record corrected by admin');
+      audit_(user, 'record.edit', r.wg_number);
+      Store.bump();
+      return toStaff(row);
+    });
+  }
+
+  /**
+   * Admin: set any status (e.g. undo a room marked ready by mistake, reopen a
+   * completed record). Timestamps of later steps are cleared so metrics stay true.
+   */
+  function correctStatus(user, id, to, roomNumber, reason) {
+    role(user, ['admin']);
+    if (STATUSES.indexOf(to) === -1) throw HttpError_(400, 'Unknown status');
+    const why = clean_(reason, 200);
+    if (why.length < 3) throw HttpError_(400, 'Please give a short reason', { field: 'reason' });
+    return Locks.run(function () {
+      const r = must(id);
+      if (to === r.status) throw HttpError_(409, 'The record already has this status');
+      const now = nowIso_();
+      const patch = { status: to };
+      const needsRoom = ['room_assigned', 'preparing', 'ready', 'returned', 'completed'].indexOf(to) !== -1;
+      let room = r.room_number;
+      if (needsRoom) {
+        if (roomNumber) {
+          const rm = Store.find('Rooms', 'room_number', clean_(roomNumber, 10));
+          if (!rm) throw HttpError_(404, 'Room not found');
+          room = rm.room_number;
+        }
+        if (!room) throw HttpError_(409, 'Choose a room for this status');
+        if (to !== 'completed') {
+          const clash = Store.all('WaitingGuests').filter(function (x) { return x.room_number === room && isActive(x) && x.id !== id; })[0];
+          if (clash) throw HttpError_(409, 'Room ' + room + ' is already held by ' + clash.wg_number);
+        }
+      } else room = '';
+      patch.room_number = room;
+      const reached = { waiting: 0, room_assigned: 1, preparing: 2, ready: 3, returned: 4, completed: 5, cancelled: -1 }[to];
+      STATUS_TS.forEach(function (col, i) {
+        if (to === 'cancelled') return;
+        if (i >= reached) patch[col] = '';
+        else if (!r[col] && i !== 1) patch[col] = now; // steps before the new one must have a time (preparation is optional)
+      });
+      if (to !== 'cancelled') { patch.cancelled_at = ''; patch.cancel_reason = ''; }
+      else { patch.cancelled_at = now; patch.cancel_reason = why; }
+      if (reached < 3 && to !== 'cancelled') { patch.guest_notified_at = ''; patch.guest_seen_ready_at = ''; }
+      if (to === 'ready' && !r.guest_notified_at) patch.guest_notified_at = now;
+      const reachedTs = { room_assigned: 'room_assigned_at', preparing: 'preparation_started_at', ready: 'room_ready_at', returned: 'guest_returned_at', completed: 'completed_at' }[to];
+      if (reachedTs) patch[reachedTs] = now;
+      const row = Store.update('WaitingGuests', r._row, patch);
+      log(id, r.status, to, room, user, 'Corrected by admin: ' + why);
+      audit_(user, 'record.status', r.wg_number + ' ' + r.status + ' -> ' + to + ' (' + why + ')');
+      Store.bump();
+      return toStaff(row);
+    });
+  }
+
+  /** Admin: permanently delete one record and its history. The guest link stops working. */
+  function adminDelete(user, id, confirmWg) {
+    role(user, ['admin']);
+    return Locks.run(function () {
+      const r = must(id);
+      if (String(confirmWg || '').trim().toUpperCase() !== r.wg_number.toUpperCase()) throw HttpError_(400, 'Type ' + r.wg_number + ' to confirm', { field: 'confirm' });
+      Store.all('StatusHistory').filter(function (h) { return h.waiting_guest_id === id; }).sort(function (a, b) { return b._row - a._row; })
+        .forEach(function (h) { Store.remove('StatusHistory', h._row); });
+      Store.remove('WaitingGuests', must(id)._row);
+      audit_(user, 'record.delete', r.wg_number + ' (' + r.confirmation_no + ')');
+      Store.bump();
+      return { ok: true };
+    });
+  }
+
+  /**
+   * Admin: wipe all Waiting Guests and their history (e.g. after testing) and restart
+   * numbering at 1. Optionally also remove all imported reservations.
+   * Users, rooms, settings and guest-page content are kept.
+   */
+  function resetAll(user, input) {
+    role(user, ['admin']);
+    input = input || {};
+    if (String(input.confirm || '').trim() !== 'RESET') throw HttpError_(400, 'Type RESET to confirm', { field: 'confirm' });
+    return Locks.run(function () {
+      const n = Store.all('WaitingGuests').length;
+      Store.clear('WaitingGuests');
+      Store.clear('StatusHistory');
+      ['wg_id', 'wg_number', 'history_counter'].forEach(function (k) { Store.kvSet('Meta', k, 0); });
+      let res = 0;
+      if (input.reservations) { res = Store.all('Reservations').length; Store.clear('Reservations'); }
+      audit_(user, 'data.reset', n + ' waiting guest record(s)' + (input.reservations ? ', ' + res + ' reservation(s)' : ''));
+      Store.bump();
+      return { waitingGuests: n, reservations: res };
+    });
+  }
+
+  /** Admin: every record (active and closed), newest first, optionally filtered. */
+  function adminList(q, status) {
+    const t = fold_(q);
+    return Store.all('WaitingGuests')
+      .filter(function (r) { return !status || status === 'all' || (status === 'active' ? isActive(r) : r.status === status); })
+      .filter(function (r) { return !t || [r.guest_name, r.wg_number, r.confirmation_no, r.room_number, r.luggage_tag].some(function (x) { return fold_(x).indexOf(t) !== -1; }); })
+      .sort(function (a, b) { return a.created_at < b.created_at ? 1 : -1; }).slice(0, 300).map(toStaff);
+  }
+
   function setPriority(user, id, priority) {
     role(user, ['rooms_controller']);
     return Locks.run(function () {
@@ -3769,7 +3945,8 @@ const Waiting = (function () {
     return lines.join('\r\n');
   }
 
-  return { create: create, editDetails: editDetails, assignRoom: assignRoom, setStatus: setStatus, cancel: cancel, setPriority: setPriority,
+  return { adminUpdate: adminUpdate, correctStatus: correctStatus, adminDelete: adminDelete, resetAll: resetAll, adminList: adminList,
+    create: create, editDetails: editDetails, assignRoom: assignRoom, setStatus: setStatus, cancel: cancel, setPriority: setPriority,
     queue: queue, recentClosed: recentClosed, get: get, history: history, search: search, availableRooms: availableRooms, guestView: guestView, markSeen: markSeen, feedback: feedback,
     metrics: metrics, exportCsv: exportCsv, toStaff: toStaff };
 })();
@@ -3996,11 +4173,22 @@ const Api = (function () {
     // ---- admin ----
     if (path === '/api/users' && method === 'GET') { need(['admin']); return { status: 200, body: { users: Auth.listUsers() } }; }
     if (path === '/api/users' && method === 'POST') { need(['admin']); return { status: 201, body: Auth.createUser(user, body) }; }
-    if ((m = path.match(/^\/api\/users\/(\d+)\/(active|reset-password)$/)) && method === 'POST') {
+    if ((m = path.match(/^\/api\/users\/(\d+)\/(active|reset-password|update|delete)$/)) && method === 'POST') {
       need(['admin']);
       const uid = parseInt(m[1], 10);
-      return { status: 200, body: m[2] === 'active' ? Auth.setActive(user, uid, !!body.active) : Auth.resetPassword(user, uid) };
+      const fn = { active: function () { return Auth.setActive(user, uid, !!body.active); }, 'reset-password': function () { return Auth.resetPassword(user, uid); },
+        update: function () { return Auth.updateUser(user, uid, body); }, delete: function () { return Auth.deleteUser(user, uid); } }[m[2]];
+      return { status: 200, body: fn() };
     }
+    if (path === '/api/admin/records' && method === 'GET') { need(['admin']); return { status: 200, body: { records: Waiting.adminList(query.q, query.status) } }; }
+    if ((m = path.match(/^\/api\/admin\/records\/(\d+)(?:\/(status|delete))?$/)) && method === 'POST') {
+      need(['admin']);
+      const rid = parseInt(m[1], 10);
+      if (!m[2]) return { status: 200, body: { waitingGuest: Waiting.adminUpdate(user, rid, body) } };
+      if (m[2] === 'status') return { status: 200, body: { waitingGuest: Waiting.correctStatus(user, rid, body.status, body.roomNumber, body.reason) } };
+      return { status: 200, body: Waiting.adminDelete(user, rid, body.confirm) };
+    }
+    if (path === '/api/admin/reset' && method === 'POST') { need(['admin']); return { status: 200, body: Waiting.resetAll(user, body) }; }
     if (path === '/api/import/arrivals/preview' && method === 'POST') { need(['admin']); return { status: 200, body: Importer.previewArrivals(body) }; }
     if (path === '/api/import/arrivals' && method === 'POST') { need(['admin']); return { status: 200, body: Importer.commitArrivals(user, body) }; }
     if (path === '/api/import/rooms/preview' && method === 'POST') { need(['admin']); return { status: 200, body: Importer.previewRooms(body) }; }

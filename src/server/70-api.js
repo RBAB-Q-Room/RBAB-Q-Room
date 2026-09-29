@@ -218,11 +218,22 @@ const Api = (function () {
     // ---- admin ----
     if (path === '/api/users' && method === 'GET') { need(['admin']); return { status: 200, body: { users: Auth.listUsers() } }; }
     if (path === '/api/users' && method === 'POST') { need(['admin']); return { status: 201, body: Auth.createUser(user, body) }; }
-    if ((m = path.match(/^\/api\/users\/(\d+)\/(active|reset-password)$/)) && method === 'POST') {
+    if ((m = path.match(/^\/api\/users\/(\d+)\/(active|reset-password|update|delete)$/)) && method === 'POST') {
       need(['admin']);
       const uid = parseInt(m[1], 10);
-      return { status: 200, body: m[2] === 'active' ? Auth.setActive(user, uid, !!body.active) : Auth.resetPassword(user, uid) };
+      const fn = { active: function () { return Auth.setActive(user, uid, !!body.active); }, 'reset-password': function () { return Auth.resetPassword(user, uid); },
+        update: function () { return Auth.updateUser(user, uid, body); }, delete: function () { return Auth.deleteUser(user, uid); } }[m[2]];
+      return { status: 200, body: fn() };
     }
+    if (path === '/api/admin/records' && method === 'GET') { need(['admin']); return { status: 200, body: { records: Waiting.adminList(query.q, query.status) } }; }
+    if ((m = path.match(/^\/api\/admin\/records\/(\d+)(?:\/(status|delete))?$/)) && method === 'POST') {
+      need(['admin']);
+      const rid = parseInt(m[1], 10);
+      if (!m[2]) return { status: 200, body: { waitingGuest: Waiting.adminUpdate(user, rid, body) } };
+      if (m[2] === 'status') return { status: 200, body: { waitingGuest: Waiting.correctStatus(user, rid, body.status, body.roomNumber, body.reason) } };
+      return { status: 200, body: Waiting.adminDelete(user, rid, body.confirm) };
+    }
+    if (path === '/api/admin/reset' && method === 'POST') { need(['admin']); return { status: 200, body: Waiting.resetAll(user, body) }; }
     if (path === '/api/import/arrivals/preview' && method === 'POST') { need(['admin']); return { status: 200, body: Importer.previewArrivals(body) }; }
     if (path === '/api/import/arrivals' && method === 'POST') { need(['admin']); return { status: 200, body: Importer.commitArrivals(user, body) }; }
     if (path === '/api/import/rooms/preview' && method === 'POST') { need(['admin']); return { status: 200, body: Importer.previewRooms(body) }; }

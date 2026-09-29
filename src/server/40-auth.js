@@ -151,6 +151,44 @@ const Auth = (function () {
     });
   }
 
+  /** Admin: change a user's name or role. */
+  function updateUser(actor, id, input) {
+    input = input || {};
+    return Locks.run(function () {
+      const u = Store.find('Users', 'id', id);
+      if (!u) throw HttpError_(404, 'User not found');
+      const patch = {};
+      if (input.name !== undefined) { patch.display_name = clean_(input.name, 80); if (!patch.display_name) throw HttpError_(400, 'Name is required'); }
+      if (input.role !== undefined) {
+        if (!ROLES[input.role]) throw HttpError_(400, 'Choose a valid role');
+        if (u.role === 'admin' && input.role !== 'admin' && u.active && activeAdmins().length <= 1) throw HttpError_(409, 'You cannot remove the last active admin');
+        if (actor && actor.id === id && input.role !== 'admin') throw HttpError_(409, 'You cannot remove your own admin role');
+        patch.role = input.role;
+      }
+      const oldRole = u.role; // read before update: Store.update refreshes the row object in place
+      Store.update('Users', u._row, patch);
+      if (patch.role && patch.role !== oldRole) killSessions(id); // new role applies at next sign-in
+      audit_(actor, 'user.update', u.username + (patch.role && patch.role !== oldRole ? ' role ' + oldRole + ' -> ' + patch.role : ''));
+      Store.bump();
+      return { ok: true };
+    });
+  }
+
+  /** Admin: delete a user. Their past actions stay in the history (shown without a name). */
+  function deleteUser(actor, id) {
+    return Locks.run(function () {
+      const u = Store.find('Users', 'id', id);
+      if (!u) throw HttpError_(404, 'User not found');
+      if (actor && actor.id === id) throw HttpError_(409, 'You cannot delete your own account');
+      if (u.role === 'admin' && u.active && activeAdmins().length <= 1) throw HttpError_(409, 'You cannot delete the last active admin');
+      killSessions(id);
+      Store.remove('Users', Store.find('Users', 'id', id)._row);
+      audit_(actor, 'user.delete', u.username);
+      Store.bump();
+      return { ok: true };
+    });
+  }
+
   function resetPassword(actor, id) {
     return Locks.run(function () {
       const u = Store.find('Users', 'id', id);
@@ -176,6 +214,6 @@ const Auth = (function () {
     });
   }
 
-  return { login: login, logout: logout, userFromToken: userFromToken, listUsers: listUsers, createUser: createUser,
+  return { updateUser: updateUser, deleteUser: deleteUser, login: login, logout: logout, userFromToken: userFromToken, listUsers: listUsers, createUser: createUser,
     setActive: setActive, resetPassword: resetPassword, changeOwnPassword: changeOwnPassword, hashPassword: hashPassword, validPassword: validPassword };
 })();

@@ -101,3 +101,18 @@ html[data-theme="dark"] { --chart: #B87A30; --chart-hl: #D69A4E; }
 
 @media (max-width: 900px) { .bc-grid, .gp { grid-template-columns: 1fr; } }
 @media (max-width: 560px) { .form-grid { grid-template-columns: 1fr; } .ad-wrap { padding-inline: 14px; } .ad-cards { grid-template-columns: 1fr 1fr; } }
+
+/* records, danger zone */
+.rec-tools { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+.rec-tools .search-box { flex: 1 1 260px; max-width: 420px; }
+.row-acts { white-space: nowrap; text-align: end; }
+.row-acts .btn + .btn { margin-inline-start: 6px; }
+.rec-tbl td { vertical-align: middle; }
+.modal-box.wide { max-width: 620px; max-height: 90vh; overflow-y: auto; }
+.mf-body { display: grid; gap: 12px; margin-top: 10px; }
+.mf-body p { margin: 0; }
+.btn-danger-solid { background: var(--danger); color: #fff; }
+.btn-danger-solid:hover:not(:disabled) { filter: brightness(.92); }
+html[data-theme="dark"] .btn-danger-solid { color: #1b140c; }
+.danger-zone { border-color: color-mix(in srgb, var(--danger) 40%, var(--line)); }
+.danger-zone p { margin: 0; max-width: 70ch; }
