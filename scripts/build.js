@@ -64,6 +64,8 @@ const MANIFEST = {
     'https://www.googleapis.com/auth/script.scriptapp',
     // Needed to tell the script owner (editor) apart from web-app visitors.
     'https://www.googleapis.com/auth/userinfo.email',
+    // Reads the room list published by the Room Guide project.
+    'https://www.googleapis.com/auth/script.external_request',
   ],
 };
 

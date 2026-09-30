@@ -116,6 +116,14 @@ function createGoogle({ persistFile = null, scriptUrl = 'https://script.google.c
     deleteTrigger: (t) => { const i = triggers.indexOf(t); if (i >= 0) triggers.splice(i, 1); },
     newTrigger: (fn) => ({ timeBased: () => ({ everyDays: () => ({ atHour: () => ({ create: () => { const t = { getHandlerFunction: () => fn, getUniqueId: () => 'TRIG' + (triggers.length + 1) }; triggers.push(t); return t; } }) }) }) }),
   };
+  // state.fetch: { [url]: { code, text } } or a function(url) -> { code, text }; anything else is unreachable
+  const UrlFetchApp = {
+    fetch: (url) => {
+      const r = typeof state.fetch === 'function' ? state.fetch(url) : (state.fetch || {})[url];
+      if (!r) throw new Error('Address unavailable: ' + url);
+      return { getResponseCode: () => r.code, getContentText: () => r.text };
+    },
+  };
   const Session = {
     getScriptTimeZone: () => timeZone,
     getActiveUser: () => ({ getEmail: () => state.activeUser }),
@@ -134,7 +142,7 @@ function createGoogle({ persistFile = null, scriptUrl = 'https://script.google.c
     },
   };
 
-  return { globals: { SpreadsheetApp, Utilities, CacheService, LockService, PropertiesService, ScriptApp, Session, Logger, HtmlService, console }, state };
+  return { globals: { SpreadsheetApp, UrlFetchApp, Utilities, CacheService, LockService, PropertiesService, ScriptApp, Session, Logger, HtmlService, console }, state };
 }
 
 module.exports = { createGoogle };

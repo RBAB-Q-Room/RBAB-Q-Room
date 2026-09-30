@@ -306,7 +306,7 @@ WG.views.admin = function (root, user) {
 
   /* ---------- settings ---------- */
   const SETTINGS_FORM = [
-    ['Hotel', [['hotel_name', 'Hotel name'], ['hotel_map_url', 'Hotel map link', 'url'], ['hotel_website_url', 'Hotel website link', 'url']]],
+    ['Hotel', [['hotel_name', 'Hotel name'], ['hotel_map_url', 'Hotel map link', 'url'], ['hotel_website_url', 'Hotel website link', 'url'], ['room_guide_data_url', 'Room Guide data link (room list source)', 'url']]],
     ['Waiting times', [['late_warn_minutes', 'Attention after (minutes)', 'num'], ['late_alert_minutes', 'Long wait after (minutes)', 'num']]],
     ['Guest page', [['guest_welcome', 'Welcome line (English)'], ['guest_welcome_ar', 'Welcome line (Arabic)', 'rtl'], ['guest_welcome_ru', 'Welcome line (Russian)'], ['guest_welcome_de', 'Welcome line (German)'],
       ['guest_show_placeholders', 'Show sections that still have placeholder text', 'bool'], ['qr_expire_hours', 'Guest link closes after check-in (hours)', 'num']]],
@@ -338,6 +338,24 @@ WG.views.admin = function (root, user) {
     } catch (e) { err(e); }
   }
 
+  /* ---------- rooms from Room Guide ---------- */
+  function roomGuideView(host) {
+    host.innerHTML = `<div class="card panel rg"><div class="panel-head"><div><h2 class="serif">Load rooms from Room Guide</h2>
+      <p class="muted small">Every room with its building, floor, type, connecting room and features (view, balcony, accessible and more) comes straight from the Room Guide project. Run it again whenever Room Guide changes. Housekeeping status you imported is kept.</p></div></div>
+      <label class="toggle"><input type="checkbox" id="rgRemove"> Also remove rooms that are not in Room Guide (for example demo rooms). Rooms held by a waiting guest are never removed.</label>
+      <div class="banner err" id="rgErr" hidden></div>
+      <div class="actions"><button class="btn btn-primary" id="rgGo">${icon('download')} Load rooms from Room Guide</button></div>
+      <p class="muted small">Source: <code>${esc((S.settings && S.settings.room_guide_data_url) || 'set in Settings')}</code></p></div>`;
+    $('#rgGo').onclick = async () => {
+      const b = $('#rgGo'); b.classList.add('loading'); $('#rgErr').hidden = true;
+      try {
+        const r = await api('POST', '/api/admin/rooms/sync', { removeMissing: $('#rgRemove').checked });
+        toast(`Room Guide: ${r.total} rooms · ${r.added} added, ${r.updated} updated${r.removed ? `, ${r.removed} removed` : ''}${r.keptHeld ? ` (${r.keptHeld} kept, in use)` : ''}`);
+      } catch (e) { $('#rgErr').textContent = e.message; $('#rgErr').hidden = false; }
+      finally { b.classList.remove('loading'); }
+    };
+  }
+
   /* ---------- reset (danger zone) ---------- */
   function resetView(host) {
     host.innerHTML = `<div class="card panel danger-zone"><h2 class="serif">Reset test data</h2>
@@ -360,11 +378,15 @@ WG.views.admin = function (root, user) {
 
   /* ---------- data: imports and export ---------- */
   function dataTab() {
+    if (!S.settings) api('GET', '/api/admin/settings').then((st) => { S.settings = st.values; const c = $('.rg code'); if (c) c.textContent = S.settings.room_guide_data_url || 'set in Settings'; }).catch(() => {});
     body().innerHTML = `<div class="seg data-seg" role="tablist">${[['arrivals', "Today's arrivals"], ['rooms', 'Rooms'], ['export', 'Export'], ['reset', 'Reset']].map(([k, l], i) => `<button role="tab" data-dt="${k}" class="${i === 0 ? 'on' : ''}">${l}</button>`).join('')}</div><div id="dataHost"></div>`;
     const show = (k) => {
       $$('[data-dt]').forEach((b) => b.classList.toggle('on', b.dataset.dt === k));
       S.imp = null;
-      if (k === 'export') exportView($('#dataHost')); else if (k === 'reset') resetView($('#dataHost')); else importer(k, $('#dataHost'));
+      if (k === 'export') exportView($('#dataHost'));
+      else if (k === 'reset') resetView($('#dataHost'));
+      else if (k === 'rooms') { $('#dataHost').innerHTML = '<div id="rgHost"></div><div id="csvHost"></div>'; roomGuideView($('#rgHost')); importer('rooms', $('#csvHost')); }
+      else importer(k, $('#dataHost'));
     };
     $$('[data-dt]').forEach((b) => b.onclick = () => show(b.dataset.dt));
     show('arrivals');

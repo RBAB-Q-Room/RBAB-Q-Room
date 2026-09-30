@@ -99,6 +99,8 @@ function loadDemoData() {
     ['51840305', 'Marco Rossi', '11:50', 5, 'TWAOV', 2, 0, '+39 333 555 0109', 'marco.rossi@example.com', 'All Inclusive', 'IT', '', 'High floor'],
     ['51840312', 'Aisha Khan', '10:25', 7, 'SKB', 2, 3, '+92 300 5550 144', 'aisha.khan@example.com', 'All Inclusive', 'PK', '', 'Family with young children'],
   ];
+  // Real room list from Room Guide when Google can reach it; invented demo rooms otherwise.
+  if (!Store.all('Rooms').length) { try { RoomGuide.sync(null, {}); } catch (e) { /* fall back to demo rooms below */ } Store.reset(); }
   Locks.run(function () {
     const have = {};
     Store.all('Reservations').forEach(function (r) { have[r.confirmation_no] = true; });

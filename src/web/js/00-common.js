@@ -258,12 +258,13 @@ function timelineHtml(g, history) {
   const ev = history.map((h) => {
     let t = STATUS_LABEL[h.to] || h.to;
     if (h.to === 'waiting' && !h.from) t = 'Waiting Guest created';
-    else if (h.from === h.to && /^Room changed from/.test(h.note || '')) t = `Room changed to ${h.roomNumber} (was ${h.note.replace('Room changed from ', '')})`;
+    else if (/Room changed from/.test(h.note || '')) t = `Room changed to ${h.roomNumber} (was ${(h.note.match(/Room changed from ([^;]+)/) || [])[1]})`;
     else if (h.to === 'room_assigned' && h.from !== h.to) t = `Room ${h.roomNumber} assigned`;
+    else if (/entered manually/.test(h.note || '')) t = `Room ${h.roomNumber} assigned`;
     else if (h.to === 'preparing') t = 'Room preparation started';
     else if (h.to === 'ready') t = 'Room ready · guest page updated';
     else if (h.from === h.to) t = h.note || 'Updated';
-    const note = h.from === h.to || h.to === 'room_assigned' ? '' : h.note;
+    const note = /entered manually/.test(h.note || '') ? 'typed by hand, not in the room list' : h.from === h.to || h.to === 'room_assigned' ? '' : h.note;
     return { at: h.at, t, note, by: h.by, kind: h.to };
   });
   if (g.timestamps.qrOpened) ev.push({ at: g.timestamps.qrOpened, t: 'Guest opened their room status page', by: 'Guest', kind: 'guest' });
@@ -309,4 +310,15 @@ function engagementHtml(g) {
   if (['ready', 'returned'].includes(g.status)) return g.timestamps.qrOpened ? `<span class="eng warn">Guest has not looked since the room became ready</span>` : `<span class="eng warn">Guest has not opened their page</span>`;
   if (g.timestamps.qrOpened) return `<span class="eng ok">Guest is following their status</span>`;
   return `<span class="eng">Guest has not opened their page yet</span>`;
+}
+
+/** Room Guide feature codes in plain words (most useful first). */
+const ROOM_FEATURE = {
+  COS: 'Sea view', BEA: 'Beach view', POO: 'Pool view', GAR: 'Garden view', ROA: 'Road view', MAN: 'Entrance view', CAV: 'Car park view',
+  HCA: 'Accessible', INT: 'Connecting', TER: 'Terrace', BAL: 'Balcony', S: 'Small balcony', KTC: 'Kitchenette', COR: 'Corner room',
+  KGB: 'King bed', TWB: 'Twin beds', BBE: 'Bunk bed', SOF: 'Sofa bed', '2EXBED': '2 extra beds', '1EXBED': '1 extra bed', SA: 'Small room', NSM: 'Non-smoking', GRD: 'Ground floor',
+};
+const FEATURE_ORDER = Object.keys(ROOM_FEATURE);
+function roomFeatures(r, max) {
+  return (r.features || []).filter((c) => ROOM_FEATURE[c]).sort((a, b) => FEATURE_ORDER.indexOf(a) - FEATURE_ORDER.indexOf(b)).slice(0, max).map((c) => ROOM_FEATURE[c]);
 }

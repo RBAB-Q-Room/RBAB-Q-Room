@@ -4,7 +4,7 @@
  * ===================================================================== */
 
 /** Bump whenever SCHEMA gains a tab or column (append columns at the end only). */
-const SCHEMA_VERSION = 3;
+const SCHEMA_VERSION = 4;
 
 const ROLES = { reception: 'reception', rooms_controller: 'rooms_controller', admin: 'admin' };
 const STATUSES = ['waiting', 'room_assigned', 'preparing', 'ready', 'returned', 'completed', 'cancelled'];
@@ -21,7 +21,8 @@ const SCHEMA = {
     ['adults', 'i'], ['children', 'i'], ['phone', 's'], ['email', 's'], ['nights', 'i'], ['rate_plan', 's'], ['meal_plan', 's'],
     ['nationality', 's'], ['vip_code', 's'], ['special_requests', 's'], ['imported_at', 's'],
   ],
-  Rooms: [['room_number', 's'], ['building', 's'], ['floor', 's'], ['room_type', 's'], ['hk_status', 's']],
+  // hk_status: clean | inspected | dirty | out_of_order | '' (not tracked). Schema 4 adds Room Guide details.
+  Rooms: [['room_number', 's'], ['building', 's'], ['floor', 's'], ['room_type', 's'], ['hk_status', 's'], ['description', 's'], ['connecting', 's'], ['features', 's'], ['source', 's']],
   RoomTypes: [['code', 's'], ['name', 's']],
   WaitingGuests: [
     ['id', 'i'], ['wg_number', 's'], ['qr_token', 's'], ['source', 's'],
@@ -55,6 +56,7 @@ const CONFIG_DEFAULTS = {
   hotel_name: 'Rixos Bab Al Bahr',
   hotel_map_url: 'https://easymap.ae/rixos-bab-al-bahr/', // same map link used by Room Guide
   hotel_website_url: '',                                    // not supplied yet; button stays disabled until set
+  room_guide_data_url: 'https://rbabroomguide.github.io/data.js', // room list source (Room Guide project)
   guest_welcome: 'While you wait, feel free to enjoy the resort.',
   guest_welcome_ar: 'أثناء انتظارك، تفضّل بالاستمتاع بمرافق المنتجع.',
   guest_welcome_ru: 'Пока вы ждёте, наслаждайтесь отдыхом на курорте.',
@@ -79,6 +81,7 @@ const SETTINGS_SPEC = {
   hotel_name: { type: 'text', max: 80, required: true },
   hotel_map_url: { type: 'url' },
   hotel_website_url: { type: 'url' },
+  room_guide_data_url: { type: 'url' },
   wg_prefix: { type: 'prefix' },
   late_warn_minutes: { type: 'int', min: 1, max: 600 },
   late_alert_minutes: { type: 'int', min: 2, max: 900 },

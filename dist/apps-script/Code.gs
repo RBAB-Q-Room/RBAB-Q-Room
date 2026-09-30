@@ -2432,7 +2432,7 @@ function todayIso_() {
  * ===================================================================== */
 
 /** Bump whenever SCHEMA gains a tab or column (append columns at the end only). */
-const SCHEMA_VERSION = 3;
+const SCHEMA_VERSION = 4;
 
 const ROLES = { reception: 'reception', rooms_controller: 'rooms_controller', admin: 'admin' };
 const STATUSES = ['waiting', 'room_assigned', 'preparing', 'ready', 'returned', 'completed', 'cancelled'];
@@ -2449,7 +2449,8 @@ const SCHEMA = {
     ['adults', 'i'], ['children', 'i'], ['phone', 's'], ['email', 's'], ['nights', 'i'], ['rate_plan', 's'], ['meal_plan', 's'],
     ['nationality', 's'], ['vip_code', 's'], ['special_requests', 's'], ['imported_at', 's'],
   ],
-  Rooms: [['room_number', 's'], ['building', 's'], ['floor', 's'], ['room_type', 's'], ['hk_status', 's']],
+  // hk_status: clean | inspected | dirty | out_of_order | '' (not tracked). Schema 4 adds Room Guide details.
+  Rooms: [['room_number', 's'], ['building', 's'], ['floor', 's'], ['room_type', 's'], ['hk_status', 's'], ['description', 's'], ['connecting', 's'], ['features', 's'], ['source', 's']],
   RoomTypes: [['code', 's'], ['name', 's']],
   WaitingGuests: [
     ['id', 'i'], ['wg_number', 's'], ['qr_token', 's'], ['source', 's'],
@@ -2483,6 +2484,7 @@ const CONFIG_DEFAULTS = {
   hotel_name: 'Rixos Bab Al Bahr',
   hotel_map_url: 'https://easymap.ae/rixos-bab-al-bahr/', // same map link used by Room Guide
   hotel_website_url: '',                                    // not supplied yet; button stays disabled until set
+  room_guide_data_url: 'https://rbabroomguide.github.io/data.js', // room list source (Room Guide project)
   guest_welcome: 'While you wait, feel free to enjoy the resort.',
   guest_welcome_ar: 'أثناء انتظارك، تفضّل بالاستمتاع بمرافق المنتجع.',
   guest_welcome_ru: 'Пока вы ждёте, наслаждайтесь отдыхом на курорте.',
@@ -2507,6 +2509,7 @@ const SETTINGS_SPEC = {
   hotel_name: { type: 'text', max: 80, required: true },
   hotel_map_url: { type: 'url' },
   hotel_website_url: { type: 'url' },
+  room_guide_data_url: { type: 'url' },
   wg_prefix: { type: 'prefix' },
   late_warn_minutes: { type: 'int', min: 1, max: 600 },
   late_alert_minutes: { type: 'int', min: 2, max: 900 },
@@ -3325,6 +3328,122 @@ const Importer = (function () {
 })();
 
 
+/* ---- src/server/57-roomguide.js ---- */
+/* =====================================================================
+ * Room list from the Room Guide project.
+ * Room Guide publishes every room (building, floor, type, connecting room,
+ * feature codes) in its data.js. We fetch that file and read it strictly as
+ * JSON data: nothing from it is ever executed.
+ * ===================================================================== */
+
+const RoomGuide = (function () {
+  const MAX_BYTES = 3000000;
+  const SKIP_TYPES = { PI: true }; // "Posting Interface": not a bookable room
+
+  /** Extract the RBAB_DATA object literal (pure JSON) from the data.js text. */
+  function parse(text) {
+    const s = String(text || '');
+    const at = s.indexOf('RBAB_DATA');
+    const start = s.indexOf('{', at);
+    const end = s.lastIndexOf('}');
+    if (at === -1 || start === -1 || end <= start) throw HttpError_(502, 'The Room Guide file does not contain room data');
+    let data;
+    try { data = JSON.parse(s.slice(start, end + 1)); } catch (e) { throw HttpError_(502, 'The Room Guide room data could not be read'); }
+    if (!data || !data.buildings || !Array.isArray(data.buildingOrder)) throw HttpError_(502, 'The Room Guide room data has an unexpected format');
+    const rooms = [];
+    const types = {};
+    data.buildingOrder.forEach(function (bk) {
+      const b = data.buildings[bk];
+      if (!b || !b.rooms) return;
+      const floors = b.floors || {};
+      Object.keys(b.rooms).forEach(function (k) {
+        const r = b.rooms[k] || {};
+        const num = String(r.room == null ? k : r.room).trim();
+        const type = String(r.type || '').trim().toUpperCase();
+        if (!/^[A-Za-z0-9-]{1,10}$/.test(num) || !/^[A-Z0-9/]{1,10}$/.test(type) || SKIP_TYPES[type]) return;
+        const floorLabel = floors[r.floor] && floors[r.floor].label ? floors[r.floor].label : String(r.floor || '');
+        rooms.push({
+          room_number: num,
+          building: clean_(b.label || bk, 40),
+          floor: clean_(floorLabel, 30),
+          room_type: type,
+          description: clean_(r.description, 80),
+          connecting: r.connecting ? clean_(String(r.connecting), 10) : '',
+          features: (Array.isArray(r.codes) ? r.codes : []).map(function (c) { return String(c).replace(/[^A-Za-z0-9]/g, '').slice(0, 10); }).filter(Boolean).slice(0, 30).join(','),
+        });
+        if (r.description && !types[type]) types[type] = clean_(r.description, 80);
+      });
+    });
+    if (!rooms.length) throw HttpError_(502, 'The Room Guide file has no rooms');
+    return { rooms: rooms, types: types };
+  }
+
+  function fetchText(url) {
+    let res;
+    try { res = UrlFetchApp.fetch(url, { muteHttpExceptions: true, followRedirects: true }); }
+    catch (e) { throw HttpError_(502, 'Could not reach the Room Guide at ' + url + '. Check the link in Settings.'); }
+    if (res.getResponseCode() !== 200) throw HttpError_(502, 'The Room Guide link returned an error (' + res.getResponseCode() + '). Check the link in Settings.');
+    const text = res.getContentText();
+    if (text.length > MAX_BYTES) throw HttpError_(413, 'The Room Guide file is unexpectedly large');
+    return text;
+  }
+
+  /**
+   * Add or update every room from Room Guide. Housekeeping status already in the
+   * sheet is kept. With removeMissing, rooms that are not in Room Guide are removed
+   * (never a room held by an active Waiting Guest).
+   */
+  function sync(user, input) {
+    input = input || {};
+    const url = Config.get('room_guide_data_url');
+    if (!url) throw HttpError_(400, 'Set the Room Guide data link in Settings first');
+    const parsed = parse(fetchText(url));
+    return Locks.run(function () {
+      const existing = {};
+      Store.all('Rooms').forEach(function (r) { existing[r.room_number] = r; });
+      const seen = {};
+      const inserts = [];
+      let added = 0, updated = 0, removed = 0, kept = 0;
+      parsed.rooms.forEach(function (r) {
+        seen[r.room_number] = true;
+        const rec = Object.assign({}, r, { source: 'room-guide' });
+        const cur = existing[r.room_number];
+        if (cur) {
+          rec.hk_status = cur.hk_status; // keep live housekeeping status
+          const same = ['building', 'floor', 'room_type', 'description', 'connecting', 'features', 'source'].every(function (k) { return String(cur[k]) === String(rec[k]); });
+          if (!same) { Store.update('Rooms', cur._row, rec); updated++; }
+        } else { rec.hk_status = ''; inserts.push(rec); added++; }
+      });
+      Store.insertMany('Rooms', inserts);
+      if (input.removeMissing) {
+        const held = {};
+        Store.all('WaitingGuests').forEach(function (w) { if (w.room_number && ACTIVE_STATUSES.indexOf(w.status) !== -1) held[w.room_number] = true; });
+        Store.reset();
+        Store.all('Rooms').filter(function (r) { return !seen[r.room_number]; }).sort(function (a, b) { return b._row - a._row; }).forEach(function (r) {
+          if (held[r.room_number]) { kept++; return; }
+          Store.remove('Rooms', r._row); removed++;
+        });
+      }
+      // room type names from Room Guide, only for codes the sheet does not know yet
+      const knownTypes = {};
+      Store.all('RoomTypes').forEach(function (t) { knownTypes[t.code] = t; });
+      const newTypes = [];
+      Object.keys(parsed.types).forEach(function (code) {
+        const t = knownTypes[code];
+        if (!t) newTypes.push({ code: code, name: parsed.types[code] });
+        else if (!t.name || t.name === code) Store.update('RoomTypes', t._row, { name: parsed.types[code] });
+      });
+      Store.insertMany('RoomTypes', newTypes);
+      audit_(user, 'rooms.sync', added + ' added, ' + updated + ' updated, ' + removed + ' removed from ' + url);
+      Store.bump();
+      return { total: parsed.rooms.length, added: added, updated: updated, removed: removed, keptHeld: kept, source: url };
+    });
+  }
+
+  return { parse: parse, sync: sync };
+})();
+
+
 /* ---- src/server/60-waiting.js ---- */
 /* =====================================================================
  * Waiting Guest domain logic. One row per guest in the WaitingGuests tab
@@ -3529,22 +3648,62 @@ const Waiting = (function () {
     });
   }
 
-  function assignRoom(user, id, roomNumber) {
+  /** A room number typed by hand: letters, digits and dashes only, e.g. "1204" or "V-12". */
+  function manualRoom(v) {
+    const n = clean_(v, 10).toUpperCase().replace(/\s+/g, '');
+    if (!/^[A-Z0-9-]{1,10}$/.test(n)) throw HttpError_(400, 'Enter a room number using letters, numbers or a dash', { field: 'roomNumber' });
+    return n;
+  }
+
+  /**
+   * Assign or change the room. `manual` allows a room number that is not in the
+   * imported rooms list (typed by the Rooms Controller); it is marked in the timeline.
+   */
+  function assignRoom(user, id, roomNumber, manual) {
     role(user, ['rooms_controller']);
     return Locks.run(function () {
       const wg = must(id);
       if (['waiting', 'room_assigned', 'preparing'].indexOf(wg.status) === -1) throw HttpError_(409, 'Room can no longer be changed at this status');
-      const room = Store.find('Rooms', 'room_number', clean_(roomNumber, 10));
-      if (!room) throw HttpError_(404, 'Room not found');
+      const typed = manual ? manualRoom(roomNumber) : clean_(roomNumber, 10);
+      const listed = Store.find('Rooms', 'room_number', typed) || (manual ? Store.all('Rooms').filter(function (r) { return r.room_number.toUpperCase() === typed; })[0] : null);
+      if (!listed && !manual) throw HttpError_(404, 'Room not found');
+      const room = listed || { room_number: typed, hk_status: '' };
       if (room.hk_status === 'out_of_order') throw HttpError_(409, 'Room ' + room.room_number + ' is out of order');
       const clash = Store.all('WaitingGuests').filter(function (r) { return r.room_number === room.room_number && isActive(r) && r.id !== id; })[0];
       if (clash) throw HttpError_(409, 'Room ' + room.room_number + ' is already held by ' + clash.wg_number);
       const now = nowIso_();
-      const reassigned = wg.room_number && wg.room_number !== room.room_number;
+      // Store.update refreshes the row object in place, so read "before" values first
+      const fromStatus = wg.status, prevRoom = wg.room_number;
+      const reassigned = prevRoom && prevRoom !== room.room_number;
       const patch = { room_number: room.room_number };
       if (wg.status === 'waiting') { patch.status = 'room_assigned'; patch.room_assigned_at = now; }
       const row = Store.update('WaitingGuests', wg._row, patch);
-      log(id, wg.status, row.status, room.room_number, user, reassigned ? 'Room changed from ' + wg.room_number : '');
+      const note = (reassigned ? 'Room changed from ' + prevRoom : '') + (!listed ? (reassigned ? '; ' : '') + 'room number entered manually' : '');
+      log(id, fromStatus, row.status, room.room_number, user, note);
+      Store.bump();
+      return toStaff(row);
+    });
+  }
+
+  /**
+   * Rooms Controller: take back "room ready" marked by mistake. The record returns to
+   * "being prepared", the guest page goes back to "being prepared", and the ready
+   * timestamps are cleared so the analytics stay true. Only while the guest has not
+   * yet returned to Reception.
+   */
+  function undoReady(user, id, reason) {
+    role(user, ['rooms_controller']);
+    const why = clean_(reason, 200);
+    if (why.length < 3) throw HttpError_(400, 'Please give a short reason', { field: 'reason' });
+    return Locks.run(function () {
+      const wg = must(id);
+      if (wg.status !== 'ready') throw HttpError_(409, wg.status === 'returned' || wg.status === 'completed' ? 'The guest is already back at Reception. Ask an admin to correct this record.' : 'Only a room marked ready can be taken back');
+      const row = Store.update('WaitingGuests', wg._row, {
+        status: 'preparing', preparation_started_at: wg.preparation_started_at || nowIso_(),
+        room_ready_at: '', guest_notified_at: '', guest_seen_ready_at: '',
+      });
+      log(id, 'ready', 'preparing', wg.room_number, user, 'Room ready taken back: ' + why);
+      audit_(user, 'record.undo_ready', wg.wg_number + ' (' + why + ')');
       Store.bump();
       return toStaff(row);
     });
@@ -3583,8 +3742,9 @@ const Waiting = (function () {
       const wg = must(id);
       if (!isActive(wg)) throw HttpError_(409, 'This Waiting Guest is already closed');
       const now = nowIso_();
+      const fromStatus = wg.status;
       const row = Store.update('WaitingGuests', wg._row, { status: 'cancelled', cancelled_at: now, cancel_reason: why });
-      log(id, wg.status, 'cancelled', wg.room_number, user, why);
+      log(id, fromStatus, 'cancelled', wg.room_number, user, why);
       Store.bump();
       return toStaff(row);
     });
@@ -3651,9 +3811,9 @@ const Waiting = (function () {
       let room = r.room_number;
       if (needsRoom) {
         if (roomNumber) {
-          const rm = Store.find('Rooms', 'room_number', clean_(roomNumber, 10));
-          if (!rm) throw HttpError_(404, 'Room not found');
-          room = rm.room_number;
+          const typed = manualRoom(roomNumber);
+          const rm = Store.all('Rooms').filter(function (x) { return x.room_number.toUpperCase() === typed; })[0];
+          room = rm ? rm.room_number : typed; // a room not in the imported list is allowed for corrections
         }
         if (!room) throw HttpError_(409, 'Choose a room for this status');
         if (to !== 'completed') {
@@ -3674,9 +3834,10 @@ const Waiting = (function () {
       if (to === 'ready' && !r.guest_notified_at) patch.guest_notified_at = now;
       const reachedTs = { room_assigned: 'room_assigned_at', preparing: 'preparation_started_at', ready: 'room_ready_at', returned: 'guest_returned_at', completed: 'completed_at' }[to];
       if (reachedTs) patch[reachedTs] = now;
+      const fromStatus = r.status;
       const row = Store.update('WaitingGuests', r._row, patch);
-      log(id, r.status, to, room, user, 'Corrected by admin: ' + why);
-      audit_(user, 'record.status', r.wg_number + ' ' + r.status + ' -> ' + to + ' (' + why + ')');
+      log(id, fromStatus, to, room, user, 'Corrected by admin: ' + why);
+      audit_(user, 'record.status', r.wg_number + ' ' + fromStatus + ' -> ' + to + ' (' + why + ')');
       Store.bump();
       return toStaff(row);
     });
@@ -3806,7 +3967,7 @@ const Waiting = (function () {
     const held = {};
     Store.all('WaitingGuests').forEach(function (r) { if (r.room_number && isActive(r) && r.id !== forId) held[r.room_number] = true; });
     return Store.all('Rooms').filter(function (r) { return r.hk_status !== 'out_of_order' && !held[r.room_number]; })
-      .map(function (r) { return { roomNumber: r.room_number, building: r.building, floor: r.floor, roomType: r.room_type, hkStatus: r.hk_status, matchesType: r.room_type === wg.room_type }; })
+      .map(function (r) { return { roomNumber: r.room_number, building: r.building, floor: r.floor, roomType: r.room_type, hkStatus: r.hk_status, matchesType: r.room_type === wg.room_type, connecting: r.connecting, features: r.features ? r.features.split(',') : [] }; })
       .sort(function (a, b) { return (b.matchesType ? 1 : 0) - (a.matchesType ? 1 : 0) || (a.roomNumber < b.roomNumber ? -1 : 1); });
   }
 
@@ -3945,7 +4106,7 @@ const Waiting = (function () {
     return lines.join('\r\n');
   }
 
-  return { adminUpdate: adminUpdate, correctStatus: correctStatus, adminDelete: adminDelete, resetAll: resetAll, adminList: adminList,
+  return { undoReady: undoReady, adminUpdate: adminUpdate, correctStatus: correctStatus, adminDelete: adminDelete, resetAll: resetAll, adminList: adminList,
     create: create, editDetails: editDetails, assignRoom: assignRoom, setStatus: setStatus, cancel: cancel, setPriority: setPriority,
     queue: queue, recentClosed: recentClosed, get: get, history: history, search: search, availableRooms: availableRooms, guestView: guestView, markSeen: markSeen, feedback: feedback,
     metrics: metrics, exportCsv: exportCsv, toStaff: toStaff };
@@ -4163,7 +4324,8 @@ const Api = (function () {
         if (!Store.find('WaitingGuests', 'id', id)) throw HttpError_(404, 'Waiting Guest not found');
         return { status: 200, body: { url: url, svg: qrSvg_(url) } };
       }
-      if (sub === 'assign-room' && method === 'POST') return { status: 200, body: { waitingGuest: Waiting.assignRoom(user, id, body.roomNumber) } };
+      if (sub === 'assign-room' && method === 'POST') return { status: 200, body: { waitingGuest: Waiting.assignRoom(user, id, body.roomNumber, !!body.manual) } };
+      if (sub === 'undo-ready' && method === 'POST') return { status: 200, body: { waitingGuest: Waiting.undoReady(user, id, body.reason) } };
       if (sub === 'status' && method === 'POST') return { status: 200, body: { waitingGuest: Waiting.setStatus(user, id, body.status) } };
       if (sub === 'priority' && method === 'POST') return { status: 200, body: { waitingGuest: Waiting.setPriority(user, id, !!body.priority) } };
       if (sub === 'details' && method === 'POST') return { status: 200, body: { waitingGuest: Waiting.editDetails(user, id, body) } };
@@ -4188,6 +4350,7 @@ const Api = (function () {
       if (m[2] === 'status') return { status: 200, body: { waitingGuest: Waiting.correctStatus(user, rid, body.status, body.roomNumber, body.reason) } };
       return { status: 200, body: Waiting.adminDelete(user, rid, body.confirm) };
     }
+    if (path === '/api/admin/rooms/sync' && method === 'POST') { need(['admin']); return { status: 200, body: RoomGuide.sync(user, body) }; }
     if (path === '/api/admin/reset' && method === 'POST') { need(['admin']); return { status: 200, body: Waiting.resetAll(user, body) }; }
     if (path === '/api/import/arrivals/preview' && method === 'POST') { need(['admin']); return { status: 200, body: Importer.previewArrivals(body) }; }
     if (path === '/api/import/arrivals' && method === 'POST') { need(['admin']); return { status: 200, body: Importer.commitArrivals(user, body) }; }
@@ -4343,6 +4506,8 @@ function loadDemoData() {
     ['51840305', 'Marco Rossi', '11:50', 5, 'TWAOV', 2, 0, '+39 333 555 0109', 'marco.rossi@example.com', 'All Inclusive', 'IT', '', 'High floor'],
     ['51840312', 'Aisha Khan', '10:25', 7, 'SKB', 2, 3, '+92 300 5550 144', 'aisha.khan@example.com', 'All Inclusive', 'PK', '', 'Family with young children'],
   ];
+  // Real room list from Room Guide when Google can reach it; invented demo rooms otherwise.
+  if (!Store.all('Rooms').length) { try { RoomGuide.sync(null, {}); } catch (e) { /* fall back to demo rooms below */ } Store.reset(); }
   Locks.run(function () {
     const have = {};
     Store.all('Reservations').forEach(function (r) { have[r.confirmation_no] = true; });

@@ -79,6 +79,9 @@ The translations were written for this build. **Please have a native speaker of 
 3. Run **`runSelfTest`**. It must end with `ALL CHECKS PASSED`.
 4. **Deploy → Manage deployments → pencil → Version: New version → Deploy.** Check that **Who has access** says **Anyone**, otherwise guests scanning the QR see a Google Drive error.
 5. Sign in as admin. Open **Settings** and **Guest page** to replace placeholder text and add the hotel website.
+6. **Data → Rooms → Load rooms from Room Guide.** Tick "Also remove rooms that are not in Room Guide" the first time, to replace the demo rooms. This reads the room list (building, floor, type, connecting room, features) from the Room Guide project at the link set in Settings. Run it again whenever Room Guide changes.
+
+Google asks for one more permission in step 2 ("Connect to an external service"): that is how the app reads the Room Guide room list. Nothing is sent to Room Guide; the file is only read, as data.
 
 If you forget step 2, the app upgrades the sheet by itself on the first request, but the permission prompt only appears when you run something in the editor.
 

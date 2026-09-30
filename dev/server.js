@@ -18,6 +18,9 @@ function start(port = PORT, file = FILE) {
   const fresh = !fs.existsSync(file);
   const url = `http://localhost:${port}/`;
   const b = loadBackend({ persistFile: file, scriptUrl: url });
+  // Room Guide's data.js, as Google would fetch it (real file if WG_ROOMGUIDE_FILE is set, else the test sample)
+  const rgFile = process.env.WG_ROOMGUIDE_FILE || path.join(__dirname, '..', 'tests', 'fixtures', 'room-guide-data.js');
+  b.state.fetch = (u) => (/data\.js$/.test(u) && fs.existsSync(rgFile) ? { code: 200, text: fs.readFileSync(rgFile, 'utf8') } : null);
   if (fresh) {
     b.ctx.setup();
     const pw = process.env.WG_DEV_PASSWORD;

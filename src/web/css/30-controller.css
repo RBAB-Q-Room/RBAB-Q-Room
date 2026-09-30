@@ -120,3 +120,22 @@ html[data-theme="dark"] .rm.on { color: #1b140c; }
   .q .timer b { font-size: 18px; }
   .groups dl { grid-template-columns: 1fr; }
 }
+
+/* room picker v2 */
+.rm-tools { display: grid; gap: 10px; margin-bottom: 10px; }
+.rm-type-row { display: flex; gap: 8px; margin-top: 4px; }
+.rm-type-row .in { min-height: 42px; font-size: 16px; font-weight: 700; letter-spacing: .03em; text-transform: uppercase; max-width: 180px; }
+.rm-type-row .btn { min-height: 42px; }
+.rm-search input { min-height: 38px; font-size: 13.5px; }
+.rm-b { font-size: 11px; font-weight: 700; color: var(--ink-soft); margin: 10px 0 6px; letter-spacing: .04em; text-transform: uppercase; display: flex; gap: 6px; align-items: center; }
+.rm-b span { background: var(--line); color: var(--ink); border-radius: 10px; padding: 0 7px; font-size: 10.5px; letter-spacing: 0; }
+#rmList { max-height: 420px; overflow-y: auto; padding-inline-end: 2px; }
+.room-grid { grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); }
+.rm { position: relative; padding: 7px 6px 6px; }
+.rm small { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rm .hk { position: absolute; top: 3px; inset-inline-end: 4px; font-style: normal; font-size: 9px; font-weight: 700; text-transform: uppercase; color: var(--ink-soft); }
+.rm.hk-dirty .hk, .rm.hk-out_of_order .hk { color: var(--danger); }
+.rm.on .hk { color: inherit; }
+.btn.undo { justify-self: start; color: var(--s-waiting); }
+.small { font-size: 12.5px; margin: 0; }
+.rm.hk-dirty small { color: inherit; }

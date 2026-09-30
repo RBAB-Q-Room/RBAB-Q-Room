@@ -185,7 +185,7 @@ function createGuestLink(t) {
 test('only doGet, apiCall and guarded editor functions are callable from the browser', () => {
   const { loadBackend } = require('../dev/backend');
   const b = loadBackend();
-  const fakeGlobals = new Set(['SpreadsheetApp', 'Utilities', 'CacheService', 'LockService', 'PropertiesService', 'ScriptApp', 'Session', 'Logger', 'HtmlService', 'console']);
+  const fakeGlobals = new Set(['UrlFetchApp', 'SpreadsheetApp', 'Utilities', 'CacheService', 'LockService', 'PropertiesService', 'ScriptApp', 'Session', 'Logger', 'HtmlService', 'console']);
   // google.script.run can call every top-level function whose name does not end with "_"
   const callable = Object.keys(b.ctx).filter((k) => typeof b.ctx[k] === 'function' && !k.endsWith('_') && !fakeGlobals.has(k)).sort();
   assert.deepEqual(callable, ['apiCall', 'archiveOld', 'createUserFromEditor', 'doGet', 'installNightlyArchive', 'loadDemoData', 'runSelfTest', 'setup'].sort());

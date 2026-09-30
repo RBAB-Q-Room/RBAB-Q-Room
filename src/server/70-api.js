@@ -208,7 +208,8 @@ const Api = (function () {
         if (!Store.find('WaitingGuests', 'id', id)) throw HttpError_(404, 'Waiting Guest not found');
         return { status: 200, body: { url: url, svg: qrSvg_(url) } };
       }
-      if (sub === 'assign-room' && method === 'POST') return { status: 200, body: { waitingGuest: Waiting.assignRoom(user, id, body.roomNumber) } };
+      if (sub === 'assign-room' && method === 'POST') return { status: 200, body: { waitingGuest: Waiting.assignRoom(user, id, body.roomNumber, !!body.manual) } };
+      if (sub === 'undo-ready' && method === 'POST') return { status: 200, body: { waitingGuest: Waiting.undoReady(user, id, body.reason) } };
       if (sub === 'status' && method === 'POST') return { status: 200, body: { waitingGuest: Waiting.setStatus(user, id, body.status) } };
       if (sub === 'priority' && method === 'POST') return { status: 200, body: { waitingGuest: Waiting.setPriority(user, id, !!body.priority) } };
       if (sub === 'details' && method === 'POST') return { status: 200, body: { waitingGuest: Waiting.editDetails(user, id, body) } };
@@ -233,6 +234,7 @@ const Api = (function () {
       if (m[2] === 'status') return { status: 200, body: { waitingGuest: Waiting.correctStatus(user, rid, body.status, body.roomNumber, body.reason) } };
       return { status: 200, body: Waiting.adminDelete(user, rid, body.confirm) };
     }
+    if (path === '/api/admin/rooms/sync' && method === 'POST') { need(['admin']); return { status: 200, body: RoomGuide.sync(user, body) }; }
     if (path === '/api/admin/reset' && method === 'POST') { need(['admin']); return { status: 200, body: Waiting.resetAll(user, body) }; }
     if (path === '/api/import/arrivals/preview' && method === 'POST') { need(['admin']); return { status: 200, body: Importer.previewArrivals(body) }; }
     if (path === '/api/import/arrivals' && method === 'POST') { need(['admin']); return { status: 200, body: Importer.commitArrivals(user, body) }; }

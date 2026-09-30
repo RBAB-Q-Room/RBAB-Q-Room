@@ -201,22 +201,62 @@ const Waiting = (function () {
     });
   }
 
-  function assignRoom(user, id, roomNumber) {
+  /** A room number typed by hand: letters, digits and dashes only, e.g. "1204" or "V-12". */
+  function manualRoom(v) {
+    const n = clean_(v, 10).toUpperCase().replace(/\s+/g, '');
+    if (!/^[A-Z0-9-]{1,10}$/.test(n)) throw HttpError_(400, 'Enter a room number using letters, numbers or a dash', { field: 'roomNumber' });
+    return n;
+  }
+
+  /**
+   * Assign or change the room. `manual` allows a room number that is not in the
+   * imported rooms list (typed by the Rooms Controller); it is marked in the timeline.
+   */
+  function assignRoom(user, id, roomNumber, manual) {
     role(user, ['rooms_controller']);
     return Locks.run(function () {
       const wg = must(id);
       if (['waiting', 'room_assigned', 'preparing'].indexOf(wg.status) === -1) throw HttpError_(409, 'Room can no longer be changed at this status');
-      const room = Store.find('Rooms', 'room_number', clean_(roomNumber, 10));
-      if (!room) throw HttpError_(404, 'Room not found');
+      const typed = manual ? manualRoom(roomNumber) : clean_(roomNumber, 10);
+      const listed = Store.find('Rooms', 'room_number', typed) || (manual ? Store.all('Rooms').filter(function (r) { return r.room_number.toUpperCase() === typed; })[0] : null);
+      if (!listed && !manual) throw HttpError_(404, 'Room not found');
+      const room = listed || { room_number: typed, hk_status: '' };
       if (room.hk_status === 'out_of_order') throw HttpError_(409, 'Room ' + room.room_number + ' is out of order');
       const clash = Store.all('WaitingGuests').filter(function (r) { return r.room_number === room.room_number && isActive(r) && r.id !== id; })[0];
       if (clash) throw HttpError_(409, 'Room ' + room.room_number + ' is already held by ' + clash.wg_number);
       const now = nowIso_();
-      const reassigned = wg.room_number && wg.room_number !== room.room_number;
+      // Store.update refreshes the row object in place, so read "before" values first
+      const fromStatus = wg.status, prevRoom = wg.room_number;
+      const reassigned = prevRoom && prevRoom !== room.room_number;
       const patch = { room_number: room.room_number };
       if (wg.status === 'waiting') { patch.status = 'room_assigned'; patch.room_assigned_at = now; }
       const row = Store.update('WaitingGuests', wg._row, patch);
-      log(id, wg.status, row.status, room.room_number, user, reassigned ? 'Room changed from ' + wg.room_number : '');
+      const note = (reassigned ? 'Room changed from ' + prevRoom : '') + (!listed ? (reassigned ? '; ' : '') + 'room number entered manually' : '');
+      log(id, fromStatus, row.status, room.room_number, user, note);
+      Store.bump();
+      return toStaff(row);
+    });
+  }
+
+  /**
+   * Rooms Controller: take back "room ready" marked by mistake. The record returns to
+   * "being prepared", the guest page goes back to "being prepared", and the ready
+   * timestamps are cleared so the analytics stay true. Only while the guest has not
+   * yet returned to Reception.
+   */
+  function undoReady(user, id, reason) {
+    role(user, ['rooms_controller']);
+    const why = clean_(reason, 200);
+    if (why.length < 3) throw HttpError_(400, 'Please give a short reason', { field: 'reason' });
+    return Locks.run(function () {
+      const wg = must(id);
+      if (wg.status !== 'ready') throw HttpError_(409, wg.status === 'returned' || wg.status === 'completed' ? 'The guest is already back at Reception. Ask an admin to correct this record.' : 'Only a room marked ready can be taken back');
+      const row = Store.update('WaitingGuests', wg._row, {
+        status: 'preparing', preparation_started_at: wg.preparation_started_at || nowIso_(),
+        room_ready_at: '', guest_notified_at: '', guest_seen_ready_at: '',
+      });
+      log(id, 'ready', 'preparing', wg.room_number, user, 'Room ready taken back: ' + why);
+      audit_(user, 'record.undo_ready', wg.wg_number + ' (' + why + ')');
       Store.bump();
       return toStaff(row);
     });
@@ -255,8 +295,9 @@ const Waiting = (function () {
       const wg = must(id);
       if (!isActive(wg)) throw HttpError_(409, 'This Waiting Guest is already closed');
       const now = nowIso_();
+      const fromStatus = wg.status;
       const row = Store.update('WaitingGuests', wg._row, { status: 'cancelled', cancelled_at: now, cancel_reason: why });
-      log(id, wg.status, 'cancelled', wg.room_number, user, why);
+      log(id, fromStatus, 'cancelled', wg.room_number, user, why);
       Store.bump();
       return toStaff(row);
     });
@@ -323,9 +364,9 @@ const Waiting = (function () {
       let room = r.room_number;
       if (needsRoom) {
         if (roomNumber) {
-          const rm = Store.find('Rooms', 'room_number', clean_(roomNumber, 10));
-          if (!rm) throw HttpError_(404, 'Room not found');
-          room = rm.room_number;
+          const typed = manualRoom(roomNumber);
+          const rm = Store.all('Rooms').filter(function (x) { return x.room_number.toUpperCase() === typed; })[0];
+          room = rm ? rm.room_number : typed; // a room not in the imported list is allowed for corrections
         }
         if (!room) throw HttpError_(409, 'Choose a room for this status');
         if (to !== 'completed') {
@@ -346,9 +387,10 @@ const Waiting = (function () {
       if (to === 'ready' && !r.guest_notified_at) patch.guest_notified_at = now;
       const reachedTs = { room_assigned: 'room_assigned_at', preparing: 'preparation_started_at', ready: 'room_ready_at', returned: 'guest_returned_at', completed: 'completed_at' }[to];
       if (reachedTs) patch[reachedTs] = now;
+      const fromStatus = r.status;
       const row = Store.update('WaitingGuests', r._row, patch);
-      log(id, r.status, to, room, user, 'Corrected by admin: ' + why);
-      audit_(user, 'record.status', r.wg_number + ' ' + r.status + ' -> ' + to + ' (' + why + ')');
+      log(id, fromStatus, to, room, user, 'Corrected by admin: ' + why);
+      audit_(user, 'record.status', r.wg_number + ' ' + fromStatus + ' -> ' + to + ' (' + why + ')');
       Store.bump();
       return toStaff(row);
     });
@@ -478,7 +520,7 @@ const Waiting = (function () {
     const held = {};
     Store.all('WaitingGuests').forEach(function (r) { if (r.room_number && isActive(r) && r.id !== forId) held[r.room_number] = true; });
     return Store.all('Rooms').filter(function (r) { return r.hk_status !== 'out_of_order' && !held[r.room_number]; })
-      .map(function (r) { return { roomNumber: r.room_number, building: r.building, floor: r.floor, roomType: r.room_type, hkStatus: r.hk_status, matchesType: r.room_type === wg.room_type }; })
+      .map(function (r) { return { roomNumber: r.room_number, building: r.building, floor: r.floor, roomType: r.room_type, hkStatus: r.hk_status, matchesType: r.room_type === wg.room_type, connecting: r.connecting, features: r.features ? r.features.split(',') : [] }; })
       .sort(function (a, b) { return (b.matchesType ? 1 : 0) - (a.matchesType ? 1 : 0) || (a.roomNumber < b.roomNumber ? -1 : 1); });
   }
 
@@ -617,7 +659,7 @@ const Waiting = (function () {
     return lines.join('\r\n');
   }
 
-  return { adminUpdate: adminUpdate, correctStatus: correctStatus, adminDelete: adminDelete, resetAll: resetAll, adminList: adminList,
+  return { undoReady: undoReady, adminUpdate: adminUpdate, correctStatus: correctStatus, adminDelete: adminDelete, resetAll: resetAll, adminList: adminList,
     create: create, editDetails: editDetails, assignRoom: assignRoom, setStatus: setStatus, cancel: cancel, setPriority: setPriority,
     queue: queue, recentClosed: recentClosed, get: get, history: history, search: search, availableRooms: availableRooms, guestView: guestView, markSeen: markSeen, feedback: feedback,
     metrics: metrics, exportCsv: exportCsv, toStaff: toStaff };

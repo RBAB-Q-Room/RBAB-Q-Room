@@ -123,7 +123,7 @@ WG.views.controller = function (root, user) {
   });
 
   /* ---------- detail ---------- */
-  function selectGuest(id) { S.selectedId = id; S.pendingRoom = null; $$('#queue .q').forEach((c) => c.classList.toggle('sel', Number(c.dataset.id) === id)); loadDetail(id); }
+  function selectGuest(id) { S.selectedId = id; S.pendingRoom = null; S.roomQ = ''; S.typedRoom = ''; $$('#queue .q').forEach((c) => c.classList.toggle('sel', Number(c.dataset.id) === id)); loadDetail(id); }
   function closeDetail() { S.selectedId = null; $('#detail').classList.remove('open'); renderDetailEmpty(); $$('#queue .q.sel').forEach((c) => c.classList.remove('sel')); }
   const renderDetailEmpty = () => { $('#detail').innerHTML = `<div class="card detail-empty empty">${icon('queue')}<b>Select a guest</b>Assign a room, update the status and see the full timeline.</div>`; };
   async function loadDetail(id, quiet) {
@@ -137,15 +137,35 @@ WG.views.controller = function (root, user) {
     } catch (e) { if (!e.silent) el.innerHTML = `<div class="banner err">${esc(e.message)}</div>`; }
   }
 
+  /* Room picker: search the list (number, building, floor, view, feature), or type any room number. */
+  const roomLine = (r) => [r.floor, ...roomFeatures(r, 2)].filter(Boolean).join(' · ');
+  function roomListHtml(d, pending) {
+    const g = d.waitingGuest;
+    const q = (S.roomQ || '').trim().toLowerCase();
+    const hit = (r) => !q || [r.roomNumber, r.building, r.floor, r.roomType, typeName(r.roomType), ...roomFeatures(r, 99)].join(' ').toLowerCase().includes(q);
+    const rooms = d.rooms.filter(hit);
+    const btn = (r) => `<button class="rm hk-${esc(r.hkStatus || 'na')}${pending === r.roomNumber ? ' on' : ''}" data-room="${esc(r.roomNumber)}" aria-pressed="${pending === r.roomNumber}"
+      title="${esc([r.roomNumber, r.roomType + ' · ' + typeName(r.roomType), r.building, r.floor, ...roomFeatures(r, 99), r.connecting ? 'connects to ' + r.connecting : '', r.hkStatus].filter(Boolean).join(' · '))}">
+      <b>${esc(r.roomNumber)}</b><small>${esc(r.matchesType ? roomLine(r) : r.roomType)}</small>${r.hkStatus ? `<i class="hk">${esc(r.hkStatus === 'out_of_order' ? 'OOO' : r.hkStatus)}</i>` : ''}</button>`;
+    const same = rooms.filter((r) => r.matchesType), other = rooms.filter((r) => !r.matchesType);
+    const byBuilding = (list) => {
+      const groups = {};
+      list.forEach((r) => { (groups[r.building || 'Rooms'] = groups[r.building || 'Rooms'] || []).push(r); });
+      return Object.keys(groups).map((b) => `<div class="rm-b">${esc(b)} <span>${groups[b].length}</span></div><div class="room-grid">${groups[b].map(btn).join('')}</div>`).join('');
+    };
+    if (!rooms.length) return `<p class="muted small" style="padding:8px 2px">${q ? `No free room matches "${esc(S.roomQ)}". You can type the room number above.` : 'No rooms in the list. Type the room number above, or ask an admin to load rooms from Room Guide.'}</p>`;
+    return `${same.length ? `<div class="rm-head">${esc(g.roomType)} · ${esc(typeName(g.roomType))} <span>${same.length} free</span></div>${byBuilding(same)}` : `<div class="muted small">No free ${esc(g.roomType)} rooms${q ? ' match this search' : ''}.</div>`}
+      ${other.length ? `<details class="rm-other" ${same.length && !q ? '' : 'open'}><summary>Other room types <span>${other.length}</span></summary>${byBuilding(other)}</details>` : ''}`;
+  }
   function roomPicker(d, pending) {
     const g = d.waitingGuest;
-    if (!d.rooms.length) return `<div class="banner info">${icon('alert')}<span>No rooms are available to assign. An admin can import rooms, or another guest's room must be released.</span></div>`;
-    const btn = (r) => `<button class="rm hk-${r.hkStatus}${pending === r.roomNumber ? ' on' : ''}" data-room="${esc(r.roomNumber)}" aria-pressed="${pending === r.roomNumber}" title="${esc(r.roomType)} · ${esc(typeName(r.roomType))}${r.building ? ' · ' + esc(r.building) : ''}"><b>${esc(r.roomNumber)}</b><small>${r.matchesType ? '' : esc(r.roomType) + ' · '}${r.hkStatus === 'inspected' ? 'inspected' : esc(r.hkStatus)}</small></button>`;
-    const same = d.rooms.filter((r) => r.matchesType), other = d.rooms.filter((r) => !r.matchesType);
-    return `${same.length ? `<div class="rm-head">${esc(g.roomType)} rooms <span>${same.length}</span></div><div class="room-grid">${same.map(btn).join('')}</div>` : `<div class="muted" style="font-size:12.5px">No free ${esc(g.roomType)} rooms.</div>`}
-      ${other.length ? `<details class="rm-other" ${same.length ? '' : 'open'}><summary>Other room types <span>${other.length}</span></summary><div class="room-grid">${other.map(btn).join('')}</div></details>` : ''}
-      <p class="legend-note">Housekeeping status comes from the last rooms import, not live from Opera.</p>
-      ${pending && pending !== g.roomNumber ? `<button class="btn btn-primary" id="assignBtn" style="width:100%">${g.roomNumber ? 'Change to' : 'Assign'} room ${esc(pending)}</button>` : `<p class="pick-hint">${g.roomNumber ? 'Tap another room to change it.' : 'Tap a room to assign it.'}</p>`}`;
+    return `<div class="rm-tools">
+        <div class="rm-type"><label for="rmTyped" class="label">Room number</label><div class="rm-type-row"><input class="in" id="rmTyped" maxlength="10" autocomplete="off" inputmode="text" placeholder="Type, e.g. 2104" value="${esc(S.typedRoom || '')}"><button class="btn btn-ghost" id="rmTypedGo" type="button">Use</button></div></div>
+        ${d.rooms.length > 8 ? `<div class="search-box compact rm-search">${icon('search')}<label for="rmQ" class="sr-only">Search rooms</label><input id="rmQ" type="search" placeholder="Search: building, floor, sea view, balcony…" value="${esc(S.roomQ || '')}" autocomplete="off"></div>` : ''}
+      </div>
+      <div id="rmList">${roomListHtml(d, pending)}</div>
+      <p class="legend-note">Rooms and features come from Room Guide. Housekeeping status is only shown if it was imported; it is not live from Opera.</p>
+      ${pending && pending !== g.roomNumber ? `<button class="btn btn-primary" id="assignBtn" style="width:100%">${g.roomNumber ? 'Change to' : 'Assign'} room ${esc(pending)}</button>` : `<p class="pick-hint">${g.roomNumber ? 'Tap another room, or type a number, to change it.' : 'Tap a room, or type its number, to assign it.'}</p>`}`;
   }
 
   function renderDetail(d) {
@@ -172,6 +192,7 @@ WG.views.controller = function (root, user) {
         ${g.status === 'room_assigned' ? `<button class="btn btn-ghost" data-status="preparing">Start room preparation</button>` : ''}
         ${['room_assigned', 'preparing'].includes(g.status) ? `<button class="btn btn-ready" data-status="ready">${icon('key')} Mark room ${esc(g.roomNumber)} ready</button>` : ''}
         ${ready ? `<div class="eng-line">${engagementHtml(g)}</div>` : ''}
+        ${g.status === 'ready' ? `<button class="btn btn-ghost btn-sm undo" id="undoReadyBtn">${icon('clock')} Room not ready after all? Take it back</button>` : ''}
       </div>
       ${canPick ? `<div class="d-sec"><div class="section-label">${g.roomNumber ? 'Change room' : 'Assign a room'}</div>${roomPicker(d, pending)}</div>` : ''}
       <div class="d-sec">${detailGroupsHtml(g, typeName)}</div>
@@ -181,9 +202,36 @@ WG.views.controller = function (root, user) {
     el.scrollTop = scroll;
     tickTimers();
     $('#dClose').onclick = closeDetail;
-    $$('#detail .rm').forEach((b) => b.onclick = () => { S.pendingRoom = { id: g.id, room: b.dataset.room }; renderDetail(d); const again = $(`#detail .rm[data-room="${b.dataset.room}"]`); if (again) again.focus(); });
+    const list = $('#rmList');
+    if (list) list.addEventListener('click', (e) => {
+      const b = e.target.closest('.rm'); if (!b) return;
+      S.pendingRoom = { id: g.id, room: b.dataset.room }; S.typedRoom = '';
+      renderDetail(d); const again = $(`#detail .rm[data-room="${b.dataset.room}"]`); if (again) again.focus();
+    });
+    const rq = $('#rmQ');
+    if (rq) rq.addEventListener('input', () => { S.roomQ = rq.value; $('#rmList').innerHTML = roomListHtml(d, pending); });
+    const typed = $('#rmTyped'), typedGo = $('#rmTypedGo');
+    const useTyped = async () => {
+      const v = typed.value.trim().toUpperCase().replace(/\s+/g, '');
+      S.typedRoom = typed.value;
+      if (!v) { typed.focus(); return; }
+      if (!/^[A-Z0-9-]{1,10}$/.test(v)) { toast('Use letters, numbers or a dash for the room number', 'err'); typed.focus(); return; }
+      const listed = d.rooms.find((r) => r.roomNumber.toUpperCase() === v);
+      if (listed) { S.pendingRoom = { id: g.id, room: listed.roomNumber }; S.typedRoom = ''; renderDetail(d); return; }
+      const ok = await confirmDialog({ title: `Assign room ${v}?`, body: `Room <b>${esc(v)}</b> is not in the free-room list: it may be missing from Room Guide, out of order, or held by another guest. Assign it anyway? It will be marked as entered manually.`, confirmLabel: `Assign ${v}` });
+      if (!ok) return;
+      act(typedGo, () => api('POST', `/api/waiting-guests/${g.id}/assign-room`, { roomNumber: v, manual: true }), `Room ${v} assigned to ${g.guestName}`, () => { S.pendingRoom = null; S.typedRoom = ''; });
+    };
+    if (typedGo) typedGo.onclick = useTyped;
+    if (typed) typed.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); useTyped(); } });
     const ab = $('#assignBtn');
     if (ab) ab.onclick = () => act(ab, () => api('POST', `/api/waiting-guests/${g.id}/assign-room`, { roomNumber: pending }), `Room ${pending} assigned to ${g.guestName}`, () => { S.pendingRoom = null; });
+    const ub = $('#undoReadyBtn');
+    if (ub) ub.onclick = async () => {
+      const reason = await dialog({ title: `Take back "room ready" for ${g.roomNumber}?`, body: `${esc(g.guestName)}'s page goes back to <b>Your room is being prepared</b>, and the record returns to "Room Being Prepared". Use this when the room was marked ready by mistake.`, confirmLabel: 'Take back', cancelLabel: 'Keep ready', input: { label: 'Reason (required)', min: 3, error: 'Please give a short reason' } });
+      if (!reason) return;
+      act(ub, () => api('POST', `/api/waiting-guests/${g.id}/undo-ready`, { reason }), `Room ${g.roomNumber} is back to "being prepared"`);
+    };
     $$('[data-status]').forEach((b) => b.onclick = async () => {
       const to = b.dataset.status;
       if (to === 'ready') {
